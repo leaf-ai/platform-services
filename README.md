@@ -9,7 +9,7 @@ Or from source when this is part of a larger project using multiple services:
 ```
 mkdir ~/project
 export GOPATH=`pwd`
-mkdir src/github.com/KarlMutch
+mkdir -p src/github.com/KarlMutch
 cd src/github.com/KarlMutch
 git clone github.com/KarlMutch/MeshTest
 cd MeshTest
