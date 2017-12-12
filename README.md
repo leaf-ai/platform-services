@@ -11,6 +11,7 @@ Clone the repository using the following instructions when this is part of a lar
 ```
 mkdir ~/project
 export GOPATH=`pwd`
+export PATH=$GOPATH/bin:$PATH
 mkdir -p src/github.com/KarlMutch
 cd src/github.com/KarlMutch
 git clone https://github.com/KarlMutch/MeshTest
