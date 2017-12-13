@@ -12,15 +12,15 @@ export PATH=$PATH:$GOPATH/bin
 go get -u -f github.com/golang/dep/cmd/dep
 go get -u -f github.com/aktau/github-release
 dep ensure -no-vendor
-mkdir -p bin
-go build -ldflags "-X main.buildTime=$DATE -X main.gitHash=$HASH" -o bin/timesrv cmd/timesrv/*.go
-go build -ldflags "-X main.buildTime=$DATE -X main.gitHash=$HASH" -race -o bin/timesrv-race cmd/timesrv/*.go
-go test -ldflags "-X command-line-arguments.TestRunMain=Use -X command-line-arguments.buildTime=$DATE -X command-line-arguments.gitHash=$HASH" -coverpkg="." -c -o bin/timesrv-run-coverage cmd/timesrv/*.go
+mkdir -p cmd/timesrv/bin
+go build -ldflags "-X main.buildTime=$DATE -X main.gitHash=$HASH" -o cmd/timesrv/bin/timesrv cmd/timesrv/*.go
+go build -ldflags "-X main.buildTime=$DATE -X main.gitHash=$HASH" -race -o cmd/timesrv/bin/timesrv-race cmd/timesrv/*.go
+go test -ldflags "-X command-line-arguments.TestRunMain=Use -X command-line-arguments.buildTime=$DATE -X command-line-arguments.gitHash=$HASH" -coverpkg="." -c -o cmd/timesrv/bin/timesrv-run-coverage cmd/timesrv/*.go
 go test -ldflags "-X command-line-arguments.buildTime=$DATE -X command-line-arguments.gitHash=$HASH" -coverpkg="." -c -o bin/timesrv-test-coverage cmd/timesrv/*.go
-go test -ldflags "-X command-line-arguments.buildTime=$DATE -X command-line-arguments.gitHash=$HASH" -race -c -o bin/timesrv-test cmd/timesrv/*.go
+go test -ldflags "-X command-line-arguments.buildTime=$DATE -X command-line-arguments.gitHash=$HASH" -race -c -o cmd/timesrv/bin/timesrv-test cmd/timesrv/*.go
 if ! [ -z ${TRAVIS_TAG+x} ]; then
     if ! [ -z ${GITHUB_TOKEN+x} ]; then
         github-release release --user karlmutch --repo MeshTest --tag ${TRAVIS_TAG} --pre-release && \
-        github-release upload --user karlmutch --repo MeshTest  --tag ${TRAVIS_TAG} --name MeshTest --file bin/timesrv
+        github-release upload --user karlmutch --repo MeshTest  --tag ${TRAVIS_TAG} --name MeshTest --file cmd/timesrv/bin/timesrv
     fi
 fi
