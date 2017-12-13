@@ -18,7 +18,7 @@ import (
 	"github.com/karlmutch/errors"
 )
 
-const serviceName = "expmanager"
+const serviceName = "timesrv"
 
 var (
 	buildTime string
@@ -29,7 +29,7 @@ var (
 
 func usage() {
 	fmt.Fprintln(os.Stderr, path.Base(os.Args[0]))
-	fmt.Fprintln(os.Stderr, "usage: ", os.Args[0], "[arguments]      experiment management service      ", gitHash, "    ", buildTime)
+	fmt.Fprintln(os.Stderr, "usage: ", os.Args[0], "[arguments]      example time service      ", gitHash, "    ", buildTime)
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Arguments:")
 	fmt.Fprintln(os.Stderr, "")
