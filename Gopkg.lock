@@ -8,6 +8,27 @@
   revision = "bb3d318650d48840a39aa21a027c6630e198e626"
 
 [[projects]]
+  name = "github.com/go-chi/chi"
+  packages = [
+    ".",
+    "middleware"
+  ]
+  revision = "687d2792aedd8e8ac3bbd8592cf55b91d7ea8ce9"
+  version = "v3.3.1"
+
+[[projects]]
+  name = "github.com/go-chi/docgen"
+  packages = ["."]
+  revision = "ac43d9a63f3b58b1e82922411d2de365d896ee72"
+  version = "v1.0.2"
+
+[[projects]]
+  name = "github.com/go-chi/render"
+  packages = ["."]
+  revision = "9f855fadd4b8cde7773f9ef51f6b2705af239519"
+  version = "v1.0.0"
+
+[[projects]]
   name = "github.com/go-stack/stack"
   packages = ["."]
   revision = "259ab82a6cad3992b4e21ff5cac294ccb06474bc"
@@ -18,18 +39,6 @@
   packages = ["."]
   revision = "9898238679c264cfb10411539f14a0553dc8b295"
   version = "v1.0.0"
-
-[[projects]]
-  name = "github.com/gorilla/context"
-  packages = ["."]
-  revision = "1ea25387ff6f684839d82767c1733ff4d4d15d0a"
-  version = "v1.1"
-
-[[projects]]
-  name = "github.com/gorilla/mux"
-  packages = ["."]
-  revision = "7f08801859139f86dfafd1c296e2cba9a80d292e"
-  version = "v1.6.0"
 
 [[projects]]
   name = "github.com/jjeffery/kv"
@@ -88,6 +97,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "99408bd42cef72a40694de4cfc0a08378e552e2b333dd1c7d67a072a21702668"
+  inputs-digest = "ebcaf243309fbedf2b3cb1104ed5a9c6e39843cdb483c75662513133f9f83432"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -4,10 +4,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/karlmutch/errors"
 )
 
 func TestInfo(t *testing.T) {
-	r := Router()
+	r, _ := Router([]errors.Error{})
 
 	ts := httptest.NewServer(r)
 	defer ts.Close()

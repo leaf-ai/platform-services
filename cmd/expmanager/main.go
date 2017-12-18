@@ -150,6 +150,20 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 
 	signal.Notify(stopC, os.Interrupt, syscall.SIGTERM)
 
+	msg := fmt.Sprintf("git hash version %s", version.GitHash)
+	logger.Info(msg)
+
+	handler, errs := Router(errs)
+
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", *serverPort),
+		Handler: handler,
+	}
+
+	if srv.Handler == nil {
+		return errs
+	}
+
 	// Now check for any fatal errors before allowing the system to continue.  This allows
 	// all errors that could have ocuured as a result of incorrect options to be flushed
 	// out rather than having a frustrating single failure at a time loop for users
@@ -157,14 +171,6 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 	//
 	if len(errs) != 0 {
 		return errs
-	}
-
-	msg := fmt.Sprintf("git hash version %s", version.GitHash)
-	logger.Info(msg)
-
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", *serverPort),
-		Handler: Router(),
 	}
 
 	go func() {

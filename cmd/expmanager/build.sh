@@ -6,7 +6,7 @@ then
   exit 990
 fi
 
-export HASH=`git rev-parse HEAD`
+export HASH=`git rev-parse --short HEAD`
 export DATE=`date '+%Y-%m-%d_%H:%M:%S%z'`
 export PATH=$PATH:$GOPATH/bin
 go get -u -f github.com/golang/dep/cmd/dep
