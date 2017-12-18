@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/KarlMutch/MeshTest"
+	"github.com/KarlMutch/MeshTest/version"
 
 	"github.com/karlmutch/envflag"
 
@@ -21,15 +22,12 @@ import (
 const serviceName = "timesrv"
 
 var (
-	buildTime string
-	gitHash   string
-
 	logger = expmanager.NewLogger(serviceName)
 )
 
 func usage() {
 	fmt.Fprintln(os.Stderr, path.Base(os.Args[0]))
-	fmt.Fprintln(os.Stderr, "usage: ", os.Args[0], "[arguments]      example time service      ", gitHash, "    ", buildTime)
+	fmt.Fprintln(os.Stderr, "usage: ", os.Args[0], "[arguments]      example time service      ", version.GitHash, "    ", version.BuildTime)
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Arguments:")
 	fmt.Fprintln(os.Stderr, "")
@@ -80,7 +78,7 @@ func main() {
 //
 func Main() {
 
-	fmt.Printf("%s built at %s, against commit id %s\n", os.Args[0], buildTime, gitHash)
+	fmt.Printf("%s built at %s, against commit id %s\n", os.Args[0], version.BuildTime, version.GitHash)
 
 	flag.Usage = usage
 
@@ -158,7 +156,7 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 		return errs
 	}
 
-	msg := fmt.Sprintf("git hash version %s", gitHash)
+	msg := fmt.Sprintf("git hash version %s", version.GitHash)
 	logger.Info(msg)
 
 	// Start a dummy service for now.  Normally this would be the production main processing loop,

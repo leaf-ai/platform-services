@@ -13,11 +13,11 @@ go get -u -f github.com/golang/dep/cmd/dep
 go get -u -f github.com/aktau/github-release
 dep ensure -no-vendor
 mkdir -p cmd/expmanager/bin
-go build -ldflags "-X main.buildTime=$DATE -X main.gitHash=$HASH" -o cmd/expmanager/bin/expmanager cmd/expmanager/*.go
-go build -ldflags "-X main.buildTime=$DATE -X main.gitHash=$HASH" -race -o cmd/expmanager/bin/expmanager-race cmd/expmanager/*.go
-go test -ldflags "-X command-line-arguments.TestRunMain=Use -X command-line-arguments.buildTime=$DATE -X command-line-arguments.gitHash=$HASH" -coverpkg="." -c -o cmd/expmanager/bin/expmanager-run-coverage cmd/expmanager/*.go
-go test -ldflags "-X command-line-arguments.buildTime=$DATE -X command-line-arguments.gitHash=$HASH" -coverpkg="." -c -o cmd/expmanager/bin/expmanager-test-coverage cmd/expmanager/*.go
-go test -ldflags "-X command-line-arguments.buildTime=$DATE -X command-line-arguments.gitHash=$HASH" -race -c -o cmd/expmanager/bin/expmanager-test cmd/expmanager/*.go
+go build -ldflags "-X version.BuildTime=$DATE -X version.GitHash=$HASH" -o cmd/expmanager/bin/expmanager cmd/expmanager/*.go
+go build -ldflags "-X version.BuildTime=$DATE -X version.GitHash=$HASH" -race -o cmd/expmanager/bin/expmanager-race cmd/expmanager/*.go
+go test -ldflags "-X command-line-arguments.TestRunMain=Use -X command-line-arguments.BuildTime=$DATE -X command-line-arguments.GitHash=$HASH" -coverpkg="." -c -o cmd/expmanager/bin/expmanager-run-coverage cmd/expmanager/*.go
+go test -ldflags "-X command-line-arguments.BuildTime=$DATE -X command-line-arguments.GitHash=$HASH" -coverpkg="." -c -o cmd/expmanager/bin/expmanager-test-coverage cmd/expmanager/*.go
+go test -ldflags "-X command-line-arguments.BuildTime=$DATE -X command-line-arguments.GitHash=$HASH" -race -c -o cmd/expmanager/bin/expmanager-test cmd/expmanager/*.go
 if ! [ -z ${TRAVIS_TAG+x} ]; then
     if ! [ -z ${GITHUB_TOKEN+x} ]; then
         github-release release --user karlmutch --repo MeshTest --tag ${TRAVIS_TAG} --pre-release && \

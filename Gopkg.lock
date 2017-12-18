@@ -14,6 +14,24 @@
   version = "v1.7.0"
 
 [[projects]]
+  name = "github.com/go-test/deep"
+  packages = ["."]
+  revision = "9898238679c264cfb10411539f14a0553dc8b295"
+  version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/gorilla/context"
+  packages = ["."]
+  revision = "1ea25387ff6f684839d82767c1733ff4d4d15d0a"
+  version = "v1.1"
+
+[[projects]]
+  name = "github.com/gorilla/mux"
+  packages = ["."]
+  revision = "7f08801859139f86dfafd1c296e2cba9a80d292e"
+  version = "v1.6.0"
+
+[[projects]]
   name = "github.com/jjeffery/kv"
   packages = ["."]
   revision = "e16ed12583c8a365f8ae714c7564eeef173447dc"
@@ -70,6 +88,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "89b2cc5a4e1e9a78baf0ecfecb62b009d94b88d0f6b09b4c5667a3a1fef3da29"
+  inputs-digest = "99408bd42cef72a40694de4cfc0a08378e552e2b333dd1c7d67a072a21702668"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"path"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/KarlMutch/MeshTest"
+	"github.com/KarlMutch/MeshTest/version"
 
 	"github.com/karlmutch/envflag"
 
@@ -21,15 +23,14 @@ import (
 const serviceName = "expmanager"
 
 var (
-	buildTime string
-	gitHash   string
-
 	logger = expmanager.NewLogger(serviceName)
+
+	serverPort = flag.Int("port", 8000, "The TCP REST Server port number")
 )
 
 func usage() {
 	fmt.Fprintln(os.Stderr, path.Base(os.Args[0]))
-	fmt.Fprintln(os.Stderr, "usage: ", os.Args[0], "[arguments]      experiment management service      ", gitHash, "    ", buildTime)
+	fmt.Fprintln(os.Stderr, "usage: ", os.Args[0], "[arguments]      experiment management service      ", version.GitHash, "    ", version.BuildTime)
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Arguments:")
 	fmt.Fprintln(os.Stderr, "")
@@ -80,7 +81,7 @@ func main() {
 //
 func Main() {
 
-	fmt.Printf("%s built at %s, against commit id %s\n", os.Args[0], buildTime, gitHash)
+	fmt.Printf("%s built at %s, against commit id %s\n", os.Args[0], version.BuildTime, version.GitHash)
 
 	flag.Usage = usage
 
@@ -158,8 +159,20 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 		return errs
 	}
 
-	msg := fmt.Sprintf("git hash version %s", gitHash)
+	msg := fmt.Sprintf("git hash version %s", version.GitHash)
 	logger.Info(msg)
+
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", *serverPort),
+		Handler: Router(),
+	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			logger.Warn(errors.Wrap(err).With("stack", stack.Trace().TrimRuntime()).Error())
+		}
+		close(quitC)
+	}()
 
 	// Start a dummy service for now.  Normally this would be the production main processing loop,
 	// or a collection of independently processing components
