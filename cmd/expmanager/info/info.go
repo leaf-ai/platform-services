@@ -1,4 +1,4 @@
-package main
+package info
 
 // This file implements a simple info resource for the
 // REST server
@@ -11,7 +11,7 @@ import (
 	"github.com/KarlMutch/MeshTest/version"
 )
 
-type Info struct {
+type info struct {
 	GitHash    string `json:"VersionHash,omitempty"`
 	BuildStamp string `json:"BuildTimeStamp,omitempty"`
 }
@@ -22,7 +22,7 @@ var (
 )
 
 func init() {
-	inf := &Info{
+	inf := &info{
 		GitHash:    version.GitHash,
 		BuildStamp: version.BuildTime,
 	}
@@ -33,7 +33,7 @@ func init() {
 	imprint = string(b)
 }
 
-func info(w http.ResponseWriter, _ *http.Request) {
+func Info(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	fmt.Fprint(w, imprint)

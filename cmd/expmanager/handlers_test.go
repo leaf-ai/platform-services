@@ -1,15 +1,9 @@
 package main
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/go-test/deep"
-
-	"github.com/KarlMutch/MeshTest/version"
 )
 
 func TestInfo(t *testing.T) {
@@ -40,35 +34,5 @@ func TestInfo(t *testing.T) {
 	}
 	if res.StatusCode != http.StatusNotFound {
 		t.Errorf("invalid resource did not fail a GET test")
-	}
-}
-
-func TestInfoContent(t *testing.T) {
-	w := httptest.NewRecorder()
-	info(w, nil)
-
-	resp := w.Result()
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("/info resource could not be retrieved %d", resp.StatusCode)
-	}
-
-	infoData, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	infoBlock := &Info{}
-	if err = json.Unmarshal(infoData, infoBlock); err != nil {
-		t.Fatal(err)
-	}
-
-	infoRef := &Info{
-		GitHash:    version.GitHash,
-		BuildStamp: version.BuildTime,
-	}
-	if diff := deep.Equal(infoBlock, infoRef); diff != nil {
-		t.Error(diff)
 	}
 }
