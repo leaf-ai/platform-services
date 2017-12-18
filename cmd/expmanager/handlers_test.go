@@ -12,12 +12,28 @@ func TestInfo(t *testing.T) {
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 
-	res, err := http.Get(ts.URL + "/info")
+	res, err := http.Get(ts.URL + "/health")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res.StatusCode != http.StatusOK {
-		t.Errorf("unable to locater the /info resource %d", res.StatusCode)
+		t.Errorf("unable to locate the /health resource %d", res.StatusCode)
+	}
+
+	res, err = http.Post(ts.URL+"/health", "text/plain", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("resource /health appears to allow PUTs unexpectedly %d", res.StatusCode)
+	}
+
+	res, err = http.Get(ts.URL + "/info")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("unable to locate the /info resource %d", res.StatusCode)
 	}
 
 	res, err = http.Post(ts.URL+"/info", "text/plain", nil)
@@ -25,7 +41,7 @@ func TestInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	if res.StatusCode != http.StatusMethodNotAllowed {
-		t.Errorf("resource/info appears to allow PUTs unexpectedly %d", res.StatusCode)
+		t.Errorf("resource /info appears to allow PUTs unexpectedly %d", res.StatusCode)
 	}
 
 	res, err = http.Get(ts.URL + "/not-exists")
