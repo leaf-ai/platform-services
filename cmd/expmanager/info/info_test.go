@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-test/deep"
 
-	"github.com/KarlMutch/MeshTest/version"
+	"github.com/karlmutch/MeshTest/version"
 )
 
 func TestInfoContent(t *testing.T) {

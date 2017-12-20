@@ -32,6 +32,6 @@ WORKDIR /home/${USER}
 ENV GOPATH=/project
 
 VOLUME /project
-WORKDIR /project/src/github.com/KarlMutch/MeshTest
+WORKDIR /project/src/github.com/karlmutch/MeshTest
 
-CMD /bin/bash -C ./cmd/expmanager/build.sh ; /bin/bash -C ./cmd/timesrv/build.sh
+CMD /bin/bash -C ./cmd/timesrv/build.sh ; /bin/bash -C ./cmd/expmanager/build.sh 

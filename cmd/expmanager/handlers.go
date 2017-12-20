@@ -13,8 +13,8 @@ import (
 	"github.com/go-chi/docgen"
 	"github.com/go-chi/render"
 
-	"github.com/KarlMutch/MeshTest/cmd/expmanager/health"
-	"github.com/KarlMutch/MeshTest/cmd/expmanager/info"
+	"github.com/karlmutch/MeshTest/cmd/expmanager/health"
+	"github.com/karlmutch/MeshTest/cmd/expmanager/info"
 
 	"github.com/karlmutch/errors"
 )

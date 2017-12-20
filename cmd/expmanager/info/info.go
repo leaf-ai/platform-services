@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/KarlMutch/MeshTest/version"
+	"github.com/karlmutch/MeshTest/version"
 )
 
 type info struct {

@@ -1,0 +1,23 @@
+---
+swagger: '2.0'
+info:
+  version: 1.0.0
+  title: REST Time Server
+paths:
+  /time:
+    get:
+      produces:
+        - text/plain
+      parameters:
+        - name: timezone
+          required: false
+          type: string
+          in: query
+          description: defaults to UTC if not gievm
+      operationId: getTime
+      responses:
+        200:
+          description: returns the local time
+          schema:
+              type: string
+              description: contains the actual time in the specified timezone

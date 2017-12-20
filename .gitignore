@@ -15,3 +15,6 @@
 
 
 bin/
+gen/
+vendor/github.com/karlmutch/MeshTest/gen
+

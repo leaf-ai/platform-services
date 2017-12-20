@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/KarlMutch/MeshTest"
-	"github.com/KarlMutch/MeshTest/version"
+	"github.com/karlmutch/MeshTest"
+	"github.com/karlmutch/MeshTest/version"
 
 	"github.com/karlmutch/envflag"
 
@@ -23,6 +23,8 @@ const serviceName = "timesrv"
 
 var (
 	logger = expmanager.NewLogger(serviceName)
+
+	port = flag.Int("port", 3000, "TCP/IP port to run this REST service on")
 )
 
 func usage() {
@@ -159,10 +161,21 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 	msg := fmt.Sprintf("git hash version %s", version.GitHash)
 	logger.Info(msg)
 
+	// Will start a go routine internally and send errors on the channel.
+	// An error present on the channel implies that the REST server has
+	// failed
+	errC := runServer(ctx, *port)
+
 	// Start a dummy service for now.  Normally this would be the production main processing loop,
 	// or a collection of independently processing components
-	go func(ctx context.Context) {
-		<-ctx.Done()
+	func(ctx context.Context) {
+		select {
+		case <-ctx.Done():
+		case err := <-errC:
+			if err != nil {
+				logger.Error(err.Error())
+			}
+		}
 	}(ctx)
 
 	return nil

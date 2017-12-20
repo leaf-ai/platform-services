@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/KarlMutch/MeshTest"
-	"github.com/KarlMutch/MeshTest/version"
+	"github.com/karlmutch/MeshTest"
+	"github.com/karlmutch/MeshTest/version"
 
 	"github.com/karlmutch/envflag"
 
