@@ -2,12 +2,16 @@
 swagger: '2.0'
 info:
   version: 1.0.0
-  title: REST Time Server
+  title: Time Server
+produces:
+  - application/json
+schemes:
+  - http
 paths:
   /time:
     get:
       produces:
-        - text/plain
+        - application/json
       parameters:
         - name: timezone
           required: false
@@ -17,7 +21,27 @@ paths:
       operationId: getTime
       responses:
         200:
-          description: returns the local time
+          description: OK
           schema:
-              type: string
-              description: contains the actual time in the specified timezone
+            $ref: "#/definitions/time"
+        default:
+          description: generic error response
+          schema:
+            $ref: "#/definitions/error"
+definitions:
+  time:
+    type: object
+    properties:
+      timestamp:
+        type: string
+        format: date-time
+  error:
+    type: object
+    required:
+      - message
+    properties:
+      code:
+        type: integer
+        format: int64
+      message:
+        type: string

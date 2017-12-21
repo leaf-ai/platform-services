@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/go-stack/stack"
@@ -10,8 +11,10 @@ import (
 
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/runtime/middleware"
+	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 
+	"github.com/karlmutch/MeshTest/gen/models"
 	"github.com/karlmutch/MeshTest/gen/restapi"
 	"github.com/karlmutch/MeshTest/gen/restapi/operations"
 )
@@ -40,8 +43,20 @@ func runServer(ctx context.Context, port int) (errC chan errors.Error) {
 				tz = "UTC"
 			}
 
-			theTime := fmt.Sprintf("%s", time.Now())
-			return operations.NewGetTimeOK().WithPayload(theTime)
+			loc, err := time.LoadLocation(tz)
+			if err != nil {
+				return operations.NewGetTimeDefault(http.StatusBadRequest).WithPayload(
+					&models.Error{
+						Code:    http.StatusBadRequest,
+						Message: swag.String(fmt.Sprintf("invalid Timezone (%s)", tz)),
+					})
+			}
+
+			detail := &models.Time{
+				Timestamp: strfmt.DateTime(time.Now().In(loc)),
+			}
+
+			return operations.NewGetTimeOK().WithPayload(detail)
 		})
 
 	go func() {
