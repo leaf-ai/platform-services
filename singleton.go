@@ -1,4 +1,4 @@
-package expmanager
+package platform
 
 // This file contains the implementation of code that checks to ensure
 // that the local machine only has one entity accessing a named resource.

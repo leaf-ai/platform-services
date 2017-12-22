@@ -48,8 +48,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/karlmutch/MeshTest"
-	"github.com/karlmutch/MeshTest/version"
+	"github.com/karlmutch/platform-services"
+	"github.com/karlmutch/platform-services/version"
 
 	"github.com/karlmutch/envflag"
 
@@ -60,7 +60,7 @@ import (
 const serviceName = "echosrv"
 
 var (
-	logger = expmanager.NewLogger(serviceName)
+	logger = platform.NewLogger(serviceName)
 
 	port = flag.Int("port", 3000, "TCP/IP port to run this REST service on")
 )
@@ -97,7 +97,7 @@ func main() {
 
 	// This is the one check that does not get tested when the server is under test
 	//
-	if _, err := expmanager.NewExclusive(serviceName, quitC); err != nil {
+	if _, err := platform.NewExclusive(serviceName, quitC); err != nil {
 		logger.Error(fmt.Sprintf("An instance of this process is already running %s", err.Error()))
 		os.Exit(-1)
 	}

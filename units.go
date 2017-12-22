@@ -1,4 +1,4 @@
-package expmanager
+package platform
 
 // This file contains the implementation of a function for parsing and handling
 // string representations of numeric values for RAM and disk space etc

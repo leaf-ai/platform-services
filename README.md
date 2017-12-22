@@ -1,9 +1,9 @@
-# MeshTest
+# platform-services
 A PoC with functioning service using simple Istio Mesh running on K8s
 
 # Installation
 
-go get github.com/karlmutch/MeshTest
+go get github.com/karlmutch/platform-services
 
 # Development and Building from source
 
@@ -14,8 +14,8 @@ export GOPATH=`pwd`
 export PATH=$GOPATH/bin:$PATH
 mkdir -p src/github.com/karlmutch
 cd src/github.com/karlmutch
-git clone https://github.com/karlmutch/MeshTest
-cd MeshTest
+git clone https://github.com/karlmutch/platform-services
+cd platform-services
 ```
 
 To boostrap development you will need a copy of Go and the go dependency tools available.  Builds do not need this general however for our purposes we might want to change dependency versions so we should install go and the dep tool.
