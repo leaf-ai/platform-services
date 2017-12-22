@@ -1,12 +1,42 @@
 package main
 
-// This file contains the implementation of a simple time server that uses REST
-// and swagger.
+// This file contains the implementation of an echo service.  This service
+// supports reflection in the same manner as does swagger style services.
+// To access these facilities and to use a command line tool for testing the
+// grpc_cli tool is used.  This tool can be installed using the instructions
+// found at https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md
 //
-// The server can be tested using the httpie tool. For example:
+// Testing this service can be done by starting the binary and then using commands
+// such as:
 //
-// http GET localhost:3000/time timezone==US/Pacific
+// bins/opt/grpc_cli call localhost:3000 ai.sentient.echo.EchoService.Echo "message: 'test'"
+// connecting to localhost:3000
+// message: "test"
+// date_time {
+// 	  seconds: 1513910233
+// }
 //
+// Rpc succeeded with OK status
+//
+// Using the cli tool more detailed information can be uncovered, for example:
+//
+// bins/opt/grpc_cli ls localhost:3000 ai.sentient.echo.EchoService Echo
+// Echo
+//
+// bins/opt/grpc_cli ls localhost:3000 ai.sentient.echo.EchoService/Echo --l
+//   rpc Echo(ai.sentient.echo.EchoRequest) returns (ai.sentient.echo.EchoResponse) {}
+//
+// bins/opt/grpc_cli type localhost:3000 ai.sentient.echo.EchoResponse
+// message EchoResponse {
+//  string message = 1[json_name = "message"];
+//    .google.protobuf.Timestamp date_time = 2[json_name = "dateTime"];
+// }
+//
+// bins/opt/grpc_cli type localhost:3000 google.protobuf.Timestamp
+// message Timestamp {
+//  int64 seconds = 1[json_name = "seconds"];
+//    int32 nanos = 2[json_name = "nanos"];
+// }
 
 import (
 	"context"
@@ -27,7 +57,7 @@ import (
 	"github.com/karlmutch/errors"
 )
 
-const serviceName = "timesrv"
+const serviceName = "echosrv"
 
 var (
 	logger = expmanager.NewLogger(serviceName)
@@ -37,7 +67,7 @@ var (
 
 func usage() {
 	fmt.Fprintln(os.Stderr, path.Base(os.Args[0]))
-	fmt.Fprintln(os.Stderr, "usage: ", os.Args[0], "[arguments]      example time service      ", version.GitHash, "    ", version.BuildTime)
+	fmt.Fprintln(os.Stderr, "usage: ", os.Args[0], "[arguments]      example echo service      ", version.GitHash, "    ", version.BuildTime)
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Arguments:")
 	fmt.Fprintln(os.Stderr, "")
