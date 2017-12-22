@@ -10,6 +10,8 @@ import (
 	"github.com/karlmutch/errors"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
 	timestamp "github.com/golang/protobuf/ptypes/timestamp"
@@ -18,6 +20,7 @@ import (
 )
 
 type echoServer struct {
+	health *health.Server
 }
 
 func (*echoServer) Echo(ctx context.Context, in *echo.EchoRequest) (resp *echo.EchoResponse, err error) {
@@ -25,15 +28,24 @@ func (*echoServer) Echo(ctx context.Context, in *echo.EchoRequest) (resp *echo.E
 		return nil, fmt.Errorf("request is missing a message to echo")
 	}
 
-	return &echo.EchoResponse{Message: in.Message, DateTime: &timestamp.Timestamp{Seconds: time.Now().Unix()}}, nil
+	return &echo.EchoResponse{
+		Message:  in.Message,
+		DateTime: &timestamp.Timestamp{Seconds: time.Now().Unix()}}, nil
 }
 
-func runServer(ctx context.Context, port int) (errC chan errors.Error) {
+func (es *echoServer) Check(ctx context.Context, in *grpc_health_v1.HealthCheckRequest) (resp *grpc_health_v1.HealthCheckResponse, err error) {
+	return es.health.Check(ctx, in)
+}
+
+func runServer(ctx context.Context, serviceName string, port int) (errC chan errors.Error) {
 
 	errC = make(chan errors.Error, 3)
 
 	server := grpc.NewServer()
-	echo.RegisterEchoServiceServer(server, &echoServer{})
+	echoSrv := &echoServer{health: health.NewServer()}
+
+	echo.RegisterEchoServiceServer(server, echoSrv)
+	grpc_health_v1.RegisterHealthServer(server, echoSrv)
 
 	reflection.Register(server)
 
@@ -44,10 +56,13 @@ func runServer(ctx context.Context, port int) (errC chan errors.Error) {
 	}
 
 	go func() {
+		echoSrv.health.SetServingStatus(serviceName, grpc_health_v1.HealthCheckResponse_SERVING)
+
 		// serve API
 		if err := server.Serve(netListen); err != nil {
 			errC <- errors.Wrap(err).With("stack", stack.Trace().TrimRuntime())
 		}
+		echoSrv.health.SetServingStatus(serviceName, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 		func() {
 			defer recover()
 			close(errC)

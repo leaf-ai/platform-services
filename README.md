@@ -41,3 +41,5 @@ Prior to doing the build a GitHub OAUTH token needs to be defined within your en
 ```
 docker run -e GITHUB_TOKEN=$GITHUB_TOKEN -e TRAVIS_TAG=$TRAVIS_TAG -v $GOPATH:/project meshtest ; echo "Done" ; docker container prune -f
 ```
+
+A combined build script is provided 'platform-services/build.sh' to allow all stages of the build including producing docker images to be run together.

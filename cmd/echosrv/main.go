@@ -202,7 +202,7 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 	// Will start a go routine internally and send errors on the channel.
 	// An error present on the channel implies that the REST server has
 	// failed
-	errC := runServer(ctx, *port)
+	errC := runServer(ctx, serviceName, *port)
 
 	// Start a dummy service for now.  Normally this would be the production main processing loop,
 	// or a collection of independently processing components
