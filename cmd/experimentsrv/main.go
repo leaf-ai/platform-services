@@ -1,6 +1,6 @@
 package main
 
-// This file contains the implementation of an echo service.  This service
+// This file contains the implementation of an experiment service.  This service
 // supports reflection in the same manner as does swagger style services.
 // To access these facilities and to use a command line tool for testing the
 // grpc_cli tool is used.  This tool can be installed using the instructions
@@ -9,7 +9,7 @@ package main
 // Testing this service can be done by starting the binary and then using commands
 // such as:
 //
-// bins/opt/grpc_cli call localhost:3000 ai.sentient.echo.EchoService.Echo "message: 'test'"
+// bins/opt/grpc_cli call localhost:3000 ai.sentient.experiment.EchoService.Echo "message: 'test'"
 // connecting to localhost:3000
 // message: "test"
 // date_time {
@@ -20,13 +20,13 @@ package main
 //
 // Using the cli tool more detailed information can be uncovered, for example:
 //
-// bins/opt/grpc_cli ls localhost:3000 ai.sentient.echo.EchoService Echo
+// bins/opt/grpc_cli ls localhost:3000 ai.sentient.experiment.EchoService Echo
 // Echo
 //
-// bins/opt/grpc_cli ls localhost:3000 ai.sentient.echo.EchoService/Echo --l
-//   rpc Echo(ai.sentient.echo.EchoRequest) returns (ai.sentient.echo.EchoResponse) {}
+// bins/opt/grpc_cli ls localhost:3000 ai.sentient.experiment.EchoService/Echo --l
+//   rpc Echo(ai.sentient.experiment.EchoRequest) returns (ai.sentient.experiment.EchoResponse) {}
 //
-// bins/opt/grpc_cli type localhost:3000 ai.sentient.echo.EchoResponse
+// bins/opt/grpc_cli type localhost:3000 ai.sentient.experiment.EchoResponse
 // message EchoResponse {
 //  string message = 1[json_name = "message"];
 //    .google.protobuf.Timestamp date_time = 2[json_name = "dateTime"];
@@ -38,7 +38,7 @@ package main
 //    int32 nanos = 2[json_name = "nanos"];
 // }
 //
-// ~/grpc/bins/opt/grpc_cli call localhost:3000 grpc.health.v1.Health/Check "service: 'echosrv'"
+// ~/grpc/bins/opt/grpc_cli call localhost:3000 grpc.health.v1.Health/Check "service: 'experimentsrv'"
 // connecting to localhost:3000
 // status: SERVING
 //
@@ -64,17 +64,17 @@ import (
 	"github.com/karlmutch/errors"
 )
 
-const serviceName = "echosrv"
+const serviceName = "experimentsrv"
 
 var (
 	logger = platform.NewLogger(serviceName)
 
-	port = flag.Int("port", 3000, "TCP/IP port to run this REST service on")
+	port = flag.Int("port", 3001, "TCP/IP port to run this gRPC service on")
 )
 
 func usage() {
 	fmt.Fprintln(os.Stderr, path.Base(os.Args[0]))
-	fmt.Fprintln(os.Stderr, "usage: ", os.Args[0], "[arguments]      example echo service      ", version.GitHash, "    ", version.BuildTime)
+	fmt.Fprintln(os.Stderr, "usage: ", os.Args[0], "[arguments]      Sentient Technologies experiment service      ", version.GitHash, "    ", version.BuildTime)
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Arguments:")
 	fmt.Fprintln(os.Stderr, "")

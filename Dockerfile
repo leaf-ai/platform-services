@@ -44,4 +44,4 @@ ENV GOPATH=/project
 VOLUME /project
 WORKDIR /project/src/github.com/karlmutch/platform-services
 
-CMD /bin/bash -C ./cmd/echosrv/build.sh && /bin/bash -C ./cmd/timesrv/build.sh && /bin/bash -C ./cmd/restpoc/build.sh
+CMD /bin/bash -C ./cmd/experimentsrv/build.sh && /bin/bash -C ./cmd/echosrv/build.sh && /bin/bash -C ./cmd/timesrv/build.sh && /bin/bash -C ./cmd/restpoc/build.sh

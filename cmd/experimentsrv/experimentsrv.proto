@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package ai.sentient.experiment;
+
+import "google/protobuf/timestamp.proto";
+
+message InputLayer {
+  string name = 1;
+  enum Type {
+    Unknown = 0;
+    Enumeration = 1;
+    Time = 2;
+    Raw = 3;
+  }
+  Type type = 2;
+  repeated string values = 3;
+}
+
+message OutputLayer {
+  string name = 1;
+  enum Type {
+    Unknown = 0;
+    Enumeration = 1;
+    Probability = 2;
+    Raw = 3;
+  }
+  Type type = 2;
+  repeated string values = 3;
+}
+
+message Experiment {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  google.protobuf.Timestamp createTime = 4;
+  repeated InputLayer inputLayer = 5;
+  repeated OutputLayer outputLayer = 6;
+}
+
+message CreateRequest {
+  Experiment experiment = 1;
+}
+
+message CreateResponse {
+  string id = 1;
+}
+
+message GetRequest {
+  string id = 1;
+}
+
+message GetResponse {
+  Experiment experiment = 1;
+}
+
+service ExperimentService {
+  rpc Create(CreateRequest) returns (CreateResponse);
+  rpc Get(GetRequest) returns (GetResponse);
+}
