@@ -44,8 +44,8 @@ func (*experimentServer) Get(ctx context.Context, in *experiment.GetRequest) (re
 				Name:        "",
 				Description: "",
 				CreateTime:  &timestamp.Timestamp{Seconds: time.Now().Unix()},
-				InputLayer:  &experiment.InputLayer{},
-				OutputLayer: &experiment.OutputLayer{},
+				InputLayer:  []*experiment.InputLayer{},
+				OutputLayer: []*experiment.OutputLayer{},
 			},
 		},
 		nil
