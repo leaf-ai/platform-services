@@ -62,6 +62,8 @@ import (
 
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
+
+	"github.com/karlmutch/platform-services/db"
 )
 
 const serviceName = "experimentsrv"
@@ -193,6 +195,32 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 	}()
 
 	signal.Notify(stopC, os.Interrupt, syscall.SIGTERM)
+
+	// Initiate database processing.  Without the DB at least entering a retry state the
+	// server will never run so immediately return if this cannot be started
+	//
+	dbMsgC, dbErrorC, err := db.StartDB(ctx.Done())
+	if err != nil {
+		errs = append(errs, err)
+	} else {
+
+		go func() {
+			select {
+			case msg := <-dbMsgC:
+				logger.Info(msg)
+			case errMsg := <-dbErrorC:
+				if errMsg == nil {
+					return
+				}
+				if errMsg.Fatal {
+					logger.Fatal(fmt.Sprint(errMsg.Err))
+					os.Exit(-5)
+				} else {
+					logger.Warn(fmt.Sprint(errMsg.Err))
+				}
+			}
+		}()
+	}
 
 	// Now check for any fatal errors before allowing the system to continue.  This allows
 	// all errors that could have ocuured as a result of incorrect options to be flushed

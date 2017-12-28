@@ -1,6 +1,12 @@
 -- The schema definition for the platform service plane containing tables
 -- user across multiple services, for now.
 --
+-- This file is compatible with the Aurora RDS account and security naming conventions
+-- for roles etc.  To run this file to generate a new DB you can use a command 
+-- such as the following:
+--
+-- PGUSER=pl PGHOST=dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com PGDATABASE=platform psql -f platform.sql
+--
 \set pldb `echo "$PGDATABASE"`
 
 set timezone to 'UTC';
@@ -15,7 +21,7 @@ DROP DATABASE IF EXISTS :pldb;
 -- -----------------------------------------------------
 DROP ROLE IF EXISTS pl;
 CREATE ROLE pl LOGIN
-        ENCRYPTED PASSWORD 'md5e270fe4980444975ebe8138bdfcce914'
+        ENCRYPTED PASSWORD 'md55F4DCC3B5AA765D61D8327DEB882CF99'
         INHERIT CREATEDB CREATEROLE;
 
 -- -----------------------------------------------------
@@ -41,13 +47,6 @@ GRANT rds_superuser TO pl;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN schema public TO pl;
 
 -- -----------------------------------------------------
--- Create All Sequences
--- -----------------------------------------------------
-
-CREATE SEQUENCE experiment_id_seq;
-CREATE SEQUENCE layer_id_seq;
-
--- -----------------------------------------------------
 -- Create All Tables
 -- -----------------------------------------------------
 
@@ -66,15 +65,13 @@ CREATE TABLE IF NOT EXISTS logs (
 CREATE INDEX logs_source_timestamp_idx ON logs (source, timestamp);
 
 CREATE TABLE IF NOT EXISTS experiments (
-        id BIGINT NOT NULL DEFAULT nextval('experiment_id_seq'),
+        id BIGSERIAL,
         uid TEXT NOT NULL,
         created TIMESTAMP NOT NULL DEFAULT 'epoch'::timestamp,
         name TEXT NULL DEFAULT NULL,
-        description TEXT NULL DEFAULT NULL,
-        PRIMARY KEY (id) -- Database generated
+        description TEXT NULL DEFAULT NULL
 );
 
-CREATE UNIQUE INDEX experiments_idx ON experiments(id);
 CREATE UNIQUE INDEX experiments_uid_idx ON experiments(uid);
 
 CREATE TYPE layerClass AS ENUM (
@@ -88,28 +85,22 @@ CREATE TYPE layerType AS ENUM (
     'probability');
 
 CREATE TABLE IF NOT EXISTS layers (
-        id BIGINT NOT NULL DEFAULT nextval('layer_id_seq'),
+        id BIGSERIAL,
+        uid TEXT NOT NULL, -- The unique identifier of the experiment that owns this layer
+        number INT NOT NULL, -- The layer number this layer has within the experiment
         name TEXT NOT NULL,
         class layerClass NOT NULL,
-        type layerType NOT NULL,
-        PRIMARY KEY (id) -- Database generated
+        type layerType NOT NULL
 );
 
-CREATE UNIQUE INDEX layers_idx ON layers(id);
+CREATE UNIQUE INDEX layers_idx ON layers(uid, number);
 
 -- -----------------------------------------------------
--- Grant All Permissions
+-- Alter Table Starting Sequence Numbers to avoid test case number ranges etc
 -- -----------------------------------------------------
 
-GRANT USAGE, SELECT ON SEQUENCE experiment_id_seq TO pl;
-GRANT USAGE, SELECT ON SEQUENCE layer_id_seq TO pl;
-
--- -----------------------------------------------------
--- Alter Table Starting Sequence Number
--- -----------------------------------------------------
-
-ALTER SEQUENCE experiment_id_seq RESTART WITH 1000;
-ALTER SEQUENCE layer_id_seq RESTART WITH 1000;
+ALTER SEQUENCE experiments_id_seq RESTART WITH 1000 OWNED BY experiments.id;
+ALTER SEQUENCE layers_id_seq RESTART WITH 1000 OWNED BY layers.id;
 
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO pl;
 

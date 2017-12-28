@@ -2,33 +2,32 @@ package db
 
 // The db.go file contains a Go lang marshalling layer on top of the Postgres and
 // Go SQL layers.  One of the responsibilities of the db.go module is also to
-// enable Postgres arrays and the like to be marshalled into Thrift
+// enable Postgres arrays and the like to be marshalled into go data structures
 
 import (
 	"bufio"
 	"bytes"
 	"database/sql"
-	"encoding/json"
+	"encoding/gob"
 	"flag"
 	"fmt"
 	"log"
 	"log/syslog"
 	"os"
 	"path/filepath"
-	"reflect"
-	"sort"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 
 	sq "github.com/Masterminds/squirrel"
+
+	"github.com/go-stack/stack"
+	"github.com/karlmutch/errors"
 )
 
 const ExpectedDBVersion int64 = 1
@@ -40,15 +39,20 @@ var (
 	databaseOptions     = flag.String("dboptions", "", "Postgres options for inclusion in the 'DarkCycle' DSN, for example -dboptions=options=\"-c statement_timeout=2min\"")
 	databaseMaxConn     = flag.Int("dbmaxconn", 72, "Sets a limit for open connections the master will use to postgres")
 	databaseMaxIdleConn = flag.Int("dbmaxidleconn", 8, "Sets a limit for open and idle connections the master will use to postgres")
-)
 
-const defaultDBPassword string = "NjlmdGVsdmlz"
-const defaultPassHash string = "688c444a191cd8220b9ce797b06d74a9"
+	// dbDownErr is used within the db layer to record if the DB is down.  A simple circuit breaker is
+	// used with the DB gofunc handler loop to retry connections on a regular basis.  The DB methods
+	// will respect this flag and fail out any calls until the circuit breaker
+	//
+	dbDownErr = errors.New("DB has not yet been initialized")
+
+	dBase *sqlx.DB
+)
 
 func defaultDBUser() string {
 	name := os.Getenv("PGUSER")
 	if name == "" {
-		return "dc"
+		return "pl"
 	}
 	return name
 }
@@ -77,14 +81,12 @@ func defaultDBHostPort() string {
 	return fmt.Sprintf("%s:%s", host, port)
 }
 
-var dBase *sqlx.DB
-
 // Log is used to hold unstructured log entries that will be marshalled
 //
 type Log struct {
 	Priority    syslog.Priority
 	Nanoseconds int64
-	ComponentID string
+	Source      string
 	Msg         string
 }
 
@@ -92,16 +94,11 @@ type Log struct {
 //
 type ExperimentData struct {
 	ID          int64     `db:"id"`
+	UID         int64     `db:"uid"`
+	Created     time.Time `db:"created"`
 	Name        string    `db:"name"`
 	Description string    `db:"description"`
-	Created     time.Time `db:"created"`
 }
-
-// dbDownErr is used within the db layer to record if the DB is down.  A simple circuit breaker is
-// used with the DB gofunc handler loop to retry connections on a regular basis.  The DB methods
-// will respect this flag and fail out any calls until the circuit breaker
-//
-var dbDownErr = &dclib.SafeError{}
 
 func dbHasCorrectVersion(expect int64) (err error, ok bool, actual int64) {
 	err = dBase.QueryRow("SELECT version FROM upgrades ORDER BY timestamp DESC LIMIT 1").Scan(&actual)
@@ -113,23 +110,19 @@ func dbHasCorrectVersion(expect int64) (err error, ok bool, actual int64) {
 //
 func CloseDB() error {
 
-	message := "database has been closed intentionally"
-	logW.Trace(message)
+	dbDownErr = errors.New("database has been closed intentionally").With("stack", stack.Trace().TrimRuntime())
 
-	defer dbDownErr.Set(fmt.Errorf(message))
 	return dBase.Close()
 }
 
 // getPassFromPGPass matches the very first line that can be matched from the postgres password file as documented
 // by https://www.postgresql.org/docs/9.5/static/libpq-pgpass.html
 //
-func getPassFromPGPass(passFile string, host string, port string, db string, user string) (pass string, err error) {
+func getPassFromPGPass(passFile string, host string, port string, db string, user string) (pass string, err errors.Error) {
 
-	logW.Debug(fmt.Sprintf("%s", passFile), "host", host, "port", port, "database", db, "user", user)
-	file, err := os.Open(passFile)
-	if err != nil {
-		logW.Error(fmt.Sprintf("Unable to open the postgres password file '%s' due to %s", passFile, err.Error()), "error", err)
-		return pass, err
+	file, errGo := os.Open(passFile)
+	if errGo != nil {
+		return pass, errors.Wrap(errGo).With("passfile", passFile).With("stack", stack.Trace().TrimRuntime())
 	}
 	defer file.Close()
 
@@ -170,31 +163,39 @@ func getPassFromPGPass(passFile string, host string, port string, db string, use
 		return tokens[4], nil
 	}
 
-	if err = scanner.Err(); err != nil {
-		log.Fatal(err)
+	if errGo = scanner.Err(); errGo != nil {
+		return pass, errors.Wrap(errGo, "pass file parsing failed").With("passfile", passFile).With("stack", stack.Trace().TrimRuntime())
 	}
 
-	return "", err
+	// Password was not found inside the pgpas file
+	return "", nil
+}
+
+type DBErrorMsg struct {
+	Fatal bool
+	Err   errors.Error
 }
 
 // StartDB is used to open and then attempt to test the connection to the
-// DarkCycle database, which contains state information for components of the
-// DarkCycle ecosystem
+// database, which contains state information for components of the platform
+// ecosystem
 //
-func StartDB(quitC <-chan bool) (err error) {
+func StartDB(quitC <-chan struct{}) (msgC chan string, errorC chan *DBErrorMsg, err errors.Error) {
+
+	msgC = make(chan string)
+	errorC = make(chan *DBErrorMsg)
+
 	// The following function does not create a Live database connection.  This is done later
 	// during the normal server life cycle
 	//
-	if err := initDarkcycleDB(*databaseHostPort, *databaseUser); err != nil {
-		msg := fmt.Sprint("Could not initialize the Darkcycle database at ", *databaseHostPort, " due to ", err.Error())
-		logW.Error(msg, "dbHostPort", *databaseHostPort, "dbUser", *databaseUser, "error", err)
-		return err
+	if err := initDB(*databaseHostPort, *databaseUser); err != nil {
+		return msgC, errorC, err
 	}
 
 	// On the first time the master is started the DB is left in a down state and is initialized
-	// during the normal life cycle of the master server.  This is done as a requirement of DC-1002.
+	// during the normal life cycle of the server.
 	//
-	dbDownErr.Set(fmt.Errorf("Darkcycle database start not yet completed"))
+	dbDownErr = errors.New("database start not yet completed").With("stack", stack.Trace().TrimRuntime())
 
 	// Start a runtime monitor for DB connections held open, a liveness check
 	// and a circuit breaker
@@ -202,6 +203,9 @@ func StartDB(quitC <-chan bool) (err error) {
 	go func() {
 
 		defer CloseDB()
+
+		defer close(msgC)
+		defer close(errorC)
 
 		// Start by instantly trying to get the database up and going, this duration
 		// will be reset once the main service loop has started below to a much
@@ -213,39 +217,72 @@ func StartDB(quitC <-chan bool) (err error) {
 		for {
 			select {
 			case <-time.After(dbCheckTimer):
-				dbRecovery := !dbDownErr.IsErr()
-				if err := dBase.Ping(); err != nil {
+				dbRecovery := dbDownErr != nil
+				if errGo := dBase.Ping(); errGo != nil {
 
-					dbDownErr.Set(err)
+					dbDownErr = errors.Wrap(errGo)
 
-					msg := fmt.Sprint("Darkcycle database ", *databaseHostPort, " ", databaseName, " is currently down due to ", err.Error())
-					logW.Warning(msg, "dbHostPort", *databaseHostPort, "dbName", databaseName, "error", err)
+					msg := fmt.Sprint("database ", *databaseHostPort, " ", *databaseName, " is currently down")
+					err := &DBErrorMsg{
+						Fatal: false,
+						Err:   errors.Wrap(errGo, msg).With("dbHostPort", *databaseHostPort).With("dbName", *databaseName),
+					}
+					select {
+					case errorC <- err:
+					default:
+					}
 					dbCheckTimer = time.Duration(5 * time.Second)
 					continue
 				}
 
 				if dbRecovery {
-					logW.Info("DarkCycle database startup / recovery has been performed ", "dbHostPort", *databaseHostPort, "dbName", databaseName)
-
+					select {
+					case msgC <- fmt.Sprint("database startup / recovery has been performed ", *databaseHostPort, " name ", *databaseName):
+					default:
+					}
 					// Check that the Database has the expected version
 					err, ok, version := dbHasCorrectVersion(ExpectedDBVersion)
 					if err == nil && !ok {
-						msg := fmt.Sprint("DarkCycle DB has the wrong version ", ExpectedDBVersion, " expected got version ", version, " instead")
-						logW.Fatal(msg, "dbExpectedVersion", ExpectedDBVersion, "dbVersion", version)
-						os.Exit(-4)
+						msg := fmt.Sprint("db has the wrong version ", ExpectedDBVersion, " expected got version ", version, " instead")
+						errMsg := &DBErrorMsg{
+							Fatal: true,
+							Err:   errors.New(msg).With("stack", stack.Trace().TrimRuntime()).With("dbExpectedVersion", ExpectedDBVersion).With("dbVersion", version),
+						}
+						select {
+						case errorC <- errMsg:
+						default:
+						}
+						// The receiver is responsible for stopping the server
+						return
 					}
 					if err != nil {
-						logW.Fatal("DB has no version marker, suspect or incorrect database schema", "error", err)
-						os.Exit(-5)
+						msg := "DB has no version marker, suspect or incorrect database schema"
+						errMsg := &DBErrorMsg{
+							Fatal: true,
+							Err:   errors.Wrap(err, msg).With("stack", stack.Trace().TrimRuntime()).With("dbExpectedVersion", ExpectedDBVersion).With("dbVersion", version),
+						}
+						select {
+						case errorC <- errMsg:
+						default:
+						}
+						// The receiver is responsible for stopping the server
+						return
 					}
 				}
 
-				dbDownErr.Clear()
-				msg := fmt.Sprint("Darkcycle database has ", dBase.Stats().OpenConnections, " connections")
-				logW.Info(msg, "dbHostPort", *databaseHostPort, "dbName", *databaseName, "dbConnectionCount", dBase.Stats().OpenConnections)
+				dbDownErr = nil
+				msg := fmt.Sprint("database has ", dBase.Stats().OpenConnections, " connections ",
+					" ", *databaseHostPort, " name ", *databaseName, " dbConnectionCount ", dBase.Stats().OpenConnections)
+				select {
+				case msgC <- msg:
+				default:
+				}
 
 			case <-quitC:
-				logW.Debug("Darkcycle database monitor stopped")
+				select {
+				case msgC <- "database monitor stopped":
+				default:
+				}
 				return
 			}
 
@@ -253,52 +290,35 @@ func StartDB(quitC <-chan bool) (err error) {
 		}
 	}()
 
-	return nil
+	return msgC, errorC, nil
 }
 
-// Status is used to retrieve the main DarkCycle eco system status from a master
+// Status is used to retrieve the main eco system status from a server.  This function
+// will return an error value of nil if the DB is running for a useful error for why
+// it might not be running
 //
-func GetDBStatus() (status *thriftdci.DarkCycleStatus, err error) {
-
-	// Prefetch the Work Unit Server errors so that we can alloce the array inside the
-	// status report
-	//
-	// TODO wuFailures := FetchWURecentFailures()
-	//
-	// Initialize the datastructure for reporting with blank data
-	status = &thriftdci.DarkCycleStatus{
-		State:    thriftdci.EntityState_RUNNING,
-		SqlState: thriftdci.EntityState_RUNNING,
-		SqlError: "",
-	}
-
-	// Load any darkcycle DB failure information
-	if err = dbDownErr.Get(); err != nil {
-		status.SqlState = thriftdci.EntityState_ERROR
-		status.SqlError = dbDownErr.String()
-	}
-
-	return status, nil
+func GetDBStatus() (err errors.Error) {
+	return dbDownErr
 }
 
-// initDarkcycleDB will setup the database configuration but does not actually create a live connection
+// initDB will setup the database configuration but does not actually create a live connection
 // or validate the parameters supplied to it.
 //
-func initDarkcycleDB(url string, user string) (err error) {
+func initDB(url string, user string) (err errors.Error) {
 
 	pgPassFile := os.Getenv("PGPASSFILE")
 	if len(pgPassFile) == 0 {
 		if pgPassHome := os.Getenv("HOME"); len(pgPassHome) != 0 {
 			pgPassFile = filepath.Join(pgPassHome, ".pgpass")
 		}
-		if _, err = os.Stat(pgPassFile); os.IsNotExist(err) {
+		if _, errGo := os.Stat(pgPassFile); os.IsNotExist(errGo) {
 			pgPassFile = "~/.pgpass"
 		}
 		// If standard sensible locations dont work due to
 		// shell issues in the salt startup try a hard coded but
 		// well known location
-		if _, err = os.Stat(pgPassFile); os.IsNotExist(err) {
-			pgPassFile = "/home/darkcycle/.pgpass"
+		if _, errGo := os.Stat(pgPassFile); os.IsNotExist(errGo) {
+			pgPassFile = "/opt/sentient/.pgpass"
 		}
 	}
 
@@ -315,19 +335,16 @@ func initDarkcycleDB(url string, user string) (err error) {
 	datasetName = strings.Replace(datasetName, ":@", "@", 1)
 	safeDatasetName := fmt.Sprintf("postgres://%s:********@%s/%s?sslmode=disable%s", user, url, *databaseName, dbOptions)
 
-	logW.Debug(fmt.Sprint("Connecting to Darkcycle database ", safeDatasetName), "dbConnectString", safeDatasetName)
-	db, err := sql.Open("postgres", datasetName)
-	if err != nil {
-		logW.Error(fmt.Sprint("Could not open postgres Darkcycle database ", safeDatasetName), "dbConnectString", safeDatasetName, "error", err)
-		return err
+	db, errGo := sql.Open("postgres", datasetName)
+	if errGo != nil {
+		return errors.Wrap(errGo).With("dbConnectString", safeDatasetName).With("stack", stack.Trace().TrimRuntime())
 	}
-	logW.Info(fmt.Sprint("Darkcycle database configured ", safeDatasetName), "dbConnectString", safeDatasetName)
 
 	db.SetMaxOpenConns(*databaseMaxConn)
 	db.SetMaxIdleConns(*databaseMaxIdleConn)
 
 	dBase = sqlx.NewDb(db, "postgres")
-	// The follow functor takes a Thrift style name and converts it to a DB column style name
+	// The follow functor takes a gRPC/Thrift style name and converts it to a DB column style name
 	//
 	// This method is temporary until the golang sql treats arrays as first class citizens.
 	// When that happens we will be able to remove all of our local marshalling code and
@@ -360,13 +377,14 @@ func initDarkcycleDB(url string, user string) (err error) {
 // set by the operational side of the system.  Its output is generally intended for engineering
 // and thrid level support personnel
 //
-func DBShowAllTrace() {
+func DBShowAllTrace() (output []string, err errors.Error) {
 
-	rows, err := dBase.Queryx("show all")
+	output = []string{}
 
-	if err != nil {
-		logW.Error(fmt.Sprint("Postgres show all failed due to ", err.Error()), "error", err)
-		return
+	rows, errGo := dBase.Queryx("show all")
+
+	if errGo != nil {
+		return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
 	}
 	defer rows.Close()
 
@@ -378,13 +396,13 @@ func DBShowAllTrace() {
 
 	for rows.Next() {
 		aRow := &DBSetting{}
-		if err = rows.StructScan(aRow); err != nil {
-			logW.Error(fmt.Sprint("DB settings not available due to ", err.Error()), "error", err)
-			return
+		if errGo = rows.StructScan(aRow); errGo != nil {
+			return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
 		}
 		msg := fmt.Sprintf("%s='%s' %s", aRow.Name, aRow.Setting, aRow.Description)
-		logW.Trace(fmt.Sprint("DB Setting ", msg), aRow.Name, msg)
+		output = append(output, fmt.Sprint("DB Setting ", msg))
 	}
+	return output, nil
 }
 
 // CheckIfFatal is used to handle the errors being returned from the Postgres driver.  If
@@ -401,14 +419,13 @@ func CheckIfFatal(inErr error) (err error) {
 				return inErr
 			}
 
-			logW.Fatal(fmt.Sprint("golang SQL failure return code found ", inErr.Error()), "error", inErr)
+			log.Fatal(fmt.Sprint("golang SQL failure return code found ", inErr.Error()))
 
 			os.Exit(-5)
 		}
 
 		if driverErr, ok := inErr.(*pq.Error); ok {
 
-			logW.Warning(fmt.Sprint("postgres SQL return code ", driverErr.Error()), "dbErrorCode", driverErr.Code.Name, "dbErrorClass", driverErr.Code.Class())
 			classNumber, _ := strconv.Atoi(string(driverErr.Code.Class()))
 
 			// Look for classes of errors that can be returned to the caller which are not Fatal.
@@ -450,7 +467,7 @@ func CheckIfFatal(inErr error) (err error) {
 			case "successful_completion":
 				return nil
 			default:
-				logW.Fatal(fmt.Sprint("Postgres driver fatal error ", driverErr.Error()), "dbDriverError", driverErr, "dbErrorCode", driverErr.Code.Name())
+				log.Fatal(fmt.Sprint("Postgres driver fatal error ", driverErr.Error()))
 
 				os.Exit((classNumber + 10) * -1)
 			}
@@ -461,109 +478,88 @@ func CheckIfFatal(inErr error) (err error) {
 	return inErr
 }
 
-// SelectProject is used to retrieve one or more postgres DB rows and
-// marshall these into corresponding Thrift compatible data structures that
-// are used by the rest of the masters software components.
+type Experiment struct {
+	ID          int64
+	Uid         string
+	Created     time.Time
+	Name        string
+	Description string
+}
+
+func (data *Experiment) DeepCopy() (result *Experiment, err errors.Error) {
+
+	mod := new(bytes.Buffer)
+
+	enc := gob.NewEncoder(mod)
+	dec := gob.NewDecoder(mod)
+	result = &Experiment{}
+	if errGo := enc.Encode(*data); errGo != nil {
+		return nil, errors.Wrap(errGo).With(stack.Trace().TrimRuntime())
+	}
+	if errGo := dec.Decode(result); errGo != nil {
+		return nil, errors.Wrap(errGo).With(stack.Trace().TrimRuntime())
+	}
+	return result, nil
+}
+
+// SelectExperiment is used to retrieve one or more experiments that have been registered
+// with the service.
 //
-// If the id is specified, that is not 0, then the owner will not be used
-// for selecting which record is returned.  If the id is left to be a zero
-// value then the owner will be used to select which rows are returned.
+// If the id is specified, that is not 0, then the database specific identifier
+// will be used to retrieve a single row.  If the id is not specified then the application
+// unique identifier will be used to retrieve the experiment.
 //
 // The function can return both a nil, or an empty array for the first result,
 // along with a nil for the error in the case the SQL query works but returns
 // no data.
 //
-func SelectProject(userId int64, orgId int64, id int64) (result []*thriftdci.Project, err error) {
+func SelectExperiment(id uint64, uid string) (result []Experiment, err errors.Error) {
 
-	if err = dbDownErr.Get(); err != nil {
-		return nil, err
+	if dbDownErr != nil {
+		return nil, dbDownErr
 	}
 
-	logW.Dump("userId", userId, "organizationId", orgId, "projectId", id)
-
-	query := sq.Select("id,state,name,description,org_id,app_id,work_unit_servers,dataset_ids,service_ids,started_at,started_with,last_sample_at,last_sample_count,sum_times_sqr_secs,sum_times_secs").
-		From("projects").
-		OrderBy("id DESC").
+	query := sq.Select("id,uid,created,name,description").
+		From("experiments").
+		OrderBy("uid DESC").
 		PlaceholderFormat(sq.Dollar)
 
-	useAnd := false
 	if id > 0 {
 		query = query.Where(sq.Eq{"id": id})
-		useAnd = true
-	}
-
-	if orgId > 0 {
-		if useAnd {
-			query = query.Where(sq.And{sq.Eq{"org_id": orgId}})
+	} else {
+		if len(uid) > 0 {
+			query = query.Where(sq.Eq{"uid": uid})
 		} else {
-			query = query.Where(sq.Eq{"org_id": orgId})
+			return nil, errors.New("selecting an experiment requires either the DB id or the experiment unique id to be specified").With("stack", stack.Trace().TrimRuntime())
 		}
-		useAnd = true
 	}
 
-	if userId > 0 {
-		err = fmt.Errorf("selecting projects using the user ID is not yet supported, please use a 0 for the userId parameter")
-		logW.Warning(err.Error(), "userId", userId, "organizationId", orgId, "projectId", id, "error", err)
-		return nil, err
+	sql, args, errGo := query.ToSql()
+	if CheckIfFatal(errGo) != nil {
+		return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("id", id).With("uid", uid)
 	}
 
-	if !useAnd {
-		err = fmt.Errorf("selecting projects requires at least 1 value to specified as input")
-		logW.Warning(err.Error(), "error", err)
-		return nil, err
-	}
-
-	sql, args, err := query.ToSql()
-	if CheckIfFatal(err) != nil {
-		logW.Error(fmt.Sprint("Unable to build query select project due to ", err.Error()), "userId", userId, "organizationId", orgId, "projectId", id, "error", err)
-		return nil, err
-	}
-
-	rows, err := dBase.Queryx(sql, args...)
-	if CheckIfFatal(err) != nil {
-		logW.Error(fmt.Sprint("Unable to execute query select project due to ", err.Error()), "userId", userId, "organizationId", orgId, "projectId", id, "error", err)
-		return nil, err
+	rows, errGo := dBase.Queryx(sql, args...)
+	if CheckIfFatal(errGo) != nil {
+		return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("id", id).With("uid", uid)
 	}
 	defer rows.Close()
 
-	result = []*thriftdci.Project{}
+	result = []Experiment{}
 	for rows.Next() {
-		row := ProjectData{}
-		if err = rows.StructScan(&row); CheckIfFatal(err) != nil {
-			logW.Error(fmt.Sprint("Unable to retrieve select projects due to ", err.Error()), "userId", userId, "organizationId", orgId, "projectId", id, "error", err)
-			return nil, err
+		row := Experiment{}
+		if errGo = rows.StructScan(&row); CheckIfFatal(errGo) != nil {
+			return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("id", id).With("uid", uid)
 		}
 
-		startedAt := row.StartedAt.UnixNano()
-		lastSampleAt := row.LastSampleAt.UnixNano()
-
-		trow := &thriftdci.Project{
-			ID:              row.ID,
-			State:           row.State,
-			Name:            row.Name,
-			Description:     row.Description,
-			OrgID:           row.OrgID,
-			AppID:           row.AppID,
-			WorkUnitServers: pgToArrayStr(row.WorkUnitServers),
-			DatasetIds:      pgToInt64(row.DatasetIds),
-			ServiceIds:      pgToInt64(row.ServiceIds),
-			StartedAt:       &startedAt,
-			StartedWith:     &row.StartedWith,
-			LastSampleAt:    &lastSampleAt,
-			LastSampleCount: &row.LastSampleCount,
-			SumTimesSqrSecs: &row.SumTimesSqrSecs,
-			SumTimesSecs:    &row.SumTimesSecs,
-		}
-		result = append(result, trow)
+		result = append(result, row)
 	}
-
-	logW.Dump("userId", userId, "organizationId", orgId, "projectId", id, "projects", result)
 
 	return result, nil
 }
 
-// InsertProject is used to insert a single dataset record into the
-// masters postgres database. A unique ID will be generated by the insertion
+// InsertExperiment is used to insert a single dataset record into the
+// postgres database. A unique ID will be generated by the insertion
 // operation and this ID will be placed into the returned record so that the
 // caller has a unique reference to the inserted data for use in either
 // performing other database operations or making reference to the project
@@ -571,141 +567,43 @@ func SelectProject(userId int64, orgId int64, id int64) (result []*thriftdci.Pro
 //
 // The result returned this function does not share memory with the input data
 // parameter and is a deep copy.  This is slight less efficent than returning the
-// mutated input structure but far safer in regards to potential side effects as a
+// mutated input structure but safer in regards to potential side effects as a
 // result of assumptions made by the caller.
 //
 //
-func InsertProject(data *thriftdci.Project) (result *thriftdci.Project, err error) {
+func InsertExperiment(data *Experiment) (result *Experiment, err errors.Error) {
 
-	if err = dbDownErr.Get(); err != nil {
-		return nil, err
+	if dbDownErr != nil {
+		return nil, dbDownErr
 	}
 
-	logW.Dump("project", data)
+	if data.ID != 0 {
+		return nil, errors.New("an insert operation must not have the id field set").With("stack", stack.Trace().TrimRuntime()).With("uid", data.Uid)
+	}
 
-	// The output result is a DeepCopy of the input with the ID replaced to prevent side effects
-	// caused by mutating the input
-	//
-	result = ProjectDeepCopy(data)
+	result, err = data.DeepCopy()
 
-	query := sq.Insert("projects").
-		Columns("state", "name", "description", "org_id", "app_id", "work_unit_servers", "dataset_ids", "service_ids").
-		Values(data.State, data.Name, data.Description, data.OrgID, data.AppID, arrayStrToPg(data.WorkUnitServers), arrayInt64ToPg(data.DatasetIds), arrayInt64ToPg(data.ServiceIds)).
+	query := sq.Insert("experiments").
+		Columns("uid", "created", "name", "description").
+		Values(data.Uid, data.Created, data.Name, data.Description).
 		Suffix("RETURNING \"id\"").
 		RunWith(dBase.DB).
 		PlaceholderFormat(sq.Dollar)
 
-	if err = query.QueryRow().Scan(&result.ID); CheckIfFatal(err) != nil {
-		logW.Error(fmt.Sprint("Unable to retrieve insert project due to ", err.Error()), "project", data, "error", err)
-		return nil, err
+	if errGo := query.QueryRow().Scan(&result.ID); CheckIfFatal(errGo) != nil {
+		return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", data.Uid)
 	}
-	return result, nil
-}
-
-// UpdateProject can be used to modify the contents of an existing database row.  The
-// ID found within the input data record is used to identify the DB row to be replaced
-// or updated with the new data in place.
-//
-// If the intent is to only change the single state item inside the application row then
-// the ChangeProject function should be used.
-//
-// The result returned this function does not share memory with the input data
-// parameter and is a deep copy.  This is slight less efficent than returning the
-// mutated input structure but far safer in regards to potential side effects as a
-// result of assumptions made by the caller.
-//
-// TODO : DC-1014 : Database : ChangeProject and other state changes need constraints
-//
-func UpdateProject(data *thriftdci.Project) (result *thriftdci.Project, err error) {
-
-	if err = dbDownErr.Get(); err != nil {
-		return nil, err
-	}
-
-	// The output result is a DeepCopy of the input with the ID replaced to prevent side effects
-	// caused by mutating the input
-	//
-	result = ProjectDeepCopy(data)
-
-	query := sq.
-		Update("projects").
-		Set("state", data.State).
-		Set("name", data.Name).
-		Set("description", data.Description).
-		Set("org_id", data.OrgID).
-		Set("app_id", data.AppID).
-		Set("work_unit_servers", arrayStrToPg(data.WorkUnitServers)).
-		Set("dataset_ids", arrayInt64ToPg(data.DatasetIds)).
-		Set("service_ids", arrayInt64ToPg(data.ServiceIds)).
-		Where("state IN (?,?) ", thriftdci.EntityState_CREATED, thriftdci.EntityState_INVALID).
-		Where(sq.And{sq.Eq{"id": data.ID}}).
-		RunWith(dBase.DB).
-		Suffix(`RETURNING "id"`).
-		PlaceholderFormat(sq.Dollar)
-
-	sqlResult, err := query.Exec()
-	if CheckIfFatal(err) != nil {
-		logW.Error(fmt.Sprint("Unable to execute update project query due to ", err.Error()), "project", data, "error", err)
-		return nil, err
-	}
-
-	if count, err := sqlResult.RowsAffected(); count != 1 {
-		if err != nil {
-			err = fmt.Errorf("UpdateProject was not able to modify data due to %s", err)
-		} else {
-			err = fmt.Errorf("UpdateProject was not able to modify data using the supplied input %d. The DB entity state may have been invalid.", data.ID)
-		}
-		logW.Warning(fmt.Sprint("UpdateProject failed due to ", err.Error()), "project", data, "rowCount", count, "error", err)
-		return nil, err
-	}
-
-	logW.Dump("project", result)
 
 	return result, nil
-}
-
-// ChangeProject can be used to modify the application specific state of an
-// existing database row.  The ID found within the input data record is used to
-// identify the DB row to be replaced or updated with the new data in place.
-//
-// TODO : DC-1014 : Database : ChangeProject and other state changes need constraints
-//
-func ChangeProject(id int64, state thriftdci.EntityState) (err error) {
-
-	if err = dbDownErr.Get(); err != nil {
-		return err
-	}
-
-	if state == thriftdci.EntityState_RUNNING {
-		err = fmt.Errorf("projects (%d) cannot be changed to the running state without using the UpdateProjectStarted function", id)
-		logW.Error(fmt.Sprint("ChangeProject failed due to ", err.Error()), "projectId", id, "state", state)
-		return err
-	}
-
-	logW.Dump("projectId", id, "state", state)
-
-	update := sq.
-		Update("projects").
-		Set("state", state).
-		Where(sq.Eq{"id": id}).
-		RunWith(dBase.DB).
-		Suffix(`RETURNING "id"`).
-		PlaceholderFormat(sq.Dollar)
-
-	if _, err := update.Exec(); CheckIfFatal(err) != nil {
-		logW.Error(fmt.Sprint("Unable to execute change project due to ", err.Error()), "projectId", id, "state", state, "error", err)
-		return err
-	}
-	return nil
 }
 
 // SaveLog is used to insert a logging record either originating from the master,
-// or from a thrift client into the masters logging DB
+// or from a client into the logging table
 //
-func SaveLog(log *Log) (err error) {
+func SaveLog(log *Log) (err errors.Error) {
 
-	if err = dbDownErr.Get(); err != nil {
-		return err
+	if dbDownErr != nil {
+		return dbDownErr
 	}
 
 	message := log.Msg
@@ -714,14 +612,13 @@ func SaveLog(log *Log) (err error) {
 	}
 
 	insert := sq.Insert("logs").
-		Columns("priority", "timestamp", "component_id", "msg", "project_id", "workunit_id").
-		Values(int32(log.Priority), time.Unix(0, log.Nanoseconds), log.ComponentID, message, log.ProjectID, log.WorkUnitID).
+		Columns("priority", "timestamp", "source", "msg").
+		Values(int32(log.Priority), time.Unix(0, log.Nanoseconds), log.Source, message).
 		RunWith(dBase.DB).
 		PlaceholderFormat(sq.Dollar)
 
-	if _, err = insert.Exec(); CheckIfFatal(err) != nil {
-		logW.Error(fmt.Sprint("log record could not be written to the DB due to ", err.Error()), "error", err)
-		return err
+	if _, errGo := insert.Exec(); CheckIfFatal(errGo) != nil {
+		return errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
 	}
 	return nil
 }
