@@ -13,8 +13,8 @@ import (
 	"github.com/go-chi/docgen"
 	"github.com/go-chi/render"
 
-	"github.com/karlmutch/platform-services/cmd/restpoc/health"
-	"github.com/karlmutch/platform-services/cmd/restpoc/info"
+	"github.com/SentientTechnologies/platform-services/cmd/restpoc/health"
+	"github.com/SentientTechnologies/platform-services/cmd/restpoc/info"
 
 	"github.com/karlmutch/errors"
 )
@@ -53,7 +53,7 @@ func Router(errI []errors.Error) (r chi.Router, errO []errors.Error) {
 	if *routes {
 		// fmt.Println(docgen.JSONRoutesDoc(r))
 		fmt.Println(docgen.MarkdownRoutesDoc(r, docgen.MarkdownOpts{
-			ProjectPath: "github.com/karlMutch/platform-services",
+			ProjectPath: "github.com/SentientTechnologies/platform-services",
 			Intro:       "Welcome to the experiment manager generated docs.",
 		}))
 		return nil, errI

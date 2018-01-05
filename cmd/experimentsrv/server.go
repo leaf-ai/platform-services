@@ -16,7 +16,7 @@ import (
 
 	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 
-	experiment "github.com/karlmutch/platform-services/gen/experimentsrv"
+	experiment "github.com/SentientTechnologies/platform-services/gen/experimentsrv"
 )
 
 type experimentServer struct {

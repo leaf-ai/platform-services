@@ -3,7 +3,7 @@ A PoC with functioning service using simple Istio Mesh running on K8s
 
 # Installation
 
-go get github.com/karlmutch/platform-services
+go get github.com/SentientTechnologies/platform-services
 
 # Development and Building from source
 
@@ -12,9 +12,9 @@ Clone the repository using the following instructions when this is part of a lar
 mkdir ~/project
 export GOPATH=`pwd`
 export PATH=$GOPATH/bin:$PATH
-mkdir -p src/github.com/karlmutch
-cd src/github.com/karlmutch
-git clone https://github.com/karlmutch/platform-services
+mkdir -p src/github.com/SentientTechnologies
+cd src/github.com/SentientTechnologies
+git clone https://github.com/SentientTechnologies/platform-services
 cd platform-services
 ```
 
@@ -32,14 +32,14 @@ dep ensure
 Creating a build container to isolate the build into a versioned environment
 
 ```
-docker build -t meshtest:latest --build-arg USER=$USER --build-arg USER_ID=`id -u $USER` --build-arg USER_GROUP_ID=`id -g $USER` .
+docker build -t platform-services:latest --build-arg USER=$USER --build-arg USER_ID=`id -u $USER` --build-arg USER_GROUP_ID=`id -g $USER` .
 ```
 
 Running the build using the container
 
 Prior to doing the build a GitHub OAUTH token needs to be defined within your environment.  Use the gibhub admin pages for your account to generate a token, in Travis builds the token is probably already defined by the Travis service.
 ```
-docker run -e GITHUB_TOKEN=$GITHUB_TOKEN -e TRAVIS_TAG=$TRAVIS_TAG -v $GOPATH:/project meshtest ; echo "Done" ; docker container prune -f
+docker run -e GITHUB_TOKEN=$GITHUB_TOKEN -e TRAVIS_TAG=$TRAVIS_TAG -v $GOPATH:/project platform-services ; echo "Done" ; docker container prune -f
 ```
 
 A combined build script is provided 'platform-services/build.sh' to allow all stages of the build including producing docker images to be run together.

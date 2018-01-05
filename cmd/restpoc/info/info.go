@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/karlmutch/platform-services/version"
+	"github.com/SentientTechnologies/platform-services/version"
 )
 
 type info struct {

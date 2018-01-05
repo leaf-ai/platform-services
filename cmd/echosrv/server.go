@@ -16,7 +16,7 @@ import (
 
 	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 
-	echo "github.com/karlmutch/platform-services/gen/echosrv"
+	echo "github.com/SentientTechnologies/platform-services/gen/echosrv"
 )
 
 type echoServer struct {

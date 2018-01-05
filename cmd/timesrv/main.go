@@ -18,8 +18,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/karlmutch/platform-services"
-	"github.com/karlmutch/platform-services/version"
+	"github.com/SentientTechnologies/platform-services"
+	"github.com/SentientTechnologies/platform-services/version"
 
 	"github.com/karlmutch/envflag"
 
