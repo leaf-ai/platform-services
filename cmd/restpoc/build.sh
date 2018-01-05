@@ -13,14 +13,14 @@ go get -u -f github.com/golang/dep/cmd/dep
 go get -u -f github.com/aktau/github-release
 dep ensure -no-vendor
 mkdir -p cmd/restpoc/bin
-go build -ldflags "-X github.com/karlmutch/MeshTest/version.BuildTime=$DATE -X github.com/karlmutch/MeshTest/version.GitHash=$HASH" -o cmd/restpoc/bin/restpoc cmd/restpoc/*.go
-go build -ldflags "-X github.com/karlmutch/MeshTest/version.BuildTime=$DATE -X github.com/karlmutch/MeshTest/version.GitHash=$HASH" -race -o cmd/restpoc/bin/restpoc-race cmd/restpoc/*.go
-go test -ldflags "-X github.com/karlmutch/MeshTest/version.TestRunMain=Use -X github.com/karlmutch/MeshTest/version.BuildTime=$DATE -X github.com/karlmutch/MeshTest/version.GitHash=$HASH" -coverpkg="." -c -o cmd/restpoc/bin/restpoc-run-coverage cmd/restpoc/*.go
-go test -ldflags "-X github.com/karlmutch/MeshTest/version.BuildTime=$DATE -X github.com/karlmutch/MeshTest/version.GitHash=$HASH" -coverpkg="." -c -o cmd/restpoc/bin/restpoc-test-coverage cmd/restpoc/*.go
-go test -ldflags "-X github.com/karlmutch/MeshTest/version.BuildTime=$DATE -X github.com/karlmutch/MeshTest/version.GitHash=$HASH" -race -c -o cmd/restpoc/bin/restpoc-test cmd/restpoc/*.go
+go build -ldflags "-X github.com/karlmutch/platform-services/version.BuildTime=$DATE -X github.com/karlmutch/platform-services/version.GitHash=$HASH" -o cmd/restpoc/bin/restpoc cmd/restpoc/*.go
+go build -ldflags "-X github.com/karlmutch/platform-services/version.BuildTime=$DATE -X github.com/karlmutch/platform-services/version.GitHash=$HASH" -race -o cmd/restpoc/bin/restpoc-race cmd/restpoc/*.go
+go test -ldflags "-X github.com/karlmutch/platform-services/version.TestRunMain=Use -X github.com/karlmutch/platform-services/version.BuildTime=$DATE -X github.com/karlmutch/platform-services/version.GitHash=$HASH" -coverpkg="." -c -o cmd/restpoc/bin/restpoc-run-coverage cmd/restpoc/*.go
+go test -ldflags "-X github.com/karlmutch/platform-services/version.BuildTime=$DATE -X github.com/karlmutch/platform-services/version.GitHash=$HASH" -coverpkg="." -c -o cmd/restpoc/bin/restpoc-test-coverage cmd/restpoc/*.go
+go test -ldflags "-X github.com/karlmutch/platform-services/version.BuildTime=$DATE -X github.com/karlmutch/platform-services/version.GitHash=$HASH" -race -c -o cmd/restpoc/bin/restpoc-test cmd/restpoc/*.go
 if ! [ -z ${TRAVIS_TAG+x} ]; then
     if ! [ -z ${GITHUB_TOKEN+x} ]; then
-        github-release release --user karlmutch --repo MeshTest --tag ${TRAVIS_TAG} --pre-release && \
-        github-release upload --user karlmutch --repo MeshTest  --tag ${TRAVIS_TAG} --name MeshTest --file cmd/restpoc/bin/restpoc
+        github-release release --user karlmutch --repo platform-services --tag ${TRAVIS_TAG} --pre-release && \
+        github-release upload --user karlmutch --repo platform-services  --tag ${TRAVIS_TAG} --name platform-services --file cmd/restpoc/bin/restpoc
     fi
 fi
