@@ -16,5 +16,5 @@
 
 bin/
 gen/
-vendor/github.com/karlmutch/MeshTest/gen
 
+vendor/github.com/SentientTechnologies/platform-services/gen
