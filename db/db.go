@@ -60,7 +60,7 @@ func defaultDBUser() string {
 func defaultDBName() string {
 	name := os.Getenv("PGDATABASE")
 	if name == "" {
-		return "darkcycle"
+		return "platform"
 	}
 	return name
 }
@@ -225,7 +225,7 @@ func StartDB(quitC <-chan struct{}) (msgC chan string, errorC chan *DBErrorMsg, 
 					msg := fmt.Sprint("database ", *databaseHostPort, " ", *databaseName, " is currently down")
 					err := &DBErrorMsg{
 						Fatal: false,
-						Err:   errors.Wrap(errGo, msg).With("dbHostPort", *databaseHostPort).With("dbName", *databaseName),
+						Err:   errors.Wrap(errGo, msg).With("dbHostPort", *databaseHostPort).With("dbName", *databaseName).With("stack", stack.Trace().TrimRuntime()),
 					}
 					select {
 					case errorC <- err:

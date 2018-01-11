@@ -1,0 +1,82 @@
+##################################################################################################
+# experiments service
+##################################################################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: experiments
+  labels:
+    app: experiments
+spec:
+  ports:
+  - port: 30001
+    name: grpc-exp
+  selector:
+    app: experiments
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: "istio"
+  name: ingress-exp
+spec:
+  rules:
+    - http:
+        paths:
+         - backend:
+             serviceName: experiments
+             servicePort: grpc-exp
+           path: /.*
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: experiments-v1
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: experiments
+        version: v1
+    spec:
+      containers:
+      - name: experiments
+        image: 353515307211.dkr.ecr.us-west-2.amazonaws.com/experimentsrv
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 30001
+          name: grpc-exp
+        env:
+        - name: "LOGXI_FORMAT"
+          value: "happy,maxcol=1024"
+        - name: "LOGXI"
+          value: "*=TRC"
+        - name: "PGHOST"
+          value: "dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com"
+        - name: "PGPORT"
+          value: "5432"
+        - name: "PGDATABASE"
+          value: "platform"
+        - name: "PGUSER"
+          valueFrom:
+            secretKeyRef:
+              name: postgres
+              key: username
+        - name: "PGPASSWORD"
+          valueFrom:
+            secretKeyRef:
+              name: postgres
+              key: password
+---
+apiVersion: config.istio.io/v1alpha2
+kind: EgressRule
+metadata:
+  name: aurora-postgres-egress-rule
+spec:
+  destination:
+    service: "dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com"
+  ports:
+    - port: 5432
+      protocol: tcp

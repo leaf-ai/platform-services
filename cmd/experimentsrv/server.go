@@ -54,7 +54,7 @@ func (es *experimentServer) Check(ctx context.Context, in *grpc_health_v1.Health
 	return es.health.Check(ctx, in)
 }
 
-func runServer(ctx context.Context, serviceName string, port int) (errC chan errors.Error) {
+func runServer(ctx context.Context, serviceName string, ipPort string) (errC chan errors.Error) {
 
 	errC = make(chan errors.Error, 3)
 
@@ -66,7 +66,7 @@ func runServer(ctx context.Context, serviceName string, port int) (errC chan err
 
 	reflection.Register(server)
 
-	netListen, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	netListen, err := net.Listen("tcp", ipPort)
 	if err != nil {
 		errC <- errors.Wrap(err).With("stack", stack.Trace().TrimRuntime())
 		return

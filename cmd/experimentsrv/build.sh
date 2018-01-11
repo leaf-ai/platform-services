@@ -19,10 +19,10 @@ dep ensure -no-vendor
 [ -e vendor/github.com/SentientTechnologies/platform-services/gen ] || ln -s `pwd`/gen vendor/github.com/SentientTechnologies/platform-services/gen
 protoc -Icmd/experimentsrv -I/usr/include/google --plugin=$GOPATH/bin/protoc-gen-go --go_out=plugins=grpc:./gen/experimentsrv cmd/experimentsrv/experimentsrv.proto
 mkdir -p cmd/experimentsrv/bin
-go build -ldflags "-X github.com/SentientTechnologies/platform-services/version.BuildTime=$DATE -X github.com/SentientTechnologies/platform-services/version.GitHash=$HASH" -o cmd/experimentsrv/bin/experimentsrv cmd/experimentsrv/*.go
+CGO_ENABLED=0 go build -ldflags "-X github.com/SentientTechnologies/platform-services/version.BuildTime=$DATE -X github.com/SentientTechnologies/platform-services/version.GitHash=$HASH" -o cmd/experimentsrv/bin/experimentsrv cmd/experimentsrv/*.go
 go build -ldflags "-X github.com/SentientTechnologies/platform-services/version.BuildTime=$DATE -X github.com/SentientTechnologies/platform-services/version.GitHash=$HASH" -race -o cmd/experimentsrv/bin/experimentsrv-race cmd/experimentsrv/*.go
-go test -ldflags "-X github.com/SentientTechnologies/platform-services/version.TestRunMain=Use -X github.com/SentientTechnologies/platform-services/version.BuildTime=$DATE -X github.com/SentientTechnologies/platform-services/version.GitHash=$HASH" -coverpkg="." -c -o cmd/experimentsrv/bin/experimentsrv-run-coverage cmd/experimentsrv/*.go
-go test -ldflags "-X github.com/SentientTechnologies/platform-services/version.BuildTime=$DATE -X github.com/SentientTechnologies/platform-services/version.GitHash=$HASH" -coverpkg="." -c -o bin/experimentsrv-test-coverage cmd/experimentsrv/*.go
+CGO_ENABLED=0 go test -ldflags "-X github.com/SentientTechnologies/platform-services/version.TestRunMain=Use -X github.com/SentientTechnologies/platform-services/version.BuildTime=$DATE -X github.com/SentientTechnologies/platform-services/version.GitHash=$HASH" -coverpkg="." -c -o cmd/experimentsrv/bin/experimentsrv-run-coverage cmd/experimentsrv/*.go
+CGO_ENABLED=0 go test -ldflags "-X github.com/SentientTechnologies/platform-services/version.BuildTime=$DATE -X github.com/SentientTechnologies/platform-services/version.GitHash=$HASH" -coverpkg="." -c -o bin/experimentsrv-test-coverage cmd/experimentsrv/*.go
 go test -ldflags "-X github.com/SentientTechnologies/platform-services/version.BuildTime=$DATE -X github.com/SentientTechnologies/platform-services/version.GitHash=$HASH" -race -c -o cmd/experimentsrv/bin/experimentsrv-test cmd/experimentsrv/*.go
 if ! [ -z ${TRAVIS_TAG+x} ]; then
     if ! [ -z ${GITHUB_TOKEN+x} ]; then

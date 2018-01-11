@@ -38,8 +38,8 @@ package main
 //    int32 nanos = 2[json_name = "nanos"];
 // }
 //
-// ~/grpc/bins/opt/grpc_cli call localhost:3000 grpc.health.v1.Health/Check "service: 'experimentsrv'"
-// connecting to localhost:3000
+// ~/grpc/bins/opt/grpc_cli call localhost:30001 grpc.health.v1.Health/Check "service: 'experimentsrv'"
+// connecting to localhost:30001
 // status: SERVING
 //
 // Rpc succeeded with OK status
@@ -71,7 +71,7 @@ const serviceName = "experimentsrv"
 var (
 	logger = platform.NewLogger(serviceName)
 
-	port = flag.Int("port", 3001, "TCP/IP port to run this gRPC service on")
+	ipPort = flag.String("ip-port", "0.0.0.0:30001", "TCP/IP adapter IP and port to run this gRPC service on")
 )
 
 func usage() {
@@ -90,6 +90,10 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "To control log levels the LOGXI env variables can be used, these are documented at https://github.com/mgutz/logxi")
 }
 
+func init() {
+	flag.Usage = usage
+}
+
 // Go runtime entry point for production builds.  This function acts as an alias
 // for the main.Main function.  This allows testing and code coverage features of
 // go to invoke the logic within the server main without skipping important
@@ -103,6 +107,13 @@ func main() {
 
 	quitC := make(chan struct{})
 	defer close(quitC)
+
+	if !flag.Parsed() {
+		// Use the go options parser to load command line options that have been set, and look
+		// for these options inside the env variable table
+		//
+		envflag.Parse()
+	}
 
 	// This is the one check that does not get tested when the server is under test
 	//
@@ -129,12 +140,12 @@ func Main() {
 
 	fmt.Printf("%s built at %s, against commit id %s\n", os.Args[0], version.BuildTime, version.GitHash)
 
-	flag.Usage = usage
-
-	// Use the go options parser to load command line options that have been set, and look
-	// for these options inside the env variable table
-	//
-	envflag.Parse()
+	if !flag.Parsed() {
+		// Use the go options parser to load command line options that have been set, and look
+		// for these options inside the env variable table
+		//
+		envflag.Parse()
+	}
 
 	doneC := make(chan struct{})
 	quitC := make(chan struct{})
@@ -205,18 +216,20 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 	} else {
 
 		go func() {
-			select {
-			case msg := <-dbMsgC:
-				logger.Info(msg)
-			case errMsg := <-dbErrorC:
-				if errMsg == nil {
-					return
-				}
-				if errMsg.Fatal {
-					logger.Fatal(fmt.Sprint(errMsg.Err))
-					os.Exit(-5)
-				} else {
-					logger.Warn(fmt.Sprint(errMsg.Err))
+			for {
+				select {
+				case msg := <-dbMsgC:
+					logger.Info(msg)
+				case errMsg := <-dbErrorC:
+					if errMsg == nil {
+						return
+					}
+					if errMsg.Fatal {
+						logger.Fatal(fmt.Sprint(errMsg.Err))
+						os.Exit(-5)
+					} else {
+						logger.Warn(fmt.Sprint(errMsg.Err))
+					}
 				}
 			}
 		}()
@@ -237,7 +250,7 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 	// Will start a go routine internally and send errors on the channel.
 	// An error present on the channel implies that the REST server has
 	// failed
-	errC := runServer(ctx, serviceName, *port)
+	errC := runServer(ctx, serviceName, *ipPort)
 
 	// Start a dummy service for now.  Normally this would be the production main processing loop,
 	// or a collection of independently processing components
