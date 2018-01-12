@@ -33,34 +33,29 @@
 		<div class="reveal">
 			<div class="slides">
                 <section data-transition="convex">
-                    <h3>Platform Services</h3>
+                    <h3>Platform Services - Overview</h3>
                 </section>
                 <section data-transition="convex">
                     <h4>Objective</h4>
                     <ul style="font-size: 66%">
                         <li>decide a useful path forward to create, deploy, and operate platform services</li>
                     </ul>
-                    <br>
-                    <br>
+                    <br> <br>
+                    <h4>Lessons learned</h4>
+                    <ul style="font-size: 66%">
+                        <li>service communications require a solid ecosystem</li>
+                        <li>lack of infrastructure transparency has created widespread and large risks</li>
+                        <li>devops blocker for stats, metrics, logging ... creating technology gaps</li>
+                    </ul>
+                    <br> <br>
                     <h4>Requirements</h4>
                     <ul style="font-size: 66%">
                         <li>flexibility to employ multiple styles, languages, and classes of services</li>
                         <li>address needs of multiple Sentient products</li>
-                        <li>can 1 person do this</li>
+                        <li>1 person can deal with it</li>
                     </ul>
                 </section>
                 <section data-transition="convex">
-                    <h3>Motivation</h3>
-                    <p style="font-size: 66%">
-                    lessons learned from previous projects
-                    </p>
-                    <ul style="font-size: 66%">
-                        <li>Thrift generators are weak, json is leaky</li>
-                        <li>HTTP 1.x is comparatively expensive</li>
-                        <li>lack of infrastructure transparency</li>
-                        <li>devops blocker for stats, metrics, logging ...</li>
-                        <li>cluster management only addresses deployment ...</li>
-                    </ul>
                     <p style="font-size: 66%">
                     others too have experienced this.  See more at <br>
                     <a href="https://www.slideshare.net/datawire/lyfts-envoy-from-monolith-to-service-mesh-matt-klein-lyft/6">Monolith to ServiceMesh - Matt Klien, Lyft</a>
@@ -75,7 +70,7 @@
                     </p>
                     <ul style="font-size: 66%">
                         <li>HTTP/1.x &amp; json &nbsp;&nbsp;<em>vs</em>&nbsp;&nbsp; HTTP/2 &amp; proto</li>
-                        <li>lights-out kubernetes, using kops</li>
+                        <li>lights-out ops of kubernetes, using kops</li>
                         <li>reducing devops overhead, increase transparency using Istio</li>
                         <li>multi-language use of gRPC</li>
                         <li>AWS Aurora Postgres egress</li>
@@ -88,9 +83,8 @@
                         <li>kubernetes is a deployment tool, data plane</li>
                         <li>istio is a service orchestration tool, currently people, control plane</li>
                         <li>Kubernetes is the mechanisim, Istio brings the policy</li>
-                        <li>istio isolates entire suites of tools Netflix OSS Hystrix, Zull, Ribbon, Eureka Zipkin, Atlas</li>
-                        <li>istio stops mashing together of applications and network functions</li>
-                        <li>envoy is the proxy component that does this using sidecars etc</li>
+                        <li>istio encapsulates entire suites of tools Netflix OSS Hystrix, Zull, Ribbon, Eureka Zipkin, Atlas</li>
+                        <li>istio stops unruly mashups of applications and network functions</li>
                     </ul>
                     See more at <br>
                     <a href="http://blog.christianposta.com/istio-workshop/slides/#/4">Microservicing like a unicorn</a>
@@ -99,11 +93,8 @@
                     <h3>Now show something(s)</h3>
                     <ul style="font-size: 66%">
                         <li>kops and AWS</li>
-                        <li>IaC and S3 versioning</li>
                         <li>prometheus, zipkin and grafana injection</li>
                         <li>definition, deployment, and ECS</li>
-                        <li>behind the scenes with pods and Istio</li>
-                        <li>grpc_cli (curl)</li>
                     </ul>
                 </section>
                 <section data-transition="convex">
