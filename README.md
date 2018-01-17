@@ -86,3 +86,22 @@ kops update cluster [your cluster name] --yes
 You can follow up with the Istio on K8s installation to complete your service mesh cluster found at https://istio.io/docs/setup/kubernetes/quick-start.html. Complete the Installation steps for the Istio tools.
 
 To deploy the service use the kubectl apply -f section with the service file, cmd/experimentsrv/experimentsrv.yaml.
+
+# AAA using Auth0
+
+Platform services are secured using the Auth0 service.  Auth0 is a service that provides support for headless machine to machine authentication.  Auth0 is being used initially to provide Bearer tokens for both headless and CLI clients to Sentient platform services.
+
+Auth0 authorizations can be done using a Demo account.  To do this you will need to add clients to the Auth0 dashboard.  
+
+The first client to be added will be the client that accesses the Auth0 service itself in order to then perform per user authentication and token generation. When you being creating a client you will be able to select the "Auth0 Management API" as the API you wish to secure.  You will then be lead through a set of screens to authorize the Auth0 administration capabilities (scopes) for this API.  After saving the initial version of the client you will need to go to the settings page and scroll to the bottom of the page to open the advanced settings section, in this section you should add to the grant types the password grant method.
+
+When adding the API against which clients for the platform services you will use a 'Non Interactive' client in the first page, after being prompted to do the create you will be asked for an API and you should create a New API by using the drop down dialog, "Select an API".  The New API Dialog will ask for a name and an Identifier, Identifiers are used as the 'audience' setting when generating tokens.
+
+You can now use various commands to manipulate the APIs outside of what will exist in the application code, this is a distinct advantage over directly using enterprise tools such as Okta.  Should you wish to use Okta as an Identity provider, or backend, to Auth0 then this can be done however you will need help from our Tech Ops department to do this.  At this time the user and passwords being used for securing APIs can be managed through the Auth0 dashboard including the ability to invite users to become admins.
+
+```
+curl --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"RjWuqwm1CM72iQ5G32aUjwIYx6vKTXBa", "client_secret": "MK_jpHrTcthM_HoNETnytYpqgMNS4e7zLMgp1_Wj2aePaPpubjN1UNKKCAfZlD_r", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "openid", "realm": "Username-Password-Authentication" }'
+
+c.f. https://auth0.com/docs/quickstart/backend/golang/02-using#obtaining-an-access-token-for-testing.
+```
+

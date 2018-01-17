@@ -252,6 +252,8 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 	// failed
 	errC := runServer(ctx, serviceName, *ipPort)
 
+	close(doneC)
+
 	// Start a dummy service for now.  Normally this would be the production main processing loop,
 	// or a collection of independently processing components
 	func(ctx context.Context) {

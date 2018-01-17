@@ -58,7 +58,7 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 
 	errC = make(chan errors.Error, 3)
 
-	server := grpc.NewServer()
+	server := grpc.NewServer(grpc.UnaryInterceptor(authInterceptor))
 	experimentSrv := &experimentServer{health: health.NewServer()}
 
 	experiment.RegisterExperimentServiceServer(server, experimentSrv)

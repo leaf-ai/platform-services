@@ -27,6 +27,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/auth0-community/go-auth0"
+  packages = ["."]
+  revision = "9ebd072c579e8060c6d60690e9dffd3b79718992"
+
+[[projects]]
+  branch = "master"
   name = "github.com/dustin/go-humanize"
   packages = ["."]
   revision = "bb3d318650d48840a39aa21a027c6630e198e626"
@@ -50,6 +56,12 @@
   name = "github.com/go-chi/render"
   packages = ["."]
   revision = "9f855fadd4b8cde7773f9ef51f6b2705af239519"
+  version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/go-errors/errors"
+  packages = ["."]
+  revision = "3afebba5a48dbc89b574d890b6b34d9ee10b4785"
   version = "v1.0.0"
 
 [[projects]]
@@ -241,6 +253,21 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/sstarcher/go-okta"
+  packages = ["."]
+  revision = "053fd73f6d35ad82d5eee3481cbf76b10f61dee6"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/crypto"
+  packages = [
+    "ed25519",
+    "ed25519/internal/edwards25519"
+  ]
+  revision = "13931e22f9e72ea58bb73048bc752b48c6d4d4ac"
+
+[[projects]]
+  branch = "master"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -329,6 +356,17 @@
   revision = "3f83fa5005286a7fe593b055f0d7771a7dce4655"
 
 [[projects]]
+  name = "gopkg.in/square/go-jose.v2"
+  packages = [
+    ".",
+    "cipher",
+    "json",
+    "jwt"
+  ]
+  revision = "f8f38de21b4dcd69d0413faf231983f5fd6634b1"
+  version = "v2.1.3"
+
+[[projects]]
   branch = "v2"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
@@ -337,6 +375,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "52bd368d903902f4781fb43d3ebfbf718557a4db80068b70cca84481f534a900"
+  inputs-digest = "a701ba28a64c90d83191d5992e59fb1dcfd598098e78841088cddfcb585cf7b7"
   solver-name = "gps-cdcl"
   solver-version = 1
