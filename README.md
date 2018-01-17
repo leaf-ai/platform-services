@@ -105,3 +105,11 @@ curl --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'c
 c.f. https://auth0.com/docs/quickstart/backend/golang/02-using#obtaining-an-access-token-for-testing.
 ```
 
+If you are using the test API you can do something like:
+
+```
+cd cmd/experimentsrv
+export AUTH0_DOMAIN=sentientai.auth0.com
+export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
+LOGXI_FORMAT=happy,maxcol=1024 LOGXI=*=TRC go test -v
+```

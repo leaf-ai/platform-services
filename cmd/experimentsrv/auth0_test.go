@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
 	"testing"
@@ -11,7 +12,7 @@ import (
 
 var (
 	auth0Domain    = flag.String("auth0-domain", "sentientai.auth0.com", "The domain assigned to the server API by Auth0")
-	auth0TestToken = flag.String("auth0-token", "", "The raw token string recieved from an invocation of {auth0-domain}/oauth/token}")
+	auth0TestToken = flag.String("auth0-token", "", "The raw token string received from an invocation of {auth0-domain}/oauth/token}")
 )
 
 func TestAuth0(t *testing.T) {
@@ -26,7 +27,7 @@ func TestAuth0(t *testing.T) {
 	validator := auth0.NewValidator(configuration)
 
 	headerTokenRequest, _ := http.NewRequest("", audience[0], nil)
-	headerValue := fmt.Sprintf("Bearer %s", TOKEN_RAW)
+	headerValue := fmt.Sprintf("Bearer %s", *auth0TestToken)
 	headerTokenRequest.Header.Add("Authorization", headerValue)
 
 	token, errGo := validator.ValidateRequest(headerTokenRequest)
