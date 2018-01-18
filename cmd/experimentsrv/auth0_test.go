@@ -10,7 +10,7 @@ var (
 )
 
 func TestAuth0(t *testing.T) {
-	err := validateToken(*auth0TestToken, "all:experiments")
+	err := validateToken("Bearer "+*auth0TestToken, "all:experiments")
 	if err != nil {
 		t.Error("Expected nil, got ", err.Error())
 	}

@@ -43,8 +43,7 @@ func validateToken(token string, claimCheck string) (err errors.Error) {
 	if errGo != nil {
 		return errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
 	}
-	headerValue := fmt.Sprintf("Bearer %s", *auth0TestToken)
-	headerTokenRequest.Header.Add("Authorization", headerValue)
+	headerTokenRequest.Header.Add("Authorization", token)
 
 	validResp, errGo := validator.ValidateRequest(headerTokenRequest)
 	if errGo != nil {

@@ -35,8 +35,8 @@ const ExpectedDBVersion int64 = 1
 var (
 	databaseHostPort    = flag.String("dbaddr", defaultDBHostPort(), "Host:Port pair for the database server")
 	databaseUser        = flag.String("dbuser", defaultDBUser(), "User name for accessing the database")
-	databaseName        = flag.String("dbname", defaultDBName(), "The 'DarkCycle' database name")
-	databaseOptions     = flag.String("dboptions", "", "Postgres options for inclusion in the 'DarkCycle' DSN, for example -dboptions=options=\"-c statement_timeout=2min\"")
+	databaseName        = flag.String("dbname", defaultDBName(), "The 'Experiment' database name")
+	databaseOptions     = flag.String("dboptions", "", "Postgres options for inclusion in the 'Experiment' DSN, for example -dboptions=options=\"-c statement_timeout=2min\"")
 	databaseMaxConn     = flag.Int("dbmaxconn", 72, "Sets a limit for open connections the master will use to postgres")
 	databaseMaxIdleConn = flag.Int("dbmaxidleconn", 8, "Sets a limit for open and idle connections the master will use to postgres")
 
@@ -106,7 +106,7 @@ func dbHasCorrectVersion(expect int64) (err error, ok bool, actual int64) {
 	return err, (expect == actual), actual
 }
 
-// CloseDB is used to close any existing database connections to the DarkCycle DB
+// CloseDB is used to close any existing database connections to the Experiment DB
 //
 func CloseDB() error {
 

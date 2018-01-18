@@ -253,12 +253,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/sstarcher/go-okta"
-  packages = ["."]
-  revision = "053fd73f6d35ad82d5eee3481cbf76b10f61dee6"
-
-[[projects]]
-  branch = "master"
   name = "golang.org/x/crypto"
   packages = [
     "ed25519",
@@ -375,6 +369,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a701ba28a64c90d83191d5992e59fb1dcfd598098e78841088cddfcb585cf7b7"
+  inputs-digest = "bbfed1673e4b3a1907159ab305ea594ad1209ce9d59825fda7d134c98a880495"
   solver-name = "gps-cdcl"
   solver-version = 1
