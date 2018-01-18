@@ -80,3 +80,14 @@ spec:
   ports:
     - port: 5432
       protocol: tcp
+---
+apiVersion: config.istio.io/v1alpha2
+kind: EgressRule
+metadata:
+  name: auth0-egress-rule
+spec:
+  destination:
+    service: "sentientai.auth0.com"
+  ports:
+    - port: 443
+      protocol: https
