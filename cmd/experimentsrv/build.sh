@@ -1,10 +1,13 @@
-#!/bin/bash -x
+#!/bin/bash
 
 if ( find /project -maxdepth 0 -empty | read v );
 then
   experiment "source code must be mounted into the /project directory"
   exit 990
 fi
+
+set -e
+set -o pipefail
 
 export HASH=`git rev-parse HEAD`
 export DATE=`date '+%Y-%m-%d_%H:%M:%S%z'`
@@ -24,8 +27,8 @@ go build -ldflags "-X github.com/SentientTechnologies/platform-services/version.
 CGO_ENABLED=0 go test -ldflags "-X github.com/SentientTechnologies/platform-services/version.TestRunMain=Use -X github.com/SentientTechnologies/platform-services/version.BuildTime=$DATE -X github.com/SentientTechnologies/platform-services/version.GitHash=$HASH" -coverpkg="." -c -o cmd/experimentsrv/bin/experimentsrv-run-coverage cmd/experimentsrv/*.go
 CGO_ENABLED=0 go test -ldflags "-X github.com/SentientTechnologies/platform-services/version.BuildTime=$DATE -X github.com/SentientTechnologies/platform-services/version.GitHash=$HASH" -coverpkg="." -c -o bin/experimentsrv-test-coverage cmd/experimentsrv/*.go
 go test -ldflags "-X github.com/SentientTechnologies/platform-services/version.BuildTime=$DATE -X github.com/SentientTechnologies/platform-services/version.GitHash=$HASH" -race -c -o cmd/experimentsrv/bin/experimentsrv-test cmd/experimentsrv/*.go
-if ! [ -z ${TRAVIS_TAG+x} ]; then
-    if ! [ -z ${GITHUB_TOKEN+x} ]; then
+if ! [ -z "${TRAVIS_TAG}" ]; then
+    if ! [ -z "${GITHUB_TOKEN}" ]; then
         github-release release --user SentientTechnologies --repo platform-services --tag ${TRAVIS_TAG} --pre-release && \
         github-release upload --user SentientTechnologies --repo platform-services  --tag ${TRAVIS_TAG} --name platform-services --file cmd/experimentsrv/bin/experimentsrv
     fi

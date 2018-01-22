@@ -23,30 +23,32 @@ Service authetication is explained within the top level README.md file for the g
 # Manually exercising the server
 
 ```
-root@experiments-v1-bc46b5d68-dqnwk:~# /tmp/grpc_cli call localhost:30001 ai.sentient.experiment.ExperimentService.Get "id: ''" --metadata authorization:"$AUT
-H"                                                                                                                                                            
+export AUTH0_DOMAIN=sentientai.auth0.com
+export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
+/tmp/grpc_cli call localhost:30001 ai.sentient.experiment.Service.Get "id: ''" --metadata authorization:"Bearer $AUTH0_TOKEN"
 connecting to localhost:30001
 Sending client initial metadata:
-authorization : eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IlJqYzRSRUV5TmpFM09UQXdSRFZCTmtSQ056QkNPVEJETURrelFVUkZNRFk0UmpsRFJVTXhNUSJ9.eyJpc3MiOiJodHRwczovL3NlbnRpZW50YWkuYXV0aDAuY29tLyIsInN1YiI6ImF1dGgwfDVhNWY4MjM2M2VjYTYxMGJkNjVjMzUwMyIsImF1ZCI6Imh0dHA6Ly9hcGkuc2VudGllbnQuYWkvZXhwZXJpbWVudHNydiIsImlhdCI6MTUxNjMxMzY0OCwiZXhwIjoxNTE2NDAwMDQ4LCJhenAiOiI3MWVMTnU5QncxcmdmWXo5UEEyZ1o0Smk3dWptM1V3aiIsInNjb3BlIjoiYWxsOmV4cGVyaW1lbnRzIiwiZ3R5IjoicGFzc3dvcmQifQ.UOAD8Epu93Excnhkt6x062LEXI0UO1b5ZV68j8h3ok1OrLHl6zI1iBgB___Xr_wWeTPBPSIL3zYEZXYcSFeJkQT0SkwBILi2iN6fNeOTohryY9vRjLQlfYyCOR2O2tbP9mPs6Mnn-PoAI9Tq93U0WGRYs90a46ICGfy23xhs7jZqpqocRa2A_EcAVzNJNX1xx8MIyFk-upMQutvcpJ_H7YxfMpDHaPY9jMRDs7tSz9lD0-10PnKAwpo3PyA54s4vP76uaxDVET5T9RLyxKUScL_g2CP_fDk2dF2_DnLG9rWPe4mP_yPble09ejKUdB3DEVHm1Ia8dkrVUFw00B73Dg
-experiment {
-  createTime {
-    seconds: 1516319288
-  }
-}
+authorization : ...
+Rpc failed with status code 2, error message: selecting an experiment requires either the DB id or the experiment unique id to be specified stack="[db.go:533 server.go:42 experimentsrv.pb.go:375 auth.go:88 experimentsrv.pb.go:377 server.go:900 server.go:1122 server.go:617]"
 
-Rpc succeeded with OK status
-root@experiments-v1-bc46b5d68-dqnwk:~# export AUTH="eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IlJqYzRSRUV5TmpFM09UQXdSRFZCTmtSQ056QkNPVEJETURrelFVUkZNRFk0UmpsRFJVTXhNUSJ9.eyJpc3MiOiJodHRwczovL3NlbnRpZW50YWkuYXV0aDAuY29tLyIsInN1YiI6ImF1dGgwfDVhNWY4MjM2M2VjYTYxMGJkNjVjMzUwMyIsImF1ZCI6Imh0dHA6Ly9hcGkuc2VudGllbnQuYWkvZXhwZXJpbWVudHNydiIsImlhdCI6MTUxNjMxMzY0OCwiZXhwIjoxNTE2NDAwMDQ4LCJhenAiOiI3MWVMTnU5QncxcmdmWXo5UEEyZ1o0Smk3dWptM1V3aiIsInNjb3BlIjoiYWxsOmV4cGVyaW1lbnRzIiwiZ3R5IjoicGFzc3dvcmQifQ.UOAD8Epu93Excnhkt6x062LEXI0UO1b5ZV68j8h3ok1OrLHl6zI1iBgB___Xr_wWeTPBPSIL3zYEZXYcSFeJkQT0SkwBILi2iN6fNeOTohryY9vRjLQlfYyCOR2O2tbP9mPs6Mnn-PoAI9Tq93U0WGRYs90a46ICGfy23xhs7jZqpqocRa2A_EcAVzNJNX1xx8MIyFk-upMQutvcpJ_H7YxfMpDHaPY9jMRDs7tSz9lD0-10PnKAwpo3PyA54s4vP76uaxDVET5T9RLyxKUScL_g2CP_fDk2dF2_DnLG9rWPe4mP_yPble09ejKUdB3DEVHm1Ia8dkrVUFw00B73Dg"
-root@experiments-v1-bc46b5d68-dqnwk:~# /tmp/grpc_cli call localhost:30001 ai.sentient.experiment.ExperimentService.Get "id: ''" --metadata authorization:"$AUTH"
+/tmp/grpc_cli call localhost:30001 ai.sentient.experiment.Service.Get "id: 't'" --metadata authorization:"$AUTH"
 connecting to localhost:30001
 Sending client initial metadata:
-authorization : eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IlJqYzRSRUV5TmpFM09UQXdSRFZCTmtSQ056QkNPVEJETURrelFVUkZNRFk0UmpsRFJVTXhNUSJ9.eyJpc3MiOiJodHRwczovL3NlbnRpZW50YWkuYXV0aDAuY29tLyIsInN1YiI6ImF1dGgwfDVhNWY4MjM2M2VjYTYxMGJkNjVjMzUwMyIsImF1ZCI6Imh0dHA6Ly9hcGkuc2VudGllbnQuYWkvZXhwZXJpbWVudHNydiIsImlhdCI6MTUxNjMxMzY0OCwiZXhwIjoxNTE2NDAwMDQ4LCJhenAiOiI3MWVMTnU5QncxcmdmWXo5UEEyZ1o0Smk3dWptM1V3aiIsInNjb3BlIjoiYWxsOmV4cGVyaW1lbnRzIiwiZ3R5IjoicGFzc3dvcmQifQ.UOAD8Epu93Excnhkt6x062LEXI0UO1b5ZV68j8h3ok1OrLHl6zI1iBgB___Xr_wWeTPBPSIL3zYEZXYcSFeJkQT0SkwBILi2iN6fNeOTohryY9vRjLQlfYyCOR2O2tbP9mPs6Mnn-PoAI9Tq93U0WGRYs90a46ICGfy23xhs7jZqpqocRa2A_EcAVzNJNX1xx8MIyFk-upMQutvcpJ_H7YxfMpDHaPY9jMRDs7tSz9lD0-10PnKAwpo3PyA54s4vP76uaxDVET5T9RLyxKUScL_g2CP_fDk2dF2_DnLG9rWPe4mP_yPble09ejKUdB3DEVHm1Ia8dkrVUFw00B73Dg
-experiment {
-  createTime {
-    seconds: 1516319308
-  }
-}
-
-Rpc succeeded with OK status
-
+authorization : ...
+Rpc failed with status code 2, error message: no matching experiments found for caller specified input parameters
 ```
 
+If you wish to exercise the server while it is deployed into an Istio orchestrated cluster then you should kubectl exec into the istio-proxy to get localized access to the service.  The application server container runs only Alpine so for a full set of tools such as curl and jq using the istio-proxy is a better option, with some minor additions. The Istio container will need the following commands run in order to activate the needed features for local testing:
+
+```
+# Copy the grpc CLI tool into the running container
+kubectl cp `which grpc_cli` experiments-v1-bc46b5d68-bcdkv:/tmp/grpc_cli -c istio-proxy
+kubectl exec -it experiments-v1-bc46b5d68-bcdkv -c istio-proxy /bin/bash
+sudo apt-get update
+sudo apt-get install libgflags2v5 ca-certificates
+export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client
+_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.
+ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:
+experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
+/tmp/grpc_cli call 100.96.1.14:30001 ai.sentient.experiment.Service.Get "id: 't'"  --metadata authorization:"Bearer $AUTH0_TOKEN"
+```

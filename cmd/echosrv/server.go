@@ -23,12 +23,12 @@ type echoServer struct {
 	health *health.Server
 }
 
-func (*echoServer) Echo(ctx context.Context, in *echo.EchoRequest) (resp *echo.EchoResponse, err error) {
+func (*echoServer) Echo(ctx context.Context, in *echo.Request) (resp *echo.Response, err error) {
 	if in == nil {
 		return nil, fmt.Errorf("request is missing a message to echo")
 	}
 
-	return &echo.EchoResponse{
+	return &echo.Response{
 		Message:  in.Message,
 		DateTime: &timestamp.Timestamp{Seconds: time.Now().Unix()}}, nil
 }
@@ -44,7 +44,7 @@ func runServer(ctx context.Context, serviceName string, port int) (errC chan err
 	server := grpc.NewServer()
 	echoSrv := &echoServer{health: health.NewServer()}
 
-	echo.RegisterEchoServiceServer(server, echoSrv)
+	echo.RegisterServiceServer(server, echoSrv)
 	grpc_health_v1.RegisterHealthServer(server, echoSrv)
 
 	reflection.Register(server)

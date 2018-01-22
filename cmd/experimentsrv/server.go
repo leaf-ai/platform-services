@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"time"
 
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
@@ -14,8 +13,9 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
-	timestamp "github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/golang/protobuf/ptypes"
 
+	"github.com/SentientTechnologies/platform-services/db"
 	experiment "github.com/SentientTechnologies/platform-services/gen/experimentsrv"
 )
 
@@ -39,17 +39,31 @@ func (*experimentServer) Get(ctx context.Context, in *experiment.GetRequest) (re
 		return nil, fmt.Errorf("request is missing a message to experiment")
 	}
 
+	experiments, err := db.SelectExperiment(0, in.Id)
+	if err != nil {
+		return nil, err
+	}
+	if len(experiments) == 0 {
+		return nil, fmt.Errorf("no matching experiments found for caller specified input parameters")
+	}
+
+	expr := experiments[0]
+	tstamp, err := ptypes.TimestampProto(expr.Created)
+	if err != nil {
+		return nil, err
+	}
 	return &experiment.GetResponse{
 			&experiment.Experiment{
-				Name:        "",
-				Description: "",
-				CreateTime:  &timestamp.Timestamp{Seconds: time.Now().Unix()},
+				Name:        expr.Name,
+				Description: expr.Description,
+				Created:     tstamp, // &timestamp.Timestamp{Seconds: time.Now().Unix()},
 				InputLayer:  []*experiment.InputLayer{},
 				OutputLayer: []*experiment.OutputLayer{},
 			},
 		},
 		nil
 }
+
 func (es *experimentServer) Check(ctx context.Context, in *grpc_health_v1.HealthCheckRequest) (resp *grpc_health_v1.HealthCheckResponse, err error) {
 	return es.health.Check(ctx, in)
 }
@@ -61,7 +75,7 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 	server := grpc.NewServer(grpc.UnaryInterceptor(authInterceptor))
 	experimentSrv := &experimentServer{health: health.NewServer()}
 
-	experiment.RegisterExperimentServiceServer(server, experimentSrv)
+	experiment.RegisterServiceServer(server, experimentSrv)
 	grpc_health_v1.RegisterHealthServer(server, experimentSrv)
 
 	reflection.Register(server)

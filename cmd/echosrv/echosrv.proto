@@ -4,16 +4,16 @@ package ai.sentient.echo;
 
 import "google/protobuf/timestamp.proto";
 
-message EchoRequest {
+message Request {
   string message = 1;
 }
 
-message EchoResponse {
+message Response {
   string message = 1;
   google.protobuf.Timestamp date_time = 2;
   
 }
 
-service EchoService {
-  rpc Echo(EchoRequest) returns (EchoResponse);
+service Service {
+  rpc Echo(Request) returns (Response);
 }

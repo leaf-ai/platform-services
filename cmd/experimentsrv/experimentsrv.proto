@@ -32,7 +32,7 @@ message Experiment {
   string id = 1;
   string name = 2;
   string description = 3;
-  google.protobuf.Timestamp createTime = 4;
+  google.protobuf.Timestamp created = 4;
   repeated InputLayer inputLayer = 5;
   repeated OutputLayer outputLayer = 6;
 }
@@ -53,7 +53,7 @@ message GetResponse {
   Experiment experiment = 1;
 }
 
-service ExperimentService {
+service Service {
   rpc Create(CreateRequest) returns (CreateResponse);
   rpc Get(GetRequest) returns (GetResponse);
 }

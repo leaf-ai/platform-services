@@ -41,7 +41,7 @@ func validateToken(token string, claimCheck string) (err errors.Error) {
 
 	headerTokenRequest, errGo := http.NewRequest("", audience[0], nil)
 	if errGo != nil {
-		return errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
+		return errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("hint", "possibly the Bearer label is missing")
 	}
 	headerTokenRequest.Header.Add("Authorization", token)
 
@@ -76,9 +76,12 @@ func authInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServe
 	//}
 
 	if len(meta["authorization"]) != 1 {
-		return nil, grpc.Errorf(codes.Unauthenticated, "invalid token")
+		return nil, grpc.Errorf(codes.Unauthenticated, "invalid security token")
 	}
-	if err := validateToken(meta["authorization"][0], "all:experiments"); err != nil {
+	if len(meta["authorization"][0]) == 0 {
+		return nil, grpc.Errorf(codes.Unauthenticated, "empty security token")
+	}
+	if err := validateToken(meta["authorization"][0], ""); err != nil {
 		return nil, grpc.Errorf(codes.Unauthenticated, err.Error())
 	}
 

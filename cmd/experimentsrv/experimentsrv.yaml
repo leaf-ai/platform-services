@@ -1,6 +1,29 @@
-##################################################################################################
-# experiments service
-##################################################################################################
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: ambassador
+  name: ambassador
+  annotations:
+    sidecar.istio.io/inject: "false"
+    getambassador.io/config: |
+      ---
+      apiVersion: ambassador/v0
+      kind:  Mapping
+      name:  experiments_mapping
+      grpc: true
+      prefix: /ai.sentient.experiment.Service/
+      rewrite: /ai.sentient.experiment.Service/
+      service: experiments
+spec:
+  type: LoadBalancer
+  ports:
+  - name: ambassador
+    port: 80
+    targetPort: 80
+  selector:
+    service: ambassador
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -13,21 +36,6 @@ spec:
     name: grpc-exp
   selector:
     app: experiments
----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  annotations:
-    kubernetes.io/ingress.class: "istio"
-  name: ingress-exp
-spec:
-  rules:
-    - http:
-        paths:
-         - backend:
-             serviceName: experiments
-             servicePort: grpc-exp
-           path: /.*
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment

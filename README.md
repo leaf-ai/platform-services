@@ -124,6 +124,14 @@ kubectl apply -f $ISTIO_DIR/install/kubernetes/addons/servicegraph.yaml
 kubectl apply -f $ISTIO_DIR/install/kubernetes/addons/zipkin.yaml
 ```
 
+The service mesh will be using an Ingress that leverages a version of Envoy called Ambassador.  Ambassador can be injected using the following command:
+
+```
+kubectl apply -f https://getambassador.io/yaml/ambassador/ambassador-rbac.yaml
+```
+
+Ambassador provides a gRPC HTTP/2 ingress which default AWS ELB based load balancers are not able to.  Also provisioned are services for handling authentication and token generation for the users making gRPC requests.
+
 To deploy the platform service passwords and other secrets will be needed to allows access to Aurora and other external resources.  YAML files will be needed to populate secrets into the service mesh, individual services document the secrets they require within their README.md files found on github and provide examples, for example https://github.com/SentientTechnologies/platform-services/cmd/experimentsrv/README.md.  Secrets for these services are currently held within the Kubernetes secrets store and can be populated using the following command:
 
 ```
@@ -210,7 +218,7 @@ Services used within the platform require that not only is the link integrity an
 
 ```
 export AUTH="eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IlJ...............qYzRSRUV5TmpFM09UQXdSRFZCTmtSQ056QkNPVEJET"
-grpc_cli call localhost:30001 ai.sentient.experiment.ExperimentService.Get "id: 'test'" --metadata authorization:"$AUTH"
+grpc_cli call localhost:30001 ai.sentient.experiment.Service.Get "id: 'test'" --metadata authorization:"Bearer $AUTH"
 ```
 
 # Shutting down a service, or cluster
