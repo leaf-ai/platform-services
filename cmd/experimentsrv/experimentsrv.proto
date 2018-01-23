@@ -33,8 +33,8 @@ message Experiment {
   string name = 2;
   string description = 3;
   google.protobuf.Timestamp created = 4;
-  repeated InputLayer inputLayer = 5;
-  repeated OutputLayer outputLayer = 6;
+  map<uint32, InputLayer> inputLayers = 5;
+  map<uint32, OutputLayer> outputLayers = 6;
 }
 
 message CreateRequest {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
@@ -13,9 +14,7 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
-	"github.com/golang/protobuf/ptypes"
-
-	"github.com/SentientTechnologies/platform-services/db"
+	model "github.com/SentientTechnologies/platform-services/experiment"
 	experiment "github.com/SentientTechnologies/platform-services/gen/experimentsrv"
 )
 
@@ -35,33 +34,21 @@ func (*experimentServer) Create(ctx context.Context, in *experiment.CreateReques
 }
 
 func (*experimentServer) Get(ctx context.Context, in *experiment.GetRequest) (resp *experiment.GetResponse, err error) {
-	if in == nil {
-		return nil, fmt.Errorf("request is missing a message to experiment")
+	if in == nil || len(strings.TrimSpace(in.Id)) == 0 {
+		return nil, fmt.Errorf("request is missing input parameters")
 	}
 
-	experiments, err := db.SelectExperiment(0, in.Id)
+	resp = &experiment.GetResponse{}
+
+	resp.Experiment, err = model.SelectExperimentWide(in.Id)
 	if err != nil {
 		return nil, err
 	}
-	if len(experiments) == 0 {
-		return nil, fmt.Errorf("no matching experiments found for caller specified input parameters")
+	if resp.Experiment == nil {
+		return nil, fmt.Errorf("no matching experiments found matching user specified input parameters")
 	}
 
-	expr := experiments[0]
-	tstamp, err := ptypes.TimestampProto(expr.Created)
-	if err != nil {
-		return nil, err
-	}
-	return &experiment.GetResponse{
-			&experiment.Experiment{
-				Name:        expr.Name,
-				Description: expr.Description,
-				Created:     tstamp, // &timestamp.Timestamp{Seconds: time.Now().Unix()},
-				InputLayer:  []*experiment.InputLayer{},
-				OutputLayer: []*experiment.OutputLayer{},
-			},
-		},
-		nil
+	return resp, nil
 }
 
 func (es *experimentServer) Check(ctx context.Context, in *grpc_health_v1.HealthCheckRequest) (resp *grpc_health_v1.HealthCheckResponse, err error) {

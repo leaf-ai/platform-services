@@ -76,7 +76,7 @@ import (
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
 
-	"github.com/SentientTechnologies/platform-services/db"
+	"github.com/SentientTechnologies/platform-services/experiment"
 )
 
 const serviceName = "experimentsrv"
@@ -223,7 +223,7 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 	// Initiate database processing.  Without the DB at least entering a retry state the
 	// server will never run so immediately return if this cannot be started
 	//
-	dbMsgC, dbErrorC, err := db.StartDB(ctx.Done())
+	dbMsgC, dbErrorC, err := experiment.StartDB(ctx.Done())
 	if err != nil {
 		errs = append(errs, err)
 	} else {

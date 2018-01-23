@@ -1,14 +1,27 @@
-package db
+package experiment
 
 // The db.go file contains a Go lang marshalling layer on top of the Postgres and
 // Go SQL layers.  One of the responsibilities of the db.go module is also to
 // enable Postgres arrays and the like to be marshalled into go data structures
+//
+// Currently the postgres DB is provisioned using AWS Aurora (RDS).  The PGHOST and PGPORT etc
+// values will typically appear as follows:
+//
+// PGUSER=pl PGHOST=dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com PGDATABASE=platform
+//
+// You should be using a ~/.pgpass file or ian environment variable point at it, PGPASSFILE, with the password
+// stored there.  When running within a kubebernetes cluster for other service environment then a
+// secrets DB should be used.
+//
+// To attached to the aurora DB then using the PGHOST will also work as follows:
+//
+// PGUSER=pl PGHOST=dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com PGDATABASE=platform psql
+//
 
 import (
 	"bufio"
 	"bytes"
 	"database/sql"
-	"encoding/gob"
 	"flag"
 	"fmt"
 	"log"
@@ -25,6 +38,11 @@ import (
 	"github.com/lib/pq"
 
 	sq "github.com/Masterminds/squirrel"
+
+	grpc "github.com/SentientTechnologies/platform-services/gen/experimentsrv"
+
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
@@ -478,81 +496,161 @@ func CheckIfFatal(inErr error) (err error) {
 	return inErr
 }
 
-type Experiment struct {
-	ID          int64
-	Uid         string
-	Created     time.Time
-	Name        string
-	Description string
-}
-
-func (data *Experiment) DeepCopy() (result *Experiment, err errors.Error) {
-
-	mod := new(bytes.Buffer)
-
-	enc := gob.NewEncoder(mod)
-	dec := gob.NewDecoder(mod)
-	result = &Experiment{}
-	if errGo := enc.Encode(*data); errGo != nil {
-		return nil, errors.Wrap(errGo).With(stack.Trace().TrimRuntime())
-	}
-	if errGo := dec.Decode(result); errGo != nil {
-		return nil, errors.Wrap(errGo).With(stack.Trace().TrimRuntime())
-	}
-	return result, nil
-}
-
 // SelectExperiment is used to retrieve one or more experiments that have been registered
 // with the service.
 //
-// If the id is specified, that is not 0, then the database specific identifier
-// will be used to retrieve a single row.  If the id is not specified then the application
+// If the rowId is specified, that is not 0, then the database specific row identifier
+// will be used to retrieve a single row.  If the rowId is not specified then the application
+// unique identifier will be used to retrieve the experiment.
+//
+// The function will return a nil the first returned parameter,
+// along with a nil for the error in the case the SQL query works but returns
+// no data.
+//
+// This function will NOT return layer information.
+//
+func SelectExperiment(rowId uint64, uid string) (result *grpc.Experiment, err errors.Error) {
+
+	if dbDownErr != nil {
+		return nil, dbDownErr
+	}
+
+	query := sq.Select("uid,created,name,description").
+		From("experiments").
+		OrderBy("uid DESC").
+		PlaceholderFormat(sq.Dollar)
+
+	if rowId > 0 {
+		query = query.Where(sq.Eq{"id": rowId})
+	} else {
+		if len(uid) > 0 {
+			query = query.Where(sq.Eq{"uid": uid})
+		} else {
+			return nil, errors.New("selecting an experiment requires either the DB rowId or the experiment unique id to be specified").With("stack", stack.Trace().TrimRuntime())
+		}
+	}
+
+	sql, args, errGo := query.ToSql()
+	if CheckIfFatal(errGo) != nil {
+		return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("rowId", rowId).With("uid", uid)
+	}
+
+	result = &grpc.Experiment{}
+	createTime := time.Now()
+
+	row := dBase.QueryRow(sql, args...)
+	errGo = row.Scan(&result.Id, &result.Name, &result.Description, &createTime)
+	if CheckIfFatal(errGo) != nil {
+		return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("rowId", rowId).With("uid", uid)
+	}
+	tstamp, errGo := ptypes.TimestampProto(createTime)
+	if errGo != nil {
+		return nil, errors.Wrap(errGo, "could not parse timestamp from DB").With("stack", stack.Trace().TrimRuntime()).With("rowId", rowId).With("uid", uid)
+	}
+	result.Created = tstamp
+
+	return result, nil
+}
+
+type experimentWide struct {
+	ID          int64     `db:"e_id"`
+	Uid         string    `db:"e_uid"`
+	Created     time.Time `db:"e_created"`
+	Name        string    `db:"e_name"`
+	Description string    `db:"e_description"`
+	LayerID     int64     `db:"l_id"`
+	LayerUID    string    `db:"l_uid"`
+	LayerNumber uint32    `db:"l_number"`
+	LayerName   string    `db:"l_name"`
+	LayerClass  string    `db:"l_class"`
+	LayerType   string    `db:"l_type"`
+	LayerValues []string  `db:"l_values"`
+}
+
+// SelectExperimentWide is used to retrieve one or more experiments that have been registered
+// with the service along with all of the layer details.
+//
+// The application
 // unique identifier will be used to retrieve the experiment.
 //
 // The function can return both a nil, or an empty array for the first result,
 // along with a nil for the error in the case the SQL query works but returns
 // no data.
 //
-func SelectExperiment(id uint64, uid string) (result []Experiment, err errors.Error) {
+// For a single experiment this function will return one row for every layer that was found.
+//
+func SelectExperimentWide(uid string) (result *grpc.Experiment, err errors.Error) {
 
 	if dbDownErr != nil {
 		return nil, dbDownErr
 	}
 
-	query := sq.Select("id,uid,created,name,description").
-		From("experiments").
-		OrderBy("uid DESC").
-		PlaceholderFormat(sq.Dollar)
+	sql := `select e.id as e_id, e.uid as e_uid, e.created as e_created, e.name as e_name, e.description as e_description, 
+	l.id as l_id, l.uid as l_uid, l.number as l_number, l.name as l_name, l.class::text as l_class, l.type::text as l_type, l.values as l_values from 
+	experiments AS e NATURAL INNER JOIN layers AS l WHERE e.uid = ? AND l.uid = e.uid;`
 
-	if id > 0 {
-		query = query.Where(sq.Eq{"id": id})
-	} else {
-		if len(uid) > 0 {
-			query = query.Where(sq.Eq{"uid": uid})
-		} else {
-			return nil, errors.New("selecting an experiment requires either the DB id or the experiment unique id to be specified").With("stack", stack.Trace().TrimRuntime())
-		}
+	if len(uid) == 0 {
+		return nil, errors.New("selecting an experiment requires the experiment unique id to be specified").With("stack", stack.Trace().TrimRuntime())
 	}
 
-	sql, args, errGo := query.ToSql()
+	rows, errGo := dBase.Queryx(sql, uid)
 	if CheckIfFatal(errGo) != nil {
-		return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("id", id).With("uid", uid)
-	}
-
-	rows, errGo := dBase.Queryx(sql, args...)
-	if CheckIfFatal(errGo) != nil {
-		return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("id", id).With("uid", uid)
+		return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", uid)
 	}
 	defer rows.Close()
 
-	result = []Experiment{}
-	for rows.Next() {
-		row := Experiment{}
-		if errGo = rows.StructScan(&row); CheckIfFatal(errGo) != nil {
-			return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("id", id).With("uid", uid)
-		}
+	// TODO If there are now rows then do a simple select for the main record to see if it exists
 
-		result = append(result, row)
+	for rows.Next() {
+		row := experimentWide{}
+		if errGo = rows.StructScan(&row); CheckIfFatal(errGo) != nil {
+			return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", uid)
+		}
+		if result == nil {
+			tstamp, errGo := ptypes.TimestampProto(row.Created)
+			if errGo != nil {
+				return nil, errors.Wrap(errGo, "could not parse timestamp from DB").With("stack", stack.Trace().TrimRuntime()).With("uid", uid)
+			}
+
+			result = &grpc.Experiment{
+				Id:           row.Uid,
+				Name:         row.Name,
+				Description:  row.Description,
+				Created:      tstamp,
+				InputLayers:  map[uint32]*grpc.InputLayer{},
+				OutputLayers: map[uint32]*grpc.OutputLayer{},
+			}
+		}
+		// Parse each row type for layers converting them into a gRPC map
+		switch row.LayerClass {
+		case "Input":
+			input := &grpc.InputLayer{
+				Name:   row.LayerName,
+				Values: row.LayerValues,
+			}
+
+			inputType, isValid := grpc.InputLayer_Type_value[row.LayerType]
+			if !isValid {
+				return nil, errors.Wrap(errGo, "could not parse input layer type from DB").With("stack", stack.Trace().TrimRuntime()).With("uid", uid).With("layer", row.LayerNumber)
+			}
+			input.Type = (grpc.InputLayer_Type)(inputType)
+			result.InputLayers[row.LayerNumber] = input
+
+			break
+		case "Output":
+			output := &grpc.OutputLayer{
+				Name:   row.LayerName,
+				Values: row.LayerValues,
+			}
+
+			outputType, isValid := grpc.OutputLayer_Type_value[row.LayerType]
+			if !isValid {
+				return nil, errors.Wrap(errGo, "could not parse output layer type from DB").With("stack", stack.Trace().TrimRuntime()).With("uid", uid).With("layer", row.LayerNumber)
+			}
+			output.Type = (grpc.OutputLayer_Type)(outputType)
+			result.OutputLayers[row.LayerNumber] = output
+			break
+		}
 	}
 
 	return result, nil
@@ -571,27 +669,61 @@ func SelectExperiment(id uint64, uid string) (result []Experiment, err errors.Er
 // result of assumptions made by the caller.
 //
 //
-func InsertExperiment(data *Experiment) (result *Experiment, err errors.Error) {
+func InsertExperiment(data *grpc.Experiment) (result *grpc.Experiment, err errors.Error) {
 
 	if dbDownErr != nil {
 		return nil, dbDownErr
 	}
 
-	if data.ID != 0 {
-		return nil, errors.New("an insert operation must not have the id field set").With("stack", stack.Trace().TrimRuntime()).With("uid", data.Uid)
+	if len(data.Id) != 0 {
+		return nil, errors.New("an insert operation must not have the experiment uid field set").With("stack", stack.Trace().TrimRuntime()).With("id", data.Id)
 	}
 
-	result, err = data.DeepCopy()
+	result = proto.Clone(result).(*grpc.Experiment)
+
+	stmt, errGo := dBase.Prepare(`INSERT INTO layers uid, number, name, class, type, values VALUES(?, ?, ?, ?, ?, ?)`)
+	if CheckIfFatal(errGo) != nil {
+		return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", data.Id)
+	}
+
+	tx := dBase.MustBegin()
 
 	query := sq.Insert("experiments").
-		Columns("uid", "created", "name", "description").
-		Values(data.Uid, data.Created, data.Name, data.Description).
-		Suffix("RETURNING \"id\"").
+		Columns("uid", "name", "description").
+		Values(data.Id, data.Name, data.Description).
+		Suffix("RETURNING \"created\"").
 		RunWith(dBase.DB).
 		PlaceholderFormat(sq.Dollar)
 
-	if errGo := query.QueryRow().Scan(&result.ID); CheckIfFatal(errGo) != nil {
-		return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", data.Uid)
+	created := time.Now()
+
+	errGo = query.QueryRow().Scan(&created)
+	if CheckIfFatal(errGo) != nil {
+		return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", data.Id)
+	}
+
+	for i, layer := range data.InputLayers {
+		_, errGo = stmt.Exec(data.Id, i, layer.Name, "Input", layer.Type, layer.Values)
+		if CheckIfFatal(errGo) != nil {
+			return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", data.Id)
+		}
+	}
+
+	for i, layer := range data.OutputLayers {
+		_, errGo = stmt.Exec(data.Id, i, layer.Name, "Output", layer.Type, layer.Values)
+		if CheckIfFatal(errGo) != nil {
+			return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", data.Id)
+		}
+	}
+
+	errGo = tx.Commit()
+	if errGo != nil {
+		return nil, errors.Wrap(errGo, "database insert transaction failed").With("stack", stack.Trace().TrimRuntime()).With("uid", data.Id)
+	}
+
+	result.Created, errGo = ptypes.TimestampProto(created)
+	if errGo != nil {
+		return nil, errors.Wrap(errGo, "timestamp from database insert could not be parsed").With("stack", stack.Trace().TrimRuntime()).With("uid", data.Id)
 	}
 
 	return result, nil

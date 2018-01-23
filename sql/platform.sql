@@ -74,21 +74,32 @@ CREATE TABLE IF NOT EXISTS experiments (
 
 CREATE UNIQUE INDEX experiments_uid_idx ON experiments(uid);
 
+-- Layers come in 2 variants, the logic of the enumeration restrictions 
+-- are handled inside the db.go code
+--
 CREATE TYPE layerClass AS ENUM (
-    'input',
-    'output');
+    'Input',
+    'Output');
 
+-- The following enumeration strings MUST match the strings used by GRPC to map correctly
+-- as data is marshalled between SQL and gRPC
 CREATE TYPE layerType AS ENUM (
-    'enum',
-    'raw',
-    'time',
-    'probability');
+    'Enumeration',
+    'Raw',
+    'Time',
+    'Probability');
+
+-- Constrain the layer numbers
+--
+CREATE DOMAIN UINT4 AS int4
+   CHECK(VALUE >= 0);
 
 CREATE TABLE IF NOT EXISTS layers (
         id BIGSERIAL,
         uid TEXT NOT NULL, -- The unique identifier of the experiment that owns this layer
-        number INT NOT NULL, -- The layer number this layer has within the experiment
+        number UINT4 NOT NULL, -- The layer number this layer has within the experiment
         name TEXT NOT NULL,
+        values TEXT[] NOT NULL,
         class layerClass NOT NULL,
         type layerType NOT NULL
 );

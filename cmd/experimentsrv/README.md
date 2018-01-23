@@ -10,6 +10,12 @@ The experiment server makes use of a Postgres DB.  The installation process is s
 
 Parameters that impact deployment of your Aurora instance include, RDS Endpoint, DB Name, user name, and the password.
 
+The command to install the postgres schema into your DB instance will appear similar to the following:
+
+```
+PGUSER=pl PGHOST=dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com PGDATABASE=platform psql -f sql/platform.sql
+```
+
 ## Installation
 
 Now go to the experimentsrv.yaml file and change the Egress rule to point at your endpoint.  The deployment spec, PGHOST and PGDATABASE should also be modified to the endpoint and the DB Name respectively.
