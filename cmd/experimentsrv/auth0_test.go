@@ -16,6 +16,7 @@ func TestAuth0(t *testing.T) {
 
 	if len(*auth0TestToken) == 0 {
 		if *auth0TestSkip {
+			t.Skip("token not present for token testing")
 			return
 		} else {
 			t.Error("the token test skip flag (-auth0-skip-test) must be set if a token is not supplied")

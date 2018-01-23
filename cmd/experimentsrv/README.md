@@ -58,3 +58,13 @@ ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-rea
 experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
 /tmp/grpc_cli call 100.96.1.14:30001 ai.sentient.experiment.Service.Get "id: 't'"  --metadata authorization:"Bearer $AUTH0_TOKEN"
 ```
+
+
+# Functional testing
+
+The server provides some testing for the DB and core functionality of the server.  In order to run this you can use the go test command and point at the relevant go package directories from which you wish to run the tests, for example to run the experiment DB and server tests you could use commands like the following:
+
+```
+cd cmd/experimentsrv
+LOGXI=*=TRC PGUSER=pl PGHOST=dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com PGDATABASE=platform go test -v . ../../experiment
+```

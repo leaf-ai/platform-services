@@ -3,7 +3,9 @@ package experiment
 // This file contains tests for the DB layer.  In order for the test to run
 // the DB flags must be set appropriately
 
-import ()
+import (
+	"testing"
+)
 
 func TestDBExperiment(t *testing.T) {
 	if nil == GetDBStatus() {
