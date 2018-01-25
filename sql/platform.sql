@@ -8,28 +8,74 @@
 -- PGUSER=pl PGHOST=dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com PGDATABASE=platform psql -f platform.sql
 --
 \set pldb `echo "$PGDATABASE"`
+\set quoted_pldb '\'' :pldb '\''
 
 set timezone to 'UTC';
 
 \connect postgres
+\set ON_ERROR_STOP on
+
+DO LANGUAGE plpgsql $$
+    BEGIN
+        IF (SELECT COUNT(*) FROM pg_language WHERE lanname = 'plpgsql') = 0 THEN
+            RAISE EXCEPTION 'unsupported sql client variant, use the postgres official client';
+        END IF;
+    END;
+$$;
+
+CREATE FUNCTION pg_temp.CheckDB(dbName text) RETURNS text AS $$
+	BEGIN
+		IF (SELECT EXISTS (SELECT 1 FROM pg_database WHERE LOWER(datname) = LOWER(dbName)))
+			THEN RAISE EXCEPTION 'The database name % supplied matches an existing database', dbName;
+		END IF;
+		RETURN '';
+	END;
+$$ LANGUAGE plpgsql;
+
+SELECT pg_temp.CheckDB(:'pldb') INTO TEMP junk;
 
 DROP SCHEMA IF EXISTS public CASCADE;
-DROP DATABASE IF EXISTS :pldb;
 
 -- -----------------------------------------------------
--- Create Default DB User
+-- Create Default DB User, if they are not already present
 -- -----------------------------------------------------
-DROP ROLE IF EXISTS pl;
-CREATE ROLE pl LOGIN
-        ENCRYPTED PASSWORD 'md55F4DCC3B5AA765D61D8327DEB882CF99'
-        INHERIT CREATEDB CREATEROLE;
+DO
+$body$
+BEGIN
+   IF NOT EXISTS (
+      SELECT                       -- SELECT list can stay empty for this
+      FROM   pg_catalog.pg_user
+      WHERE  usename = 'pl') THEN
+
+		CREATE ROLE pl LOGIN
+			ENCRYPTED PASSWORD 'md55F4DCC3B5AA765D61D8327DEB882CF99'
+			INHERIT CREATEDB CREATEROLE;
+   END IF;
+END
+$body$;
 
 -- -----------------------------------------------------
--- Create Public Schema
+-- Create Public Schema and assign privs based upon database deployment platform
 -- -----------------------------------------------------
-
-DROP SCHEMA IF EXISTS public CASCADE;
-CREATE SCHEMA public AUTHORIZATION postgres;
+DO
+$body$
+BEGIN
+   IF EXISTS (
+      SELECT                       -- SELECT list can stay empty for this
+      FROM   pg_catalog.pg_roles
+      WHERE  rolname = 'postgres') THEN
+			CREATE SCHEMA public AUTHORIZATION postgres;
+			GRANT postgres TO pl;
+   END IF;
+   IF EXISTS (
+      SELECT                       -- SELECT list can stay empty for this
+      FROM   pg_catalog.pg_roles
+      WHERE  rolname = 'rds_superuser') THEN
+			CREATE SCHEMA public AUTHORIZATION rds_superuser;
+			GRANT rds_superuser TO pl;
+   END IF;
+END
+$body$;
 
 CREATE DATABASE :pldb;
 
@@ -41,8 +87,6 @@ GRANT ALL ON DATABASE :pldb TO pl;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO pl;
 
 GRANT ALL ON SCHEMA public TO public;
-
-GRANT rds_superuser TO pl;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN schema public TO pl;
 
@@ -64,9 +108,18 @@ CREATE TABLE IF NOT EXISTS logs (
 
 CREATE INDEX logs_source_timestamp_idx ON logs (source, timestamp);
 
+-- Experiments are either active (visible), or deactivated (not visible to traditional users).
+-- More states will be added later so this is not a boolean.
+--
+CREATE TYPE experimentState AS ENUM (
+    'Active',
+    'Deactivated'
+);
+
 CREATE TABLE IF NOT EXISTS experiments (
         id BIGSERIAL,
         uid TEXT NOT NULL,
+        state experimentState NOT NULL DEFAULT 'Active',
         created TIMESTAMP NOT NULL DEFAULT 'epoch'::timestamp,
         name TEXT NULL DEFAULT NULL,
         description TEXT NULL DEFAULT NULL

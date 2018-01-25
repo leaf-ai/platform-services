@@ -192,7 +192,12 @@ func Main() {
 //
 func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) {
 
-	defer close(doneC)
+	defer func() {
+		defer func() {
+			recover()
+		}()
+		close(doneC)
+	}()
 
 	errs = []errors.Error{}
 
@@ -235,6 +240,7 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 					logger.Info(msg)
 				case errMsg := <-dbErrorC:
 					if errMsg == nil {
+						logger.Debug("error channel emptied")
 						return
 					}
 					if errMsg.Fatal {

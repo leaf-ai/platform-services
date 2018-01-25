@@ -17,6 +17,7 @@ package experiment
 //
 // PGUSER=pl PGHOST=dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com PGDATABASE=platform psql
 //
+// Unit and other tests for this package are contained within the testing for the experiment service/server
 
 import (
 	"bufio"
@@ -30,6 +31,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -62,10 +64,30 @@ var (
 	// used with the DB gofunc handler loop to retry connections on a regular basis.  The DB methods
 	// will respect this flag and fail out any calls until the circuit breaker
 	//
-	dbDownErr = errors.New("DB has not yet been initialized")
+	dbDownErr = DBErr{
+		err: errors.New("DB initialization not yet started"),
+	}
 
 	dBase *sqlx.DB
 )
+
+type DBErr struct {
+	err errors.Error
+	sync.Mutex
+}
+
+func (err *DBErr) set(errIn errors.Error) {
+	err.Lock()
+	defer err.Unlock()
+
+	err.err = errIn
+}
+
+func (err *DBErr) get() (errOut errors.Error) {
+	err.Lock()
+	defer err.Unlock()
+	return err.err
+}
 
 func defaultDBUser() string {
 	name := os.Getenv("PGUSER")
@@ -128,7 +150,7 @@ func dbHasCorrectVersion(expect int64) (err error, ok bool, actual int64) {
 //
 func CloseDB() error {
 
-	dbDownErr = errors.New("database has been closed intentionally").With("stack", stack.Trace().TrimRuntime())
+	dbDownErr.set(errors.New("database has been closed intentionally").With("stack", stack.Trace().TrimRuntime()))
 
 	return dBase.Close()
 }
@@ -207,13 +229,14 @@ func StartDB(quitC <-chan struct{}) (msgC chan string, errorC chan *DBErrorMsg, 
 	// during the normal server life cycle
 	//
 	if err := initDB(*databaseHostPort, *databaseUser); err != nil {
+		dbDownErr.set(err)
 		return msgC, errorC, err
 	}
 
 	// On the first time the master is started the DB is left in a down state and is initialized
 	// during the normal life cycle of the server.
 	//
-	dbDownErr = errors.New("database start not yet completed").With("stack", stack.Trace().TrimRuntime())
+	dbDownErr.set(errors.New("database start not yet completed").With("stack", stack.Trace().TrimRuntime()))
 
 	// Start a runtime monitor for DB connections held open, a liveness check
 	// and a circuit breaker
@@ -235,10 +258,10 @@ func StartDB(quitC <-chan struct{}) (msgC chan string, errorC chan *DBErrorMsg, 
 		for {
 			select {
 			case <-time.After(dbCheckTimer):
-				dbRecovery := dbDownErr != nil
+				dbRecovery := dbDownErr.get() != nil
 				if errGo := dBase.Ping(); errGo != nil {
 
-					dbDownErr = errors.Wrap(errGo)
+					dbDownErr.set(errors.Wrap(errGo))
 
 					msg := fmt.Sprint("database ", *databaseHostPort, " ", *databaseName, " is currently down")
 					err := &DBErrorMsg{
@@ -252,6 +275,8 @@ func StartDB(quitC <-chan struct{}) (msgC chan string, errorC chan *DBErrorMsg, 
 					dbCheckTimer = time.Duration(5 * time.Second)
 					continue
 				}
+
+				dbDownErr.set(nil)
 
 				if dbRecovery {
 					select {
@@ -288,7 +313,6 @@ func StartDB(quitC <-chan struct{}) (msgC chan string, errorC chan *DBErrorMsg, 
 					}
 				}
 
-				dbDownErr = nil
 				msg := fmt.Sprint("database has ", dBase.Stats().OpenConnections, " connections ",
 					" ", *databaseHostPort, " name ", *databaseName, " dbConnectionCount ", dBase.Stats().OpenConnections)
 				select {
@@ -316,7 +340,7 @@ func StartDB(quitC <-chan struct{}) (msgC chan string, errorC chan *DBErrorMsg, 
 // it might not be running
 //
 func GetDBStatus() (err errors.Error) {
-	return dbDownErr
+	return dbDownErr.get()
 }
 
 // initDB will setup the database configuration but does not actually create a live connection
@@ -485,11 +509,11 @@ func CheckIfFatal(inErr error) (err error) {
 			case "successful_completion":
 				return nil
 			default:
-				log.Fatal(fmt.Sprint("Postgres driver fatal error ", driverErr.Error()))
+				log.Print(fmt.Sprint("Postgres driver fatal error ", driverErr.Error()))
+				return inErr.(*pq.Error)
 
-				os.Exit((classNumber + 10) * -1)
+				// os.Exit((classNumber + 10) * -1)
 			}
-			return nil
 		}
 	}
 
@@ -511,8 +535,8 @@ func CheckIfFatal(inErr error) (err error) {
 //
 func SelectExperiment(rowId uint64, uid string) (result *grpc.Experiment, err errors.Error) {
 
-	if dbDownErr != nil {
-		return nil, dbDownErr
+	if err = dbDownErr.get(); err != nil {
+		return nil, err
 	}
 
 	query := sq.Select("uid,created,name,description").
@@ -521,10 +545,10 @@ func SelectExperiment(rowId uint64, uid string) (result *grpc.Experiment, err er
 		PlaceholderFormat(sq.Dollar)
 
 	if rowId > 0 {
-		query = query.Where(sq.Eq{"id": rowId})
+		query = query.Where(sq.And{sq.NotEq{"state": "Deactivated"}, sq.Eq{"id": rowId}})
 	} else {
 		if len(uid) > 0 {
-			query = query.Where(sq.Eq{"uid": uid})
+			query = query.Where(sq.And{sq.NotEq{"state": "Deactivated"}, sq.Eq{"uid": uid}})
 		} else {
 			return nil, errors.New("selecting an experiment requires either the DB rowId or the experiment unique id to be specified").With("stack", stack.Trace().TrimRuntime())
 		}
@@ -539,7 +563,7 @@ func SelectExperiment(rowId uint64, uid string) (result *grpc.Experiment, err er
 	createTime := time.Now()
 
 	row := dBase.QueryRow(sql, args...)
-	errGo = row.Scan(&result.Id, &result.Name, &result.Description, &createTime)
+	errGo = row.Scan(&result.Uid, &result.Name, &result.Description, &createTime)
 	if CheckIfFatal(errGo) != nil {
 		return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("rowId", rowId).With("uid", uid)
 	}
@@ -564,7 +588,7 @@ type experimentWide struct {
 	LayerName   string    `db:"l_name"`
 	LayerClass  string    `db:"l_class"`
 	LayerType   string    `db:"l_type"`
-	LayerValues []string  `db:"l_values"`
+	LayerValues []uint8   `db:"l_values"`
 }
 
 // SelectExperimentWide is used to retrieve one or more experiments that have been registered
@@ -581,13 +605,13 @@ type experimentWide struct {
 //
 func SelectExperimentWide(uid string) (result *grpc.Experiment, err errors.Error) {
 
-	if dbDownErr != nil {
-		return nil, dbDownErr
+	if err := dbDownErr.get(); err != nil {
+		return nil, err
 	}
 
 	sql := `select e.id as e_id, e.uid as e_uid, e.created as e_created, e.name as e_name, e.description as e_description, 
 	l.id as l_id, l.uid as l_uid, l.number as l_number, l.name as l_name, l.class::text as l_class, l.type::text as l_type, l.values as l_values from 
-	experiments AS e NATURAL INNER JOIN layers AS l WHERE e.uid = ? AND l.uid = e.uid;`
+	experiments AS e NATURAL INNER JOIN layers AS l WHERE e.uid = ? AND l.uid = e.uid AND e.state != 'Deactivated';`
 
 	if len(uid) == 0 {
 		return nil, errors.New("selecting an experiment requires the experiment unique id to be specified").With("stack", stack.Trace().TrimRuntime())
@@ -613,7 +637,7 @@ func SelectExperimentWide(uid string) (result *grpc.Experiment, err errors.Error
 			}
 
 			result = &grpc.Experiment{
-				Id:           row.Uid,
+				Uid:          row.Uid,
 				Name:         row.Name,
 				Description:  row.Description,
 				Created:      tstamp,
@@ -626,7 +650,7 @@ func SelectExperimentWide(uid string) (result *grpc.Experiment, err errors.Error
 		case "Input":
 			input := &grpc.InputLayer{
 				Name:   row.LayerName,
-				Values: row.LayerValues,
+				Values: pgToArrayStr(row.LayerValues),
 			}
 
 			inputType, isValid := grpc.InputLayer_Type_value[row.LayerType]
@@ -640,7 +664,7 @@ func SelectExperimentWide(uid string) (result *grpc.Experiment, err errors.Error
 		case "Output":
 			output := &grpc.OutputLayer{
 				Name:   row.LayerName,
-				Values: row.LayerValues,
+				Values: pgToArrayStr(row.LayerValues),
 			}
 
 			outputType, isValid := grpc.OutputLayer_Type_value[row.LayerType]
@@ -671,62 +695,98 @@ func SelectExperimentWide(uid string) (result *grpc.Experiment, err errors.Error
 //
 func InsertExperiment(data *grpc.Experiment) (result *grpc.Experiment, err errors.Error) {
 
-	if dbDownErr != nil {
-		return nil, dbDownErr
+	if err := dbDownErr.get(); err != nil {
+		return nil, err
 	}
 
-	if len(data.Id) != 0 {
-		return nil, errors.New("an insert operation must not have the experiment uid field set").With("stack", stack.Trace().TrimRuntime()).With("id", data.Id)
+	if len(data.Uid) == 0 {
+		return nil, errors.New("an insert operation must have the experiment uid field set").With("stack", stack.Trace().TrimRuntime()).With("uid", data.Uid)
 	}
 
-	result = proto.Clone(result).(*grpc.Experiment)
-
-	stmt, errGo := dBase.Prepare(`INSERT INTO layers uid, number, name, class, type, values VALUES(?, ?, ?, ?, ?, ?)`)
-	if CheckIfFatal(errGo) != nil {
-		return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", data.Id)
-	}
+	result = proto.Clone(data).(*grpc.Experiment)
 
 	tx := dBase.MustBegin()
 
 	query := sq.Insert("experiments").
 		Columns("uid", "name", "description").
-		Values(data.Id, data.Name, data.Description).
+		Values(data.Uid, data.Name, data.Description).
 		Suffix("RETURNING \"created\"").
 		RunWith(dBase.DB).
 		PlaceholderFormat(sq.Dollar)
 
 	created := time.Now()
 
-	errGo = query.QueryRow().Scan(&created)
+	errGo := query.QueryRow().Scan(&created)
 	if CheckIfFatal(errGo) != nil {
-		return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", data.Id)
+		tx.Rollback()
+		return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", data.Uid)
 	}
 
 	for i, layer := range data.InputLayers {
-		_, errGo = stmt.Exec(data.Id, i, layer.Name, "Input", layer.Type, layer.Values)
+		_, errGo = sq.Insert("layers").
+			Columns("uid", "number", "name", "class", "type", "values").
+			Values(data.Uid, i, layer.Name, "Input", layer.Type, arrayStrToPg(layer.Values)).
+			RunWith(dBase.DB).
+			PlaceholderFormat(sq.Dollar).Exec()
+
 		if CheckIfFatal(errGo) != nil {
-			return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", data.Id)
+			tx.Rollback()
+			return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", data.Uid)
 		}
 	}
 
 	for i, layer := range data.OutputLayers {
-		_, errGo = stmt.Exec(data.Id, i, layer.Name, "Output", layer.Type, layer.Values)
+		_, errGo = sq.Insert("layers").
+			Columns("uid", "number", "name", "class", "type", "values").
+			Values(data.Uid, i, layer.Name, "Output", layer.Type, arrayStrToPg(layer.Values)).
+			RunWith(dBase.DB).
+			PlaceholderFormat(sq.Dollar).Exec()
+
 		if CheckIfFatal(errGo) != nil {
-			return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", data.Id)
+			tx.Rollback()
+			return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", data.Uid)
 		}
 	}
 
 	errGo = tx.Commit()
 	if errGo != nil {
-		return nil, errors.Wrap(errGo, "database insert transaction failed").With("stack", stack.Trace().TrimRuntime()).With("uid", data.Id)
+		return nil, errors.Wrap(errGo, "database insert transaction failed").With("stack", stack.Trace().TrimRuntime()).With("uid", data.Uid)
 	}
 
 	result.Created, errGo = ptypes.TimestampProto(created)
 	if errGo != nil {
-		return nil, errors.Wrap(errGo, "timestamp from database insert could not be parsed").With("stack", stack.Trace().TrimRuntime()).With("uid", data.Id)
+		return nil, errors.Wrap(errGo, "timestamp from database insert could not be parsed").With("stack", stack.Trace().TrimRuntime()).With("uid", data.Uid)
 	}
 
 	return result, nil
+}
+
+// DeactivateExperiment is used to conceal experiments from future operations unless special flags are set.
+// It is used where otherwise the experiment would be delete but we need to retain a record of it having existed.
+//
+func DeactivateExperiment(uid string) (err errors.Error) {
+
+	if err = dbDownErr.get(); err != nil {
+		return err
+	}
+
+	if len(uid) == 0 {
+		return errors.New("a deactivate operation must have the experiment uid field set").With("stack", stack.Trace().TrimRuntime()).With("uid", uid)
+	}
+
+	result, errGo := sq.Update("experiments").
+		Set("state", "Deactivated").
+		Where(sq.Eq{"uid": uid}).
+		RunWith(dBase.DB).
+		PlaceholderFormat(sq.Dollar).
+		Exec()
+	if CheckIfFatal(errGo) != nil {
+		return errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", uid)
+	}
+	if len, _ := result.RowsAffected(); len == 0 {
+		return errors.New("specified experiment was not found").With("stack", stack.Trace().TrimRuntime()).With("uid", uid)
+	}
+	return nil
 }
 
 // SaveLog is used to insert a logging record either originating from the master,
@@ -734,8 +794,8 @@ func InsertExperiment(data *grpc.Experiment) (result *grpc.Experiment, err error
 //
 func SaveLog(log *Log) (err errors.Error) {
 
-	if dbDownErr != nil {
-		return dbDownErr
+	if err = dbDownErr.get(); err != nil {
+		return err
 	}
 
 	message := log.Msg

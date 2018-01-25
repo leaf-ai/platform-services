@@ -18,29 +18,35 @@ import (
 	experiment "github.com/SentientTechnologies/platform-services/gen/experimentsrv"
 )
 
-type experimentServer struct {
+type ExperimentServer struct {
 	health *health.Server
 }
 
-func (*experimentServer) Create(ctx context.Context, in *experiment.CreateRequest) (resp *experiment.CreateResponse, err error) {
+func (*ExperimentServer) Create(ctx context.Context, in *experiment.CreateRequest) (resp *experiment.CreateResponse, err error) {
 	if in == nil {
 		return nil, fmt.Errorf("request is missing a message to experiment")
 	}
 
-	return &experiment.CreateResponse{
-			Id: "",
-		},
-		nil
+	exp, err := model.InsertExperiment(in.Experiment)
+	if err != nil {
+		return nil, err
+	}
+
+	resp = &experiment.CreateResponse{
+		Uid: exp.Uid,
+	}
+
+	return resp, nil
 }
 
-func (*experimentServer) Get(ctx context.Context, in *experiment.GetRequest) (resp *experiment.GetResponse, err error) {
-	if in == nil || len(strings.TrimSpace(in.Id)) == 0 {
+func (*ExperimentServer) Get(ctx context.Context, in *experiment.GetRequest) (resp *experiment.GetResponse, err error) {
+	if in == nil || len(strings.TrimSpace(in.Uid)) == 0 {
 		return nil, fmt.Errorf("request is missing input parameters")
 	}
 
 	resp = &experiment.GetResponse{}
 
-	resp.Experiment, err = model.SelectExperimentWide(in.Id)
+	resp.Experiment, err = model.SelectExperimentWide(in.Uid)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +57,7 @@ func (*experimentServer) Get(ctx context.Context, in *experiment.GetRequest) (re
 	return resp, nil
 }
 
-func (es *experimentServer) Check(ctx context.Context, in *grpc_health_v1.HealthCheckRequest) (resp *grpc_health_v1.HealthCheckResponse, err error) {
+func (es *ExperimentServer) Check(ctx context.Context, in *grpc_health_v1.HealthCheckRequest) (resp *grpc_health_v1.HealthCheckResponse, err error) {
 	return es.health.Check(ctx, in)
 }
 
@@ -60,7 +66,7 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 	errC = make(chan errors.Error, 3)
 
 	server := grpc.NewServer(grpc.UnaryInterceptor(authInterceptor))
-	experimentSrv := &experimentServer{health: health.NewServer()}
+	experimentSrv := &ExperimentServer{health: health.NewServer()}
 
 	experiment.RegisterServiceServer(server, experimentSrv)
 	grpc_health_v1.RegisterHealthServer(server, experimentSrv)
