@@ -1,28 +1,17 @@
-apiVersion: v1
-kind: Service
+apiVersion: extensions/v1beta1
+kind: Ingress
 metadata:
-  labels:
-    service: ambassador
-  name: ambassador
+  name: ingress-exp
   annotations:
-    sidecar.istio.io/inject: "false"
-    getambassador.io/config: |
-      ---
-      apiVersion: ambassador/v0
-      kind:  Mapping
-      name:  experiments_mapping
-      grpc: true
-      prefix: /ai.sentient.experiment.Service/
-      rewrite: /ai.sentient.experiment.Service/
-      service: experiments
+    kubernetes.io/ingress.class: istio
 spec:
-  type: LoadBalancer
-  ports:
-  - name: ambassador
-    port: 80
-    targetPort: 80
-  selector:
-    service: ambassador
+  rules:
+  - http:
+      paths:
+      - path: /.*
+        backend:
+          serviceName: experiments
+          servicePort: grpc-exp
 ---
 apiVersion: v1
 kind: Service
@@ -59,6 +48,8 @@ spec:
         env:
         - name: "LOGXI_FORMAT"
           value: "happy,maxcol=1024"
+        - name: "IP_PORT"
+          value: ":30001,0.0.0.0:30001"
         - name: "LOGXI"
           value: "*=TRC"
         - name: "PGHOST"
@@ -81,21 +72,10 @@ spec:
 apiVersion: config.istio.io/v1alpha2
 kind: EgressRule
 metadata:
-  name: aurora-postgres-egress-rule
-spec:
-  destination:
-    service: "dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com"
-  ports:
-    - port: 5432
-      protocol: tcp
----
-apiVersion: config.istio.io/v1alpha2
-kind: EgressRule
-metadata:
   name: auth0-egress-rule
 spec:
   destination:
-    service: "sentientai.auth0.com"
+    service: sentientai.auth0.com
   ports:
     - port: 443
       protocol: https

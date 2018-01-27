@@ -66,8 +66,10 @@ aws s3api put-bucket-versioning --bucket $S3_BUCKET --versioning-configuration S
 
 export CLUSTER_NAME=test.platform.cluster.k8s.local
 
-kops create cluster --name $CLUSTER_NAME --zones $AWS_AVAILABILITY_ZONES --node-count 1 # Optionally use an image from your preferred zone e.g. --image=ami-0def3275
+kops create cluster --name $CLUSTER_NAME --zones $AWS_AVAILABILITY_ZONES --node-count 1
 ```
+
+Optionally use an image from your preferred zone e.g. --image=ami-0def3275.  Also you can modify the AWS machine types, recommended during developer testing using options such as '--master-size=m4.large --node-size=m4.large'.
 
 The Istio install as of 1/1/2018 requires additions to the kops cluster specification. Using the 'kops edit cluster' command change the following:
 
@@ -137,7 +139,7 @@ To deploy the platform service passwords and other secrets will be needed to all
 ```
 # Read https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables
 # create secrets, postgres:username, postgres:password
-kubectl create -f ./secret.yaml
+kubectl create -f ./cmd/experimentsrv/secret.yaml
 ```
 
 Platform services use Dockerfiles to encapsulate their build steps which are documented within their respective README.md files.  Building services are single step CLI operations and require only the installation of Docker, and any version of Go 1.7 or later.  Builds will produce containers and will upload these to your current AWS account users ECS docker registry.  Deployments are staged from this registry.  

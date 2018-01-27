@@ -51,7 +51,7 @@ If you wish to exercise the server while it is deployed into an Istio orchestrat
 kubectl cp `which grpc_cli` experiments-v1-bc46b5d68-bcdkv:/tmp/grpc_cli -c istio-proxy
 kubectl exec -it experiments-v1-bc46b5d68-bcdkv -c istio-proxy /bin/bash
 sudo apt-get update
-sudo apt-get install libgflags2v5 ca-certificates
+sudo apt-get install -y libgflags2v5 ca-certificates jq
 export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client
 _id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.
 ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:
@@ -59,6 +59,11 @@ experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access
 /tmp/grpc_cli call 100.96.1.14:30001 ai.sentient.experiment.Service.Get "id: 't'"  --metadata authorization:"Bearer $AUTH0_TOKEN"
 ```
 
+When Istio is used without a Load balancer the IP to be used can be determined by using the following command:
+
+```
+kubectl -n istio-system get po -l istio=ingress -o jsonpath='{.items[0].status.hostIP}'
+```
 
 # Functional testing
 

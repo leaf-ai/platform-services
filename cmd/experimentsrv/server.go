@@ -63,6 +63,16 @@ func (es *ExperimentServer) Check(ctx context.Context, in *grpc_health_v1.Health
 
 func runServer(ctx context.Context, serviceName string, ipPort string) (errC chan errors.Error) {
 
+	{
+		if addrs, err := net.InterfaceAddrs(); err != nil {
+			logger.Warn(fmt.Sprint(errors.Wrap(err).With("stack", stack.Trace().TrimRuntime())))
+		} else {
+			for _, addr := range addrs {
+				logger.Debug("", "network", addr.Network(), "addr", addr.String())
+			}
+		}
+	}
+
 	errC = make(chan errors.Error, 3)
 
 	server := grpc.NewServer(grpc.UnaryInterceptor(authInterceptor))
@@ -73,25 +83,49 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 
 	reflection.Register(server)
 
-	netListen, err := net.Listen("tcp", ipPort)
-	if err != nil {
-		errC <- errors.Wrap(err).With("stack", stack.Trace().TrimRuntime())
-		return
+	listeners := []net.Listener{}
+
+	listenAddrs := strings.Split(ipPort, ",")
+	for _, addr := range listenAddrs {
+		// Check for strip off the port number which MUST be present, if found not to be present fail out
+		ipPort := strings.Split(addr, ":")
+		if len(ipPort) == 1 {
+			errC <- errors.New("user specified address did not have a port (xx:NNN)").With("stack", stack.Trace().TrimRuntime()).With("ip-port", ipPort)
+			return
+		}
+		// Look for the port as the last token
+		ip := strings.Join(ipPort[:len(ipPort)-1], ":")
+		//if err := net.ParseIP(ip); err == nil {
+		//		errC <- errors.New("user specified address did not contain a valid IP (XXX:nn)").With("stack", stack.Trace().TrimRuntime()).With("ip-port", ip)
+		//		return
+		//	}
+		proto := "tcp4"
+		if strings.Contains(ip, ":") || len(ip) == 0 {
+			proto = "tcp6"
+		}
+		netListen, err := net.Listen(proto, addr)
+		if err != nil {
+			errC <- errors.Wrap(err).With("stack", stack.Trace().TrimRuntime()).With("ip-port", addr)
+			return
+		}
+		listeners = append(listeners, netListen)
+		logger.Debug("", "addr", netListen.Addr())
 	}
 
-	go func() {
-		experimentSrv.health.SetServingStatus(serviceName, grpc_health_v1.HealthCheckResponse_SERVING)
-
-		// serve API
-		if err := server.Serve(netListen); err != nil {
-			errC <- errors.Wrap(err).With("stack", stack.Trace().TrimRuntime())
-		}
-		experimentSrv.health.SetServingStatus(serviceName, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
-		func() {
-			defer recover()
-			close(errC)
+	// TODO Add a checker that will upon everyuthing
+	experimentSrv.health.SetServingStatus(serviceName, grpc_health_v1.HealthCheckResponse_SERVING)
+	for _, netListen := range listeners {
+		go func() {
+			if err := server.Serve(netListen); err != nil {
+				errC <- errors.Wrap(err).With("stack", stack.Trace().TrimRuntime())
+			}
+			experimentSrv.health.SetServingStatus(serviceName, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+			func() {
+				defer recover()
+				close(errC)
+			}()
 		}()
-	}()
+	}
 
 	go func() {
 		select {

@@ -66,6 +66,16 @@ func diffExp(l *grpc.Experiment, r *grpc.Experiment) (diffs []string) {
 	return deep.Equal(l, rc)
 }
 
+func newTestExperiment() (out *grpc.Experiment) {
+	return &grpc.Experiment{
+		Uid:          "test-only-" + model.GetPseudoUUID(),
+		Name:         "test-only-" + model.GetPseudoUUID(),
+		Description:  "test-only-" + model.GetPseudoUUID(),
+		InputLayers:  map[uint32]*grpc.InputLayer{},
+		OutputLayers: map[uint32]*grpc.OutputLayer{},
+	}
+}
+
 func TestDBExperimentSimple(t *testing.T) {
 
 	if err := model.GetDBStatus(); err != nil {
@@ -73,13 +83,7 @@ func TestDBExperimentSimple(t *testing.T) {
 		return
 	}
 
-	in := &grpc.Experiment{
-		Uid:          "test-only-" + model.GetPseudoUUID(),
-		Name:         "test-only-" + model.GetPseudoUUID(),
-		Description:  "test-only-" + model.GetPseudoUUID(),
-		InputLayers:  map[uint32]*grpc.InputLayer{},
-		OutputLayers: map[uint32]*grpc.OutputLayer{},
-	}
+	in := newTestExperiment()
 
 	exp, err := model.InsertExperiment(in)
 	if err != nil {
@@ -102,4 +106,8 @@ func TestDBExperimentSimple(t *testing.T) {
 	}
 
 	// Try reinserting and make sure it fails
+	if _, err = model.InsertExperiment(in); err == nil {
+		t.Error("failed tests due to reinsertion of a duplicate experiment working")
+		return
+	}
 }

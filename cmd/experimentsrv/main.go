@@ -84,7 +84,7 @@ const serviceName = "experimentsrv"
 var (
 	logger = platform.NewLogger(serviceName)
 
-	ipPort = flag.String("ip-port", "0.0.0.0:30001", "TCP/IP adapter IP and port to run this gRPC service on")
+	ipPort = flag.String("ip-port", ":30001,[::]:30001", "TCP/IP adapter IP and port to run this gRPC service on, a comma seperated list of IPv4, and IPv6 addresses")
 )
 
 func usage() {
