@@ -8,6 +8,8 @@ import (
 	"flag"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
 	"net/http"
 
@@ -25,7 +27,38 @@ import (
 
 var (
 	auth0Domain = flag.String("auth0-domain", "sentientai.auth0.com", "The domain assigned to the server API by Auth0")
+	jwksCache   = &jwksState{
+		ok: false,
+	}
 )
+
+type jwksState struct {
+	ok bool
+	sync.Mutex
+}
+
+func initJwksUpdate(quitC <-chan struct{}) {
+
+	go func() {
+		// Used for recording the states of server components
+		modules := &Modules{}
+
+		updateCycle := time.Duration(time.Second)
+		for {
+			select {
+			case <-time.After(updateCycle):
+				func() {
+					jwksCache.Lock()
+					defer jwksCache.Unlock()
+				}()
+				updateCycle = time.Duration(10 * time.Minute)
+				modules.SetModule("jwks", true)
+			case <-quitC:
+				return
+			}
+		}
+	}()
+}
 
 func validateToken(token string, claimCheck string) (err errors.Error) {
 

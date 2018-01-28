@@ -10,7 +10,6 @@ import (
 	"github.com/karlmutch/errors"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
@@ -19,7 +18,6 @@ import (
 )
 
 type ExperimentServer struct {
-	health *health.Server
 }
 
 func (*ExperimentServer) Create(ctx context.Context, in *experiment.CreateRequest) (resp *experiment.CreateResponse, err error) {
@@ -58,7 +56,7 @@ func (*ExperimentServer) Get(ctx context.Context, in *experiment.GetRequest) (re
 }
 
 func (es *ExperimentServer) Check(ctx context.Context, in *grpc_health_v1.HealthCheckRequest) (resp *grpc_health_v1.HealthCheckResponse, err error) {
-	return es.health.Check(ctx, in)
+	return grpcHealth(ctx, in)
 }
 
 func runServer(ctx context.Context, serviceName string, ipPort string) (errC chan errors.Error) {
@@ -76,7 +74,7 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 	errC = make(chan errors.Error, 3)
 
 	server := grpc.NewServer(grpc.UnaryInterceptor(authInterceptor))
-	experimentSrv := &ExperimentServer{health: health.NewServer()}
+	experimentSrv := &ExperimentServer{}
 
 	experiment.RegisterServiceServer(server, experimentSrv)
 	grpc_health_v1.RegisterHealthServer(server, experimentSrv)
@@ -112,19 +110,21 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 		logger.Debug("", "addr", netListen.Addr())
 	}
 
-	// TODO Add a checker that will upon everyuthing
-	experimentSrv.health.SetServingStatus(serviceName, grpc_health_v1.HealthCheckResponse_SERVING)
-	for _, netListen := range listeners {
-		go func() {
+	for _, listener := range listeners {
+		l := listener
+		go func(netListen net.Listener, module string) {
+			modules := &Modules{}
+			modules.SetModule(module, true)
+
 			if err := server.Serve(netListen); err != nil {
 				errC <- errors.Wrap(err).With("stack", stack.Trace().TrimRuntime())
 			}
-			experimentSrv.health.SetServingStatus(serviceName, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+			modules.SetModule(module, false)
 			func() {
 				defer recover()
 				close(errC)
 			}()
-		}()
+		}(l, l.Addr().String())
 	}
 
 	go func() {

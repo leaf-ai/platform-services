@@ -225,6 +225,18 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 
 	signal.Notify(stopC, os.Interrupt, syscall.SIGTERM)
 
+	// The health tracker will listen for server up and down states that reflect
+	// it own internal dependencies and will inform the outside worl
+	initHealthTracker(serviceName, ctx.Done())
+
+	// In order to keep track internally of the depdencies within the server
+	// we make use of a module up/down state tracking component
+	initModuleTracking(ctx.Done())
+
+	// Initiate authentication services that will be used by
+	// our server to validate the authentication claims of clients
+	initJwksUpdate(ctx.Done())
+
 	// Initiate database processing.  Without the DB at least entering a retry state the
 	// server will never run so immediately return if this cannot be started
 	//
