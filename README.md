@@ -1,13 +1,9 @@
-<script type="text/javascript">
-    $("pre.error").css({"background-color":"red","color":"white","display":"block","padding":"0", "margin":"0"});
-    $("pre").css({ "margin" : 0, "padding" : 0 })
-</script>
 # platform-services
 A PoC with functioning service using simple Istio Mesh running on K8s
 
 # Installation
 
-<pre><code><b>
+<pre style="margin: 0"><code><b>
 go get github.com/SentientTechnologies/platform-services
 </b></code></pre>
 
