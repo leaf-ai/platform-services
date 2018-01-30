@@ -12,9 +12,8 @@ Parameters that impact deployment of your Aurora instance include, RDS Endpoint,
 
 The command to install the postgres schema into your DB instance will appear similar to the following:
 
-```
-PGUSER=pl PGHOST=dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com PGDATABASE=platform psql -f sql/platform.sql -d postgres
-```
+<pre><code><b>PGUSER=pl PGHOST=dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com PGDATABASE=platform psql -f sql/platform.sql -d postgres
+</b></code></pre>
 
 ## Installation
 
@@ -28,27 +27,25 @@ Service authetication is explained within the top level README.md file for the g
 
 # Manually exercising the server
 
-```
-export AUTH0_DOMAIN=sentientai.auth0.com
+<pre><code><b>export AUTH0_DOMAIN=sentientai.auth0.com
 export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
-/tmp/grpc_cli call localhost:30001 ai.sentient.experiment.Service.Get "id: ''" --metadata authorization:"Bearer $AUTH0_TOKEN"
+/tmp/grpc_cli call localhost:30001 ai.sentient.experiment.Service.Get "id: ''" --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
 connecting to localhost:30001
 Sending client initial metadata:
 authorization : ...
 Rpc failed with status code 2, error message: selecting an experiment requires either the DB id or the experiment unique id to be specified stack="[db.go:533 server.go:42 experimentsrv.pb.go:375 auth.go:88 experimentsrv.pb.go:377 server.go:900 server.go:1122 server.go:617]"
 
-/tmp/grpc_cli call localhost:30001 ai.sentient.experiment.Service.Get "id: 't'" --metadata authorization:"$AUTH"
+<b>/tmp/grpc_cli call localhost:30001 ai.sentient.experiment.Service.Get "id: 't'" --metadata authorization:"$AUTH0_TOKEN"</b>
 connecting to localhost:30001
 Sending client initial metadata:
 authorization : ...
 Rpc failed with status code 2, error message: no matching experiments found for caller specified input parameters
-```
+</code></pre>
 
 If you wish to exercise the server while it is deployed into an Istio orchestrated cluster then you should kubectl exec into the istio-proxy to get localized access to the service.  The application server container runs only Alpine so for a full set of tools such as curl and jq using the istio-proxy is a better option, with some minor additions. The Istio container will need the following commands run in order to activate the needed features for local testing:
 
-```
-# Copy the grpc CLI tool into the running container
-kubectl cp `which grpc_cli` experiments-v1-bc46b5d68-bcdkv:/tmp/grpc_cli -c istio-proxy
+<pre><code># Copy the grpc CLI tool into the running container
+<b>kubectl cp `which grpc_cli` experiments-v1-bc46b5d68-bcdkv:/tmp/grpc_cli -c istio-proxy
 kubectl exec -it experiments-v1-bc46b5d68-bcdkv -c istio-proxy /bin/bash
 sudo apt-get update
 sudo apt-get install -y libgflags2v5 ca-certificates jq
@@ -56,14 +53,13 @@ export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/
 _id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.
 ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:
 experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
-/tmp/grpc_cli call 100.96.1.14:30001 ai.sentient.experiment.Service.Get "id: 't'"  --metadata authorization:"Bearer $AUTH0_TOKEN"
-```
+/tmp/grpc_cli call 100.96.1.14:30001 ai.sentient.experiment.Service.Get "id: 't'"  --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
+</code></pre>
 
 When Istio is used without a Load balancer the IP to be used can be determined by using the following command:
 
-```
-kubectl -n istio-system get po -l istio=ingress -o jsonpath='{.items[0].status.hostIP}'
-```
+<pre><code><b>kubectl -n istio-system get po -l istio=ingress -o jsonpath='{.items[0].status.hostIP}'
+</b></code></pre>
 
 # Using IP Port addresses for serving grpc
 

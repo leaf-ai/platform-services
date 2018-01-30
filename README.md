@@ -162,7 +162,7 @@ Currently the service mesh is deployed with Observability tools.  These instruct
 
 Individual services do offering logging using the systemd facilities and these logs are routed to Kubernetes.  Logs can be obtained from pods and containers. The 'kubectl get services' command can be used to identify the running platform services and the 'kubectl get pod' command can be used to get the health of services.  Once a pod isidentified with a running service instance the logs can be extract using a combination of the pod instance and the service name together, for example:
 
-<code><pre><b>kuebctl get services</b>
+<pre><code><b>kuebctl get services</b>
 NAME          TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)     AGE
 experiments   ClusterIP   100.68.93.48   <none>        30001/TCP   12m
 kubernetes    ClusterIP   100.64.0.1     <none>        443/TCP     1h
@@ -191,11 +191,10 @@ When adding the API client definition against which the platform services will i
 
 You can now use various commands to manipulate the APIs outside of what will exist in the application code, this is a distinct advantage over directly using enterprise tools such as Okta.  Should you wish to use Okta as an Identity provider, or backend, to Auth0 then this can be done however you will need help from our Tech Ops department to do this and is an expensive option.  At this time the user and passwords being used for securing APIs can be managed through the Auth0 dashboard including the ability to invite users to become admins.
 
-```
-curl --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"RjWuqwm1CM72iQ5G32aUjwIYx6vKTXBa", "client_secret": "MK_jpHrTcthM_HoNETnytYpqgMNS4e7zLMgp1_Wj2aePaPpubjN1UNKKCAfZlD_r", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "openid", "realm": "Username-Password-Authentication" }'
-
+<pre><code><b>curl --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"RjWuqwm1CM72iQ5G32aUjwIYx6vKTXBa", "client_secret": "MK_jpHrTcthM_HoNETnytYpqgMNS4e7zLMgp1_Wj2aePaPpubjN1UNKKCAfZlD_r", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "openid", "realm": "Username-Password-Authentication" }'
+</b>
 c.f. https://auth0.com/docs/quickstart/backend/golang/02-using#obtaining-an-access-token-for-testing.
-```
+</code></pre>
 
 If you are using the test API you can do something like:
 
@@ -242,14 +241,14 @@ To drill further into interfaces and examine the types being used within calls y
 message CreateRequest {
 .ai.sentient.experiment.Experiment experiment = 1[json_name = "experiment"];
 }
-grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.Experiment -l 
+<b>grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.Experiment -l</b>
 message Experiment {
 string uid = 1[json_name = "uid"];
 string name = 2[json_name = "name"];
 string description = 3[json_name = "description"];
 .google.protobuf.Timestamp created = 4[json_name = "created"];
-map<uint32, .ai.sentient.experiment.InputLayer> inputLayers = 5[json_name = "inputLayers"];
-map<uint32, .ai.sentient.experiment.OutputLayer> outputLayers = 6[json_name = "outputLayers"];
+map&lt;uint32, .ai.sentient.experiment.InputLayer&gt; inputLayers = 5[json_name = "inputLayers"];
+map&lt;uint32, .ai.sentient.experiment.OutputLayer&gt; outputLayers = 6[json_name = "outputLayers"];
 }
 <b>grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.InputLayer -l</b>
 message InputLayer {
