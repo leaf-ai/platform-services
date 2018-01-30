@@ -250,8 +250,8 @@ service Service {
 
 To drill further into interfaces and examine the types being used within calls you can perform commands such as:
 
-<code>
-<b>grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.CreateRequest -l</b>
+<pre><code>
+<b>grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.CreateRequest -l
 message CreateRequest {
 .ai.sentient.experiment.Experiment experiment = 1[json_name = "experiment"];
 }
@@ -276,7 +276,7 @@ string name = 1[json_name = "name"];
 .ai.sentient.experiment.InputLayer.Type type = 2[json_name = "type"];
 repeated string values = 3[json_name = "values"];
 }
-</code>
+</code></pre>
 
 
 # Shutting down a service, or cluster
