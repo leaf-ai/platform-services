@@ -9,6 +9,7 @@ package main
 // modules are down and when they are all alive.
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
@@ -48,14 +49,24 @@ func (*Modules) doUpdate() {
 	modules.Lock()
 	defer modules.Unlock()
 
+	downModules := make([]string, 0, len(modules.m))
+	upModules := make([]string, 0, len(modules.m))
+
 	// Is the sever entirely up or not
 	up := true
-	for _, v := range modules.m {
+	for k, v := range modules.m {
 		if v != true {
 			up = false
-			break
+			downModules = append(downModules, k)
+		} else {
+			upModules = append(upModules, k)
 		}
 	}
+
+	if !up {
+		logger.Info(fmt.Sprintf("down modules %v, up modules %v", downModules, upModules))
+	}
+
 	// Tell everyone what the collective state is for the server
 	for i, listener := range modules.listeners {
 		func() {

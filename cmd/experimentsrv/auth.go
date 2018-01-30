@@ -33,17 +33,23 @@ var (
 )
 
 type jwksState struct {
-	ok bool
+	client *auth0.JWKClient
+	ok     bool
 	sync.Mutex
 }
 
 func initJwksUpdate(quitC <-chan struct{}) {
 
+	// When starting set the auth module to be down and only when it load the JWKS successfully set the state to up
+	serverModule := "jwks"
+	modules := &Modules{}
+	modules.SetModule(serverModule, false)
+
 	go func() {
 		// Used for recording the states of server components
 		modules := &Modules{}
 
-		updateCycle := time.Duration(time.Second)
+		updateCycle := time.Duration(5 * time.Second)
 		for {
 			select {
 			case <-time.After(updateCycle):
@@ -51,7 +57,13 @@ func initJwksUpdate(quitC <-chan struct{}) {
 					jwksCache.Lock()
 					defer jwksCache.Unlock()
 				}()
-				updateCycle = time.Duration(10 * time.Minute)
+				jwksCache.Lock()
+				if jwksCache.client == nil {
+					jwksCache.client = auth0.NewJWKClient(auth0.JWKClientOptions{
+						URI: "https://" + *auth0Domain + "/.well-known/jwks.json",
+					})
+				}
+				jwksCache.Unlock()
 				modules.SetModule("jwks", true)
 			case <-quitC:
 				return
@@ -62,14 +74,14 @@ func initJwksUpdate(quitC <-chan struct{}) {
 
 func validateToken(token string, claimCheck string) (err errors.Error) {
 
-	client := auth0.NewJWKClient(auth0.JWKClientOptions{
-		URI: "https://" + *auth0Domain + "/.well-known/jwks.json",
-	})
 	audience := []string{
 		"http://api.sentient.ai/experimentsrv",
 	}
 
-	configuration := auth0.NewConfiguration(client, audience, "https://"+*auth0Domain+"/", jose.RS256)
+	jwksCache.Lock()
+	configuration := auth0.NewConfiguration(jwksCache.client, audience, "https://"+*auth0Domain+"/", jose.RS256)
+	jwksCache.Unlock()
+
 	validator := auth0.NewValidator(configuration)
 
 	headerTokenRequest, errGo := http.NewRequest("", audience[0], nil)

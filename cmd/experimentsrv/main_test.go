@@ -4,6 +4,7 @@ import (
 	"flag"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/karlmutch/envflag"
 )
@@ -103,6 +104,34 @@ func TestMain(m *testing.M) {
 
 		// Wait for the server to signal it is ready for work
 		<-doneC
+
+		// Wait for any depent modules to initialize completely
+		listenerC := make(chan bool)
+		defer close(listenerC)
+
+		modules := &Modules{}
+		modules.AddListener(listenerC)
+
+		running := func() (running bool) {
+			giveUpAt := time.Now().Add(30 * time.Second)
+			for {
+				select {
+				case <-time.After(5 * time.Second):
+					if giveUpAt.Before(time.Now()) {
+						return false
+					}
+				case up := <-listenerC:
+					if up {
+						return true
+					}
+				}
+			}
+		}()
+
+		if !running {
+			logger.Fatal("not all modules initialized within the server")
+			os.Exit(-1)
+		}
 
 		if len(TestRunMain) != 0 {
 			<-TestStopC

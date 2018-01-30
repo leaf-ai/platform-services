@@ -611,7 +611,7 @@ func SelectExperimentWide(uid string) (result *grpc.Experiment, err errors.Error
 
 	sql := `select e.id as e_id, e.uid as e_uid, e.created as e_created, e.name as e_name, e.description as e_description, 
 	l.id as l_id, l.uid as l_uid, l.number as l_number, l.name as l_name, l.class::text as l_class, l.type::text as l_type, l.values as l_values from 
-	experiments AS e NATURAL INNER JOIN layers AS l WHERE e.uid = ? AND l.uid = e.uid AND e.state != 'Deactivated';`
+	experiments AS e NATURAL INNER JOIN layers AS l WHERE e.uid = $1 AND l.uid = e.uid AND e.state != 'Deactivated';`
 
 	if len(uid) == 0 {
 		return nil, errors.New("selecting an experiment requires the experiment unique id to be specified").With("stack", stack.Trace().TrimRuntime())

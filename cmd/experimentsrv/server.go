@@ -71,6 +71,17 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 		}
 	}
 
+	// To prevent the server starting before the network listeners report
+	// their states we inject a server module ID and set it to false then
+	// one the logic to begin listening to the network interfaces is done
+	// we set the server module ID is set to true (up) and this allows
+	// the health check to visit the network listeners for their states
+	//
+	modules := &Modules{}
+	serverModule := "serverInitDone"
+	modules.SetModule(serverModule, false)
+	defer modules.SetModule(serverModule, true)
+
 	errC = make(chan errors.Error, 3)
 
 	server := grpc.NewServer(grpc.UnaryInterceptor(authInterceptor))
