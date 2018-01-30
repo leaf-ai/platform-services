@@ -251,7 +251,7 @@ service Service {
 To drill further into interfaces and examine the types being used within calls you can perform commands such as:
 
 ```markdown
-$ [grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.CreateRequest -l]()
+$ **grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.CreateRequest -l**
 message CreateRequest {
   .ai.sentient.experiment.Experiment experiment = 1[json_name = "experiment"];
 }
