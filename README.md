@@ -3,12 +3,14 @@ A PoC with functioning service using simple Istio Mesh running on K8s
 
 # Installation
 
+<pre><code><b>
 go get github.com/SentientTechnologies/platform-services
+</b></code></pre>
 
 # Development and Building from source
 
 Clone the repository using the following instructions when this is part of a larger project using multiple services:
-```
+<pre><code><b>
 mkdir ~/project
 export GOPATH=`pwd`
 export PATH=$GOPATH/bin:$PATH
@@ -16,7 +18,7 @@ mkdir -p src/github.com/SentientTechnologies
 cd src/github.com/SentientTechnologies
 git clone https://github.com/SentientTechnologies/platform-services
 cd platform-services
-```
+</b></code></pre>
 
 To boostrap development you will need a copy of Go and the go dependency tools available.  Builds do not need this general however for our purposes we might want to change dependency versions so we should install go and the dep tool.
 
@@ -24,23 +26,23 @@ Go installation instructions can be foubnd at, https://golang.org/doc/install.
 
 Now download any dependencies, once, into our development environment.
 
-```
+<pre><code><b>
 go get -u github.com/golang/dep/cmd/dep
 dep ensure
-```
+</b></code></pre>
 
 Creating a build container to isolate the build into a versioned environment
 
-```
+<pre><code><b>
 docker build -t platform-services:latest --build-arg USER=$USER --build-arg USER_ID=`id -u $USER` --build-arg USER_GROUP_ID=`id -g $USER` .
-```
+</b></code></pre>
 
 Running the build using the container
 
 Prior to doing the build a GitHub OAUTH token needs to be defined within your environment.  Use the gibhub admin pages for your account to generate a token, in Travis builds the token is probably already defined by the Travis service.
-```
-docker run -e GITHUB_TOKEN=$GITHUB_TOKEN -e TRAVIS_TAG=$TRAVIS_TAG -v $GOPATH:/project platform-services ; echo "Done" ; docker container prune -f
-```
+<pre><code>
+<b>docker run -e GITHUB_TOKEN=$GITHUB_TOKEN -e TRAVIS_TAG=$TRAVIS_TAG -v $GOPATH:/project platform-services ; echo "Done" ; docker container prune -f</b>
+</code></pre>
 
 A combined build script is provided 'platform-services/build.sh' to allow all stages of the build including producing docker images to be run together.
 
@@ -56,7 +58,7 @@ The kops, and kubectl based deployment for AWS clusters is documented and detail
 
 In order to seed your S3 KOPS_STATE_STORE version controlled bucket with a cluster definition the following command could be used:
 
-```
+<pre><code><b>
 export AWS_AVAILABILITY_ZONES="$(aws ec2 describe-availability-zones --query 'AvailabilityZones[].ZoneName' --output text | awk -v OFS="," '$1=$1')"
 
 export S3_BUCKET=kops-platform
@@ -67,21 +69,22 @@ aws s3api put-bucket-versioning --bucket $S3_BUCKET --versioning-configuration S
 export CLUSTER_NAME=test.platform.cluster.k8s.local
 
 kops create cluster --name $CLUSTER_NAME --zones $AWS_AVAILABILITY_ZONES --node-count 1
-```
+</b></code></pre>
 
 Optionally use an image from your preferred zone e.g. --image=ami-0def3275.  Also you can modify the AWS machine types, recommended during developer testing using options such as '--master-size=m4.large --node-size=m4.large'.
 
 The Istio install as of 1/1/2018 requires additions to the kops cluster specification. Using the 'kops edit cluster' command change the following:
 
 1. Instead of allowAny on the autorization section use rbac.
-```
+<pre><code>
 -   authroization:
 -     allowAny: {}
 +   authrization:
 +     rbac: {}
-```
+</code></pre>
 2. Add into the spec section add the following block as documented at the bottom of, https://github.com/kubernetes/kops/issues/4052 :
-```
+
+<pre><code>
   kubeAPIServer:
     admissionControl:
     - Initializers
@@ -96,72 +99,72 @@ The Istio install as of 1/1/2018 requires additions to the kops cluster specific
     - ResourceQuota
     runtimeConfig:
       admissionregistration.k8s.io/v1alpha1: "true"
-```
+</code></pre>
 
 Starting the cluster can now be done using the following command:
 
-```
+<pre><code><b>
 kops update cluster $CLUSTER_NAME --yes
-```
+</b></code></pre>
 
 The initial cluster spinup will take sometime, use kops commands such as 'kops validate cluster' to determine when the cluster is spun up ready for Istio and the platform services.
 
 You can follow up with the Istio on K8s installation to complete your service mesh cluster found at https://istio.io/docs/setup/kubernetes/quick-start.html. Complete the Installation steps for the Istio tools.  The following commands could be used once the Istio installation is done to the appropriate location as one example:
 
-```
-export ISTIO_DIR=~/istio-0.4.0
-export PATH=$PATH:$ISTIO_DIR/bin
+<pre><code>
+<b>export ISTIO_DIR=~/istio-0.4.0</b>
+<b>export PATH=$PATH:$ISTIO_DIR/bin</b>
 # Begin the istio deploy
-kubectl apply -f $ISTIO_DIR/install/kubernetes/istio.yaml
+<b>kubectl apply -f $ISTIO_DIR/install/kubernetes/istio.yaml</b>
 # Wait until the crd times are all valid durations and then continue to apply the 
 # initializer, if you saw errors from the initial apply step go back and 
 # reapply the instio.yaml state
-kubectl get crd
+<b>kubectl get crd</b>
 # Now after validating the above continue with the following
-kubectl apply -f $ISTIO_DIR/install/kubernetes/istio-initializer.yaml
-# Now continue to the optional deployment of horizontal mesh functionality
-kubectl apply -f $ISTIO_DIR/install/kubernetes/addons/grafana.yaml
-kubectl apply -f $ISTIO_DIR/install/kubernetes/addons/prometheus.yaml
-kubectl apply -f $ISTIO_DIR/install/kubernetes/addons/servicegraph.yaml
-kubectl apply -f $ISTIO_DIR/install/kubernetes/addons/zipkin.yaml
-```
+<b>kubectl apply -f $ISTIO_DIR/install/kubernetes/istio-initializer.yaml</b>
+# Now continue to the optional deployment of horizontal mesh functionality</b>
+<b>kubectl apply -f $ISTIO_DIR/install/kubernetes/addons/grafana.yaml</b>
+<b>kubectl apply -f $ISTIO_DIR/install/kubernetes/addons/prometheus.yaml</b>
+<b>kubectl apply -f $ISTIO_DIR/install/kubernetes/addons/servicegraph.yaml</b>
+<b>kubectl apply -f $ISTIO_DIR/install/kubernetes/addons/zipkin.yaml</b>
+</code></pre>
 
 The service mesh will be using an Ingress that leverages a version of Envoy called Ambassador.  Ambassador can be injected using the following command:
 
-```
+<pre><code><b>
 kubectl apply -f https://getambassador.io/yaml/ambassador/ambassador-rbac.yaml
-```
+</b></code></pre>
 
 Ambassador provides a gRPC HTTP/2 ingress which default AWS ELB based load balancers are not able to.  Also provisioned are services for handling authentication and token generation for the users making gRPC requests.
 
 To deploy the platform service passwords and other secrets will be needed to allows access to Aurora and other external resources.  YAML files will be needed to populate secrets into the service mesh, individual services document the secrets they require within their README.md files found on github and provide examples, for example https://github.com/SentientTechnologies/platform-services/cmd/experimentsrv/README.md.  Secrets for these services are currently held within the Kubernetes secrets store and can be populated using the following command:
 
-```
+<pre><code>
 # Read https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables
 # create secrets, postgres:username, postgres:password
-kubectl create -f ./cmd/experimentsrv/secret.yaml
-```
+<b>kubectl create -f ./cmd/experimentsrv/secret.yaml</b>
+</code></pre>
 
 Platform services use Dockerfiles to encapsulate their build steps which are documented within their respective README.md files.  Building services are single step CLI operations and require only the installation of Docker, and any version of Go 1.7 or later.  Builds will produce containers and will upload these to your current AWS account users ECS docker registry.  Deployments are staged from this registry.  
 
 When creating a cluster an IPv4 address range will have been assigned by AWS and kops for your service cluster.  The details for your address can be found by running the 'kubectl get nodes' command.  Take note of the range and determine the mask as this will be used when deploying the service images into the cluster.  For example:
 
-```
-kubectl get nodes
+<pre><code>
+<b>kubectl get nodes</b>
 NAME                                           STATUS    ROLES     AGE       VERSION
 ip-172-20-118-127.us-west-2.compute.internal   Ready     node      17m       v1.8.4
 ip-172-20-41-63.us-west-2.compute.internal     Ready     node      17m       v1.8.4
 ip-172-20-55-189.us-west-2.compute.internal    Ready     master    18m       v1.8.4
-```
+</code></pre>
 
 Which gives a working range of 172.20.0.0/16.
 
 Once secrets are loaded individual services can be deployed from a checked out developer copy of the service repo using the following command :
 
-```
-cd ~/mesh/src/github.com/SentientTechnologies/platform-services
-kubectl apply -f <(istioctl kube-inject -f ./experimentsrv.yaml --includeIPRanges=172.20.0.0/16)
-```
+<pre><code>
+<b>cd ~/mesh/src/github.com/SentientTechnologies/platform-services</b>
+<b>kubectl apply -f <(istioctl kube-inject -f ./experimentsrv.yaml --includeIPRanges="172.20.0.0/16")</b>
+</code></pre>
 
 # Logging and Observability
 
@@ -169,21 +172,21 @@ Currently the service mesh is deployed with Observability tools.  These instruct
 
 Individual services do offering logging using the systemd facilities and these logs are routed to Kubernetes.  Logs can be obtained from pods and containers. The 'kubectl get services' command can be used to identify the running platform services and the 'kubectl get pod' command can be used to get the health of services.  Once a pod isidentified with a running service instance the logs can be extract using a combination of the pod instance and the service name together, for example:
 
-```
-$ kuebctl get services
+<code><pre>
+<b>kuebctl get services</b>
 NAME          TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)     AGE
 experiments   ClusterIP   100.68.93.48   <none>        30001/TCP   12m
 kubernetes    ClusterIP   100.64.0.1     <none>        443/TCP     1h
-$ kubectl get pod
+<b>kubectl get pod</b>
 NAME                             READY     STATUS    RESTARTS   AGE
 experiments-v1-bc46b5d68-tltg9   2/2       Running   0          12m
-$ kubectl logs experiments-v1-bc46b5d68-tltg9 experiments
+<b>kubectl logs experiments-v1-bc46b5d68-tltg9 experiments</b>
 ./experimentsrv built at 2018-01-18_15:22:47+0000, against commit id 34e761994b895ac48cd832ac3048854a671256b0
 2018-01-18T16:50:18+0000 INF experimentsrv git hash version 34e761994b895ac48cd832ac3048854a671256b0 _: [host experiments-v1-bc46b5d68-tltg9]
 2018-01-18T16:50:18+0000 INF experimentsrv database startup / recovery has been performed dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com:5432 name platform _: [host experiments-v1-bc46b5d68-tltg9]
 2018-01-18T16:50:18+0000 INF experimentsrv database has 1 connections  dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com:5432 name platform dbConnectionCount 1 _: [host experiments-v1-bc46b5d68-tltg9]
 2018-01-18T16:50:33+0000 INF experimentsrv database has 1 connections  dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com:5432 name platform dbConnectionCount 1 _: [host experiments-v1-bc46b5d68-tltg9]
-```
+</code></pre>
 
 The container name can also include the istio mesh and kubernetes installed system containers for indepth debugging purposes.
 
@@ -207,27 +210,27 @@ c.f. https://auth0.com/docs/quickstart/backend/golang/02-using#obtaining-an-acce
 
 If you are using the test API you can do something like:
 
-```
+<pre><code><b>
 cd cmd/experimentsrv
 export AUTH0_DOMAIN=sentientai.auth0.com
 export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
 LOGXI_FORMAT=happy,maxcol=1024 LOGXI=*=TRC go test -v
-```
+</b></code></pre>
 
 # Manually invoking and using services
 
 Services used within the platform require that not only is the link integrity and security is maintained using mTLS but that an authorization block is also supplied to verify the user requesting a service.  The authorization can be supplied when using the gRPC command line tool using the metadata options.  First we retrieve a token using curl and then make a request against the service as follows:
 
-```
+<pre><code><b>
 export AUTH="eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IlJ...............qYzRSRUV5TmpFM09UQXdSRFZCTmtSQ056QkNPVEJET"
 grpc_cli call localhost:30001 ai.sentient.experiment.Service.Get "id: 'test'" --metadata authorization:"Bearer $AUTH"
-```
+</b></code></pre>
 
 The services used within the platfor all support reflection when using gRPC.  To examine calls available for a server you should first identify the endpoint through which the ingress is being routed, for example:
 
-```
-$ export CLUSTER_INGRESS=`kubectl get ingress -o wide | tail -1 | awk '{print $3":"$4}'`
-$ grpc_cli ls $CLUSTER_INGRESS -l
+<pre><code>
+<b>export CLUSTER_INGRESS=`kubectl get ingress -o wide | tail -1 | awk '{print $3":"$4}'`</b>
+<b>grpc_cli ls $CLUSTER_INGRESS -l</b>
 filename: grpc_health_v1/health.proto
 package: grpc.health.v1;
 service Health {
@@ -246,7 +249,7 @@ service Service {
   rpc Create(ai.sentient.experiment.CreateRequest) returns (ai.sentient.experiment.CreateResponse) {}
   rpc Get(ai.sentient.experiment.GetRequest) returns (ai.sentient.experiment.GetResponse) {}
 }
-```
+</code></pre>
 
 To drill further into interfaces and examine the types being used within calls you can perform commands such as:
 
@@ -264,7 +267,7 @@ string description = 3[json_name = "description"];
 map<uint32, .ai.sentient.experiment.InputLayer> inputLayers = 5[json_name = "inputLayers"];
 map<uint32, .ai.sentient.experiment.OutputLayer> outputLayers = 6[json_name = "outputLayers"];
 }
-$ grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.InputLayer -l
+<b>grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.InputLayer -l</b>
 message InputLayer {
 enum Type {
 	Unknown = 0;
@@ -281,10 +284,10 @@ repeated string values = 3[json_name = "values"];
 
 # Shutting down a service, or cluster
 
-```
+<pre><code><b>
 kubectl delete service experiments ; kubectl delete ingress ingress-exp ; kubectl delete deployment experiments-v1 ; kubectl delete egressrule aurora-postgres-egress-rule
-```
+</b></code></pre>
 
-```
+<pre><code><b>
 kops delete cluster $CLUSTER_NAME --yes
-```
+</b></code></pre>
