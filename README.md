@@ -3,7 +3,7 @@ A PoC with functioning service using simple Istio Mesh running on K8s
 
 # Installation
 
-<pre style="margin: 0"><code><b>
+<pre style="display: inline; margin: 0"><code><b>
 go get github.com/SentientTechnologies/platform-services
 </b></code></pre>
 
