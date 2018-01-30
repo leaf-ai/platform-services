@@ -18,3 +18,4 @@ bin/
 gen/
 
 vendor/github.com/SentientTechnologies/platform-services/gen
+.autoenv.zsh
