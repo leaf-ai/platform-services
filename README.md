@@ -1,3 +1,7 @@
+<script type="text/javascript">
+    $("pre.error").css({"background-color":"red","color":"white","display":"block","padding":"0", "margin":"0"});
+    $("pre").css({ "margin" : 0, "padding" : 0 })
+</script>
 # platform-services
 A PoC with functioning service using simple Istio Mesh running on K8s
 
@@ -166,6 +170,11 @@ Once secrets are loaded individual services can be deployed from a checked out d
 <b>kubectl apply -f <(istioctl kube-inject -f ./experimentsrv.yaml --includeIPRanges="172.20.0.0/16")</b>
 </code></pre>
 
+Once the application is deployed you can discover the ingress points within the kubernetes cluster by using the following:
+<pre><code><b>
+export CLUSTER_INGRESS=`kubectl get ingress -o wide | tail -1 | awk '{print $3":"$4}'`
+</b></code></pre>
+
 # Logging and Observability
 
 Currently the service mesh is deployed with Observability tools.  These instruction do not go into Observability at this time.  However we do address logging.
@@ -214,7 +223,7 @@ If you are using the test API you can do something like:
 cd cmd/experimentsrv
 export AUTH0_DOMAIN=sentientai.auth0.com
 export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
-LOGXI_FORMAT=happy,maxcol=1024 LOGXI=*=TRC go test -v
+LOGXI_FORMAT=happy,maxcol=1024 LOGXI=*=TRC go test -v -ip-port ":30001"
 </b></code></pre>
 
 # Manually invoking and using services
