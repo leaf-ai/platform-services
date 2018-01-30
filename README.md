@@ -250,33 +250,33 @@ service Service {
 
 To drill further into interfaces and examine the types being used within calls you can perform commands such as:
 
-```markdown
-	**grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.CreateRequest -l**
-	message CreateRequest {
-	.ai.sentient.experiment.Experiment experiment = 1[json_name = "experiment"];
-	}
-	grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.Experiment -l 
-	message Experiment {
-	string uid = 1[json_name = "uid"];
-	string name = 2[json_name = "name"];
-	string description = 3[json_name = "description"];
-	.google.protobuf.Timestamp created = 4[json_name = "created"];
-	map<uint32, .ai.sentient.experiment.InputLayer> inputLayers = 5[json_name = "inputLayers"];
-	map<uint32, .ai.sentient.experiment.OutputLayer> outputLayers = 6[json_name = "outputLayers"];
-	}
-	$ grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.InputLayer -l
-	message InputLayer {
-	enum Type {
-		Unknown = 0;
-		Enumeration = 1;
-		Time = 2;
-		Raw = 3;
-	}
-	string name = 1[json_name = "name"];
-	.ai.sentient.experiment.InputLayer.Type type = 2[json_name = "type"];
-	repeated string values = 3[json_name = "values"];
-	}
-```
+<code>
+<b>grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.CreateRequest -l</b>
+message CreateRequest {
+.ai.sentient.experiment.Experiment experiment = 1[json_name = "experiment"];
+}
+grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.Experiment -l 
+message Experiment {
+string uid = 1[json_name = "uid"];
+string name = 2[json_name = "name"];
+string description = 3[json_name = "description"];
+.google.protobuf.Timestamp created = 4[json_name = "created"];
+map<uint32, .ai.sentient.experiment.InputLayer> inputLayers = 5[json_name = "inputLayers"];
+map<uint32, .ai.sentient.experiment.OutputLayer> outputLayers = 6[json_name = "outputLayers"];
+}
+$ grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.InputLayer -l
+message InputLayer {
+enum Type {
+	Unknown = 0;
+	Enumeration = 1;
+	Time = 2;
+	Raw = 3;
+}
+string name = 1[json_name = "name"];
+.ai.sentient.experiment.InputLayer.Type type = 2[json_name = "type"];
+repeated string values = 3[json_name = "values"];
+}
+</code>
 
 
 # Shutting down a service, or cluster
