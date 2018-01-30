@@ -65,6 +65,10 @@ When Istio is used without a Load balancer the IP to be used can be determined b
 kubectl -n istio-system get po -l istio=ingress -o jsonpath='{.items[0].status.hostIP}'
 ```
 
+# Using IP Port addresses for serving grpc
+
+The grpc listener is configured so that both an IPv4 and IPv6 adapter is attemped individually.  Tgis is because the behavior on some OS's such as Alpine is to not use the 'tcp' protocol with an empty address for both IPv4 and Ipv6, this is the case on Alpine.  Some OS's such as Ubuntu do open both IPv6 and IPv4 in these cases.  As such when using Ubuntu you will always need to specify a single IP, ":30001" for example, to override the default.  The default is designed for use with Alpine containerized deployments such as those in production.
+
 # Functional testing
 
 The server provides some testing for the DB and core functionality of the server.  In order to run this you can use the go test command and point at the relevant go package directories from which you wish to run the tests, for example to run the experiment DB and server tests you could use commands like the following:
@@ -73,5 +77,5 @@ The server provides some testing for the DB and core functionality of the server
 cd cmd/experimentsrv
 export AUTH0_DOMAIN=sentientai.auth0.com
 export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
-LOGXI=*=TRC PGUSER=pl PGHOST=dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com PGDATABASE=platform go test -v .
+LOGXI=*=TRC PGUSER=pl PGHOST=dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com PGDATABASE=platform go test -v . -ip-port ":30001"
 ```

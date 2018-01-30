@@ -223,6 +223,62 @@ export AUTH="eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IlJ...............qYzRS
 grpc_cli call localhost:30001 ai.sentient.experiment.Service.Get "id: 'test'" --metadata authorization:"Bearer $AUTH"
 ```
 
+The services used within the platfor all support reflection when using gRPC.  To examine calls available for a server you should first identify the endpoint through which the ingress is being routed, for example:
+
+```
+$ export CLUSTER_INGRESS=`kubectl get ingress -o wide | tail -1 | awk '{print $3":"$4}'`
+$ grpc_cli ls $CLUSTER_INGRESS -l
+filename: grpc_health_v1/health.proto
+package: grpc.health.v1;
+service Health {
+  rpc Check(grpc.health.v1.HealthCheckRequest) returns (grpc.health.v1.HealthCheckResponse) {}
+}
+
+filename: grpc_reflection_v1alpha/reflection.proto
+package: grpc.reflection.v1alpha;
+service ServerReflection {
+  rpc ServerReflectionInfo(stream grpc.reflection.v1alpha.ServerReflectionRequest) returns (stream grpc.reflection.v1alpha.ServerReflectionResponse) {}
+}
+
+filename: experimentsrv.proto
+package: ai.sentient.experiment;
+service Service {
+  rpc Create(ai.sentient.experiment.CreateRequest) returns (ai.sentient.experiment.CreateResponse) {}
+  rpc Get(ai.sentient.experiment.GetRequest) returns (ai.sentient.experiment.GetResponse) {}
+}
+```
+
+To drill further into interfaces and examine the types being used within calls you can perform commands such as:
+
+```markdown
+$ grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.CreateRequest -l
+message CreateRequest {
+  .ai.sentient.experiment.Experiment experiment = 1[json_name = "experiment"];
+}
+grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.Experiment -l 
+message Experiment {
+  string uid = 1[json_name = "uid"];
+  string name = 2[json_name = "name"];
+  string description = 3[json_name = "description"];
+  .google.protobuf.Timestamp created = 4[json_name = "created"];
+  map<uint32, .ai.sentient.experiment.InputLayer> inputLayers = 5[json_name = "inputLayers"];
+  map<uint32, .ai.sentient.experiment.OutputLayer> outputLayers = 6[json_name = "outputLayers"];
+}
+$ grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.InputLayer -l
+message InputLayer {
+  enum Type {
+    Unknown = 0;
+    Enumeration = 1;
+    Time = 2;
+    Raw = 3;
+  }
+  string name = 1[json_name = "name"];
+  .ai.sentient.experiment.InputLayer.Type type = 2[json_name = "type"];
+  repeated string values = 3[json_name = "values"];
+}
+```
+
+
 # Shutting down a service, or cluster
 
 ```
