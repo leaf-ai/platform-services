@@ -1,6 +1,8 @@
 # platform-services
 A PoC with functioning service using simple Istio Mesh running on K8s
 
+Version : <repo-version-tag>0.0.0</repo-version-tag>
+
 # Installation
 
 <pre><code><b>go get github.com/SentientTechnologies/platform-services

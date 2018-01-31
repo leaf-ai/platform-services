@@ -48,16 +48,23 @@ spec:
         env:
         - name: "LOGXI_FORMAT"
           value: "happy,maxcol=1024"
-        - name: "IP_PORT"
-          value: ":30001,0.0.0.0:30001"
         - name: "LOGXI"
           value: "*=TRC"
         - name: "PGHOST"
-          value: "dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com"
+          valueFrom:
+            secretKeyRef:
+              name: postgres
+              key: host
         - name: "PGPORT"
-          value: "5432"
+          valueFrom:
+            secretKeyRef:
+              name: postgres
+              key: port
         - name: "PGDATABASE"
-          value: "platform"
+          valueFrom:
+            secretKeyRef:
+              name: postgres
+              key: database
         - name: "PGUSER"
           valueFrom:
             secretKeyRef:
