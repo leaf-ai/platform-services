@@ -4,7 +4,7 @@ The experiment server is used to persist experiment details and to record change
 
 The experiment server offers a gRPC API that can be accessed using a machine-to-machine or human-to-machine (HCI) interface.  The HCI interface can be interacted with using the grpc_cli tool provided with the gRPC toolkita  More information about grpc_cli can be found at, https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md.
 
-Version: <repo-version>0.0.0</repo-version>
+Version: <repo-version>0.0.0-master-1ei1Hn</repo-version>
 
 # Experiment Database
 

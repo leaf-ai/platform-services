@@ -1,7 +1,7 @@
 # platform-services
 A PoC with functioning service using simple Istio Mesh running on K8s
 
-Version : <repo-version>0.0.0-master-1ehqyy</repo-version>
+Version : <repo-version>0.0.0-master-1ei1Hn</repo-version>
 
 # Installation
 
@@ -106,8 +106,8 @@ You can follow up with the Istio on K8s installation to complete your service me
 
 <pre><code><b>export ISTIO_DIR=~/istio-0.4.0</b>
 <b>export PATH=$PATH:$ISTIO_DIR/bin</b>
-# Begin the istio deploy
-<b>kubectl apply -f $ISTIO_DIR/install/kubernetes/istio.yaml</b>
+# Begin the istio deploy using mTLS internally within the cluster
+<b>kubectl apply -f $ISTIO_DIR/install/kubernetes/istio-auth.yaml</b>
 # Wait until the crd times are all valid durations and then continue to apply the 
 # initializer, if you saw errors from the initial apply step go back and 
 # reapply the instio.yaml state
