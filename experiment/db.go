@@ -539,7 +539,7 @@ func SelectExperiment(rowId uint64, uid string) (result *grpc.Experiment, err er
 		return nil, err
 	}
 
-	query := sq.Select("uid,created,name,description").
+	query := sq.Select("uid,name,description,created").
 		From("experiments").
 		OrderBy("uid DESC").
 		PlaceholderFormat(sq.Dollar)
@@ -611,7 +611,7 @@ func SelectExperimentWide(uid string) (result *grpc.Experiment, err errors.Error
 
 	sql := `select e.id as e_id, e.uid as e_uid, e.created as e_created, e.name as e_name, e.description as e_description, 
 	l.id as l_id, l.uid as l_uid, l.number as l_number, l.name as l_name, l.class::text as l_class, l.type::text as l_type, l.values as l_values from 
-	experiments AS e NATURAL INNER JOIN layers AS l WHERE e.uid = $1 AND l.uid = e.uid AND e.state != 'Deactivated';`
+	experiments AS e INNER JOIN layers AS l ON e.uid = $1 AND l.uid = e.uid AND e.state != 'Deactivated';`
 
 	if len(uid) == 0 {
 		return nil, errors.New("selecting an experiment requires the experiment unique id to be specified").With("stack", stack.Trace().TrimRuntime())
@@ -622,10 +622,12 @@ func SelectExperimentWide(uid string) (result *grpc.Experiment, err errors.Error
 		return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", uid)
 	}
 	defer rows.Close()
+	rowCount := 0
 
 	// TODO If there are now rows then do a simple select for the main record to see if it exists
 
 	for rows.Next() {
+		rowCount++
 		row := experimentWide{}
 		if errGo = rows.StructScan(&row); CheckIfFatal(errGo) != nil {
 			return nil, errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).With("uid", uid)
@@ -677,6 +679,11 @@ func SelectExperimentWide(uid string) (result *grpc.Experiment, err errors.Error
 		}
 	}
 
+	// If there are no layers then the short version should be used
+	if rowCount == 0 {
+		return SelectExperiment(0, uid)
+	}
+
 	return result, nil
 }
 
@@ -725,7 +732,7 @@ func InsertExperiment(data *grpc.Experiment) (result *grpc.Experiment, err error
 	for i, layer := range data.InputLayers {
 		_, errGo = sq.Insert("layers").
 			Columns("uid", "number", "name", "class", "type", "values").
-			Values(data.Uid, i, layer.Name, "Input", layer.Type, arrayStrToPg(layer.Values)).
+			Values(data.Uid, i, layer.Name, "Input", layer.Type.String(), arrayStrToPg(layer.Values)).
 			RunWith(dBase.DB).
 			PlaceholderFormat(sq.Dollar).Exec()
 
@@ -738,7 +745,7 @@ func InsertExperiment(data *grpc.Experiment) (result *grpc.Experiment, err error
 	for i, layer := range data.OutputLayers {
 		_, errGo = sq.Insert("layers").
 			Columns("uid", "number", "name", "class", "type", "values").
-			Values(data.Uid, i, layer.Name, "Output", layer.Type, arrayStrToPg(layer.Values)).
+			Values(data.Uid, i, layer.Name, "Output", layer.Type.String(), arrayStrToPg(layer.Values)).
 			RunWith(dBase.DB).
 			PlaceholderFormat(sq.Dollar).Exec()
 

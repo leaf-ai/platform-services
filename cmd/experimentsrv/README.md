@@ -1,8 +1,10 @@
-# Introduction
+# expermimentsrv
 
 The experiment server is used to persist experiment details and to record changes to the state of experiments.  Items included within an experiment include layer definitions and meta-data items.
 
 The experiment server offers a gRPC API that can be accessed using a machine-to-machine or human-to-machine (HCI) interface.  The HCI interface can be interacted with using the grpc_cli tool provided with the gRPC toolkita  More information about grpc_cli can be found at, https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md.
+
+Version: <repo-version>0.0.0</repo-version>
 
 # Experiment Database
 
@@ -30,6 +32,8 @@ export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/
 </b></code></pre>
 
 # Using the server
+
+## grpc_cli
 
 The grpc_cli tool can be used to interact with the server for creating and getting experiments.  Other tools do exist as curl like environments for interacting with gRPC servers including the nodejs based tool found at, https://github.com/njpatel/grpcc.  For our purposes we use the less powerful but more common grpc_cli tool that comes with the gRPC project.  Documentation for the grpc_cli tool can be found at, https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md.
 
@@ -76,6 +80,52 @@ experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access
 When Istio is used without a Load balancer the IP of the host on which the pod is running can be determined by using the following command:
 
 <pre><code><b>kubectl -n istio-system get po -l istio=ingress -o jsonpath='{.items[0].status.hostIP}'
+</b></code></pre>
+
+## evans expressive grpc client
+
+evans is an end user tool for interacting with grpc servers using a REPL for command line interface.  It is intended to be used for casual testing and inspection by engineering staff who have access to a proto file for a service, and uses the protoc tool.
+
+### Installation
+
+<pre><code><b>go get github.com/ktr0731/evans
+</b></code></pre>
+
+### Usage
+
+evans supports several options that will be needed to interact with a remote grpc server:
+
+<pre><code><b>
+evans 0.1.2
+Usage: evans [--interactive] [--editconfig] [--host HOST] [--port PORT] [--package PACKAGE] [--service SERVICE] [--call CALL] [--file FILE] [--path PATH] [--header HEADER] [PROTO [PROTO ...]]
+
+Positional arguments:
+  PROTO                  .proto files
+
+Options:
+  --interactive, -i      use interactive mode
+  --editconfig, -e       edit config file by $EDITOR
+  --host HOST, -h HOST   gRPC host
+  --port PORT, -p PORT   gRPC port [default: 50051]
+  --package PACKAGE      default package
+  --service SERVICE      default service. evans parse package from this if --package is nothing.
+  --call CALL, -c CALL   call specified RPC
+  --file FILE, -f FILE   the script file which will be executed (used only command-line mode)
+  --path PATH            proto file path
+  --header HEADER        headers set to each requests
+  --help, -h             display this help and exit
+  --version              display version and exit
+</b></code></pre>
+
+In order to contact a remote service deployed on AWS using the Kubernetes based service mesh you should be familar with the instructions within the grpc_cli description that detail the use of metadata to pass authorization tokens to the service.  The authorization header can be specified using the --header option as follows:
+
+<pre><code><b>
+export AUTH0_DOMAIN=sentientai.auth0.com
+export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
+export AUTH0_HEADER="Bearer $AUTH0_TOKEN"
+export CLUSTER_INGRESS_HOST=`kubectl get ingress -o wide | tail -1 | awk '{print $3}'`
+export CLUSTER_INGRESS_PORT=`kubectl get ingress -o wide | tail -1 | awk '{print $4}'`
+evans --interactive --host $CLUSTER_INGRESS_HOST --port $CLUSTER_INGRESS_PORT --header "Authorization"=$AUTH0_HEADER ./cmd/experimentsrv/experimentsrv.proto
 </b></code></pre>
 
 # Using IP Port addresses for serving grpc

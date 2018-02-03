@@ -1,5 +1,6 @@
 #!/bin/bash -x
 set -e
+go install github.com/karlmutch/bump-ver/cmd/bump-ver
 ./cmd/experimentsrv/build.sh
 if [ $? -ne 0 ]; then
     echo "experimentsrv build failed"

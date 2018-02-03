@@ -79,7 +79,7 @@ func newTestExperiment() (out *grpc.Experiment) {
 func TestDBExperimentSimple(t *testing.T) {
 
 	if err := model.GetDBStatus(); err != nil {
-		t.Error(errors.Wrap(err).With("stack", stack.Trace().TrimRuntime()))
+		t.Error(errors.Wrap(err).With("stack", stack.Trace().TrimRuntime()).Error())
 		return
 	}
 
@@ -87,7 +87,7 @@ func TestDBExperimentSimple(t *testing.T) {
 
 	exp, err := model.InsertExperiment(in)
 	if err != nil {
-		t.Error(err)
+		t.Error(err.Error())
 		return
 	}
 
@@ -100,14 +100,108 @@ func TestDBExperimentSimple(t *testing.T) {
 		return
 	}
 
+	selected, err := model.SelectExperiment(0, in.Uid)
+	if err != nil {
+		t.Error(err.With("uid", in.Uid).Error())
+		return
+	}
+	if selected == nil {
+		t.Error(errors.New("SelectExperimentWide returned no data unexpectedly").With("uid", in.Uid).Error())
+		return
+	}
+	if diff := diffExp(in, selected); len(diff) != 0 {
+		t.Error(errors.New(strings.Join(diff, ", ")).With("stack", stack.Trace().TrimRuntime()))
+		return
+	}
+
+	// Now do a wide select even though we have no layers to test the simple case
+	wide, err := model.SelectExperimentWide(in.Uid)
+	if err != nil {
+		t.Error(err.With("uid", in.Uid).Error())
+		return
+	}
+	if wide == nil {
+		t.Error(errors.New("SelectExperimentWide returned no data unexpectedly").With("uid", in.Uid).Error())
+		return
+	}
+	if diff := diffExp(in, wide); len(diff) != 0 {
+		t.Error(errors.New(strings.Join(diff, ", ")).With("stack", stack.Trace().TrimRuntime()))
+		return
+	}
+
 	if err = model.DeactivateExperiment(in.Uid); err != nil {
-		t.Error(err.With("uid", in.Uid))
+		t.Error(err.With("uid", in.Uid).Error())
 		return
 	}
 
 	// Try reinserting and make sure it fails
 	if _, err = model.InsertExperiment(in); err == nil {
 		t.Error("failed tests due to reinsertion of a duplicate experiment working")
+		return
+	}
+}
+
+func TestDBExperimentWide(t *testing.T) {
+
+	if err := model.GetDBStatus(); err != nil {
+		t.Error(errors.Wrap(err).With("stack", stack.Trace().TrimRuntime()).Error())
+		return
+	}
+
+	in := newTestExperiment()
+
+	in.InputLayers[1] = &grpc.InputLayer{
+		Name:   model.GetPseudoUUID(),
+		Type:   grpc.InputLayer_Enumeration,
+		Values: []string{},
+	}
+	in.OutputLayers[0] = &grpc.OutputLayer{
+		Name:   model.GetPseudoUUID(),
+		Type:   grpc.OutputLayer_Enumeration,
+		Values: []string{},
+	}
+	in.OutputLayers[1] = &grpc.OutputLayer{
+		Name:   model.GetPseudoUUID(),
+		Type:   grpc.OutputLayer_Probability,
+		Values: []string{model.GetPseudoUUID()},
+	}
+	in.OutputLayers[3] = &grpc.OutputLayer{
+		Name:   model.GetPseudoUUID(),
+		Type:   grpc.OutputLayer_Raw,
+		Values: []string{model.GetPseudoUUID(), model.GetPseudoUUID()},
+	}
+
+	exp, err := model.InsertExperiment(in)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	// To check equivalence between the supplied data and the apparently written
+	// data copy the two fields we know changed into the original data and then
+	// do the deep comparison
+	in.Created = exp.Created
+	if diff := diffExp(in, exp); len(diff) != 0 {
+		t.Error(errors.New(strings.Join(diff, ", ")).With("stack", stack.Trace().TrimRuntime()))
+		return
+	}
+
+	// Now do a wide select to include our layers
+	wide, err := model.SelectExperimentWide(in.Uid)
+	if err != nil {
+		t.Error(err.With("uid", in.Uid).Error())
+		return
+	}
+	if wide == nil {
+		t.Error(errors.New("SelectExperimentWide returned no data unexpectedly").With("uid", in.Uid).Error())
+		return
+	}
+	if diff := diffExp(in, wide); len(diff) != 0 {
+		t.Error(errors.New(strings.Join(diff, ", ")).With("stack", stack.Trace().TrimRuntime()))
+		return
+	}
+
+	if err = model.DeactivateExperiment(in.Uid); err != nil {
+		t.Error(err.With("uid", in.Uid).Error())
 		return
 	}
 }

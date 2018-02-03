@@ -1,7 +1,7 @@
 # platform-services
 A PoC with functioning service using simple Istio Mesh running on K8s
 
-Version : <repo-version-tag>0.0.0</repo-version-tag>
+Version : <repo-version>0.0.0-master-1ehqyy</repo-version>
 
 # Installation
 
@@ -269,7 +269,7 @@ repeated string values = 3[json_name = "values"];
 
 # Shutting down a service, or cluster
 
-<pre><code><b>kubectl delete service experiments ; kubectl delete ingress ingress-exp ; kubectl delete deployment experiments-v1 ; kubectl delete egressrule aurora-postgres-egress-rule
+<pre><code><b>kubectl delete service experiments ; kubectl delete ingress ingress-exp ; kubectl delete deployment experiments-v1 ; kubectl delete secrets postgres
 </b></code></pre>
 
 <pre><code><b>kops delete cluster $CLUSTER_NAME --yes

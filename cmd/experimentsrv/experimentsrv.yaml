@@ -50,6 +50,8 @@ spec:
           value: "happy,maxcol=1024"
         - name: "LOGXI"
           value: "*=TRC"
+        - name: "IP_PORT"
+          value: ":30001,0.0.0.0:30001"
         - name: "PGHOST"
           valueFrom:
             secretKeyRef:

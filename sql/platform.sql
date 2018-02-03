@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS layers (
         type layerType NOT NULL
 );
 
-CREATE UNIQUE INDEX layers_idx ON layers(uid, number);
+CREATE UNIQUE INDEX layers_idx ON layers(uid, class, number);
 
 -- -----------------------------------------------------
 -- Alter Table Starting Sequence Numbers to avoid test case number ranges etc
