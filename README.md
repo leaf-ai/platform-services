@@ -43,7 +43,7 @@ Prior to doing the build a GitHub OAUTH token needs to be defined within your en
 
 A combined build script is provided 'platform-services/build.sh' to allow all stages of the build including producing docker images to be run together.
 
-# Running the AWS Istio example
+# Running the AWS Istio example using the kops cluster manager
 
 The experimentsrv component comes with an Istio definition file for deployment into AWS using Kubernetes (k8s) and Istio.
 

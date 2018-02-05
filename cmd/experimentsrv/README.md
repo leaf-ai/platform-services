@@ -82,7 +82,9 @@ When Istio is used without a Load balancer the IP of the host on which the pod i
 <pre><code><b>kubectl -n istio-system get po -l istio=ingress -o jsonpath='{.items[0].status.hostIP}'
 </b></code></pre>
 
-## evans expressive grpc client
+## evans expressive grpc client (under development, only for engineering use)
+
+It is recommended that the grpc_cli tool is used by end users as it is more complete at this time, instructions can be found in the cmd/experimentsrv/README.md file.
 
 evans is an end user tool for interacting with grpc servers using a REPL for command line interface.  It is intended to be used for casual testing and inspection by engineering staff who have access to a proto file for a service, and uses the protoc tool.
 
