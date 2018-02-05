@@ -1,4 +1,4 @@
-# Using Azure ACS to reply kubernetes clusters
+# Using Azure ACS to deploy kubernetes clusters
 
 The document contains information as to how Microsoft supplied tools can be using to deploy kubernetes orchestration against the ACS container service.
 
