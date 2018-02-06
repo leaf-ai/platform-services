@@ -6,13 +6,14 @@ if [ $? -ne 0 ]; then
     exit $?
 fi
 cd cmd/experimentsrv
-docker build -t experimentsrv .
+version=`bump-ver -f README.md extract`
+docker build -t experimentsrv:$version .
 `aws ecr get-login --no-include-email --region us-west-2`
 if [ $? -eq 0 ]; then
     account=`aws sts get-caller-identity --output text --query Account`
     if [ $? -eq 0 ]; then
-        docker tag experimentsrv:latest $account.dkr.ecr.us-west-2.amazonaws.com/experimentsrv:latest
-        docker push $account.dkr.ecr.us-west-2.amazonaws.com/experimentsrv:latest
+        docker tag experimentsrv:$version $account.dkr.ecr.us-west-2.amazonaws.com/experimentsrv:$version
+        docker push $account.dkr.ecr.us-west-2.amazonaws.com/experimentsrv:$version
     fi
 fi
 cd ../echosrv

@@ -174,6 +174,7 @@ func authInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServe
 	if !ok {
 		return nil, grpc.Errorf(codes.Unauthenticated, "missing context metadata")
 	}
+
 	//if !authenticate(md["username"], md["password"]) {
 	//	return nil, codes.Unauthenticated
 	//}
