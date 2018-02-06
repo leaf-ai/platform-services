@@ -153,6 +153,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/golang/groupcache"
+  packages = ["lru"]
+  revision = "66deaeb636dff1ac7d938ce666d090556056a4b0"
+
+[[projects]]
+  branch = "master"
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
@@ -388,6 +394,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d5a91d4908eed83fa3b67fee91ed6514a9175037b18973a3d5e249dc3f09172b"
+  inputs-digest = "2e661dca986f94be4cc7941f29a97a811f6149584b3c253d724d03a57b239591"
   solver-name = "gps-cdcl"
   solver-version = 1

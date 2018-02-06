@@ -16,6 +16,8 @@ import (
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
 
+	"github.com/SentientTechnologies/platform-services"
+
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -23,6 +25,8 @@ import (
 
 	"github.com/auth0-community/go-auth0"
 	"gopkg.in/square/go-jose.v2"
+
+	"github.com/golang/groupcache/lru"
 )
 
 var (
@@ -30,6 +34,9 @@ var (
 	jwksCache   = &jwksState{
 		ok: false,
 	}
+
+	cacheSize = flag.Int("token-cache-size", 4096, "the number of entries to limit the JWT cache size to")
+	cache     = &tokenCache{}
 )
 
 type jwksState struct {
@@ -38,7 +45,20 @@ type jwksState struct {
 	sync.Mutex
 }
 
+type tokenCache struct {
+	// Golang teams cache that is a subset of a distributed memcached group cache
+	// but sits within a single host for now, later we might add a distributed
+	// in mesh cache if the system if the system grows to enourmas proportions
+	lru *lru.Cache
+	sync.Mutex
+}
+
 func initJwksUpdate(quitC <-chan struct{}) {
+
+	// Initialize a cache for our auth0 JWT authorizations
+	cache.Lock()
+	cache.lru = lru.New(*cacheSize)
+	cache.Unlock()
 
 	// When starting set the auth module to be down and only when it load the JWKS successfully set the state to up
 	serverModule := "jwks"
@@ -74,6 +94,29 @@ func initJwksUpdate(quitC <-chan struct{}) {
 
 func validateToken(token string, claimCheck string) (err errors.Error) {
 
+	claims := map[string]interface{}{}
+	cache.Lock()
+	item, isPresent := cache.lru.Get(token)
+	cache.Unlock()
+
+	if isPresent {
+		claims = item.(map[string]interface{})
+		exp, isPresent := claims["exp"]
+		if isPresent {
+			// Check the time at which the claim expires and if it has reject the request BUT dont
+			// clear the cache so that any further attempts wont result in a round trip to the
+			// ID provider
+			expires := time.Unix(int64(platform.Round(exp.(float64))), 0)
+			if expires.Before(time.Now().UTC()) {
+				return errors.New("token has expired").With("stack", stack.Trace().TrimRuntime())
+			}
+			logger.Debug("cache hit")
+			return nil
+		}
+	}
+
+	logger.Debug("cache miss")
+
 	audience := []string{
 		"http://api.sentient.ai/experimentsrv",
 	}
@@ -99,11 +142,26 @@ func validateToken(token string, claimCheck string) (err errors.Error) {
 		return nil
 	}
 
-	claims := map[string]interface{}{}
 	errGo = validator.Claims(headerTokenRequest, validResp, &claims)
 	if errGo != nil {
 		return errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
 	}
+
+	// Get ready to cache things, RFC 7519 nbf, exp, iat are also validated by the provider so
+	// if we are here then we really only need to check the exp for caching purposes.a c.f.
+	// https://tools.ietf.org/html/rfc7519#section-4.1.4
+
+	exp, isPresent := claims["exp"]
+	if !isPresent {
+		return errors.New("token did not contain an expiry").With("stack", stack.Trace().TrimRuntime())
+	}
+	expires := time.Unix(int64(platform.Round(exp.(float64))), 0)
+	if expires.Before(time.Now().UTC()) {
+		return errors.New("token has expired").With("stack", stack.Trace().TrimRuntime())
+	}
+	cache.Lock()
+	cache.lru.Add(token, claims)
+	cache.Unlock()
 
 	if !strings.Contains(claims["scope"].(string), claimCheck) {
 		return errors.New(fmt.Sprintf("the authenticated user does not have the appropriate '%s' scope", claimCheck)).With("stack", stack.Trace().TrimRuntime())

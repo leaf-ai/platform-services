@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"testing"
+	"time"
 )
 
 var (
@@ -23,10 +25,20 @@ func TestAuth0(t *testing.T) {
 		}
 	}
 
+	start := time.Now()
 	err := validateToken("Bearer "+*auth0TestToken, "all:experiments")
 	if err != nil {
 		t.Error("expected nil, got ", err.Error())
 	}
+
+	uncached := time.Now().Sub(start)
+	err = validateToken("Bearer "+*auth0TestToken, "all:experiments")
+	if err != nil {
+		t.Error("expected nil, got ", err.Error())
+	}
+	cached := time.Now().Sub(start) - uncached
+
+	logger.Debug(fmt.Sprintf("uncached = %s, cached = %s", uncached, cached))
 }
 
 // TODO Add tests where the user name and password are supplied and we can use these to generate
