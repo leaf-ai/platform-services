@@ -43,7 +43,7 @@ Prior to doing the build a GitHub OAUTH token needs to be defined within your en
 
 A combined build script is provided 'platform-services/build.sh' to allow all stages of the build including producing docker images to be run together.
 
-# Running the AWS Istio example using the kops cluster manager
+# Deploying the Istio Service platform on AWS with Kubernetes
 
 The experimentsrv component comes with an Istio definition file for deployment into AWS using Kubernetes (k8s) and Istio.
 
@@ -121,12 +121,7 @@ You can follow up with the Istio on K8s installation to complete your service me
 <b>kubectl apply -f $ISTIO_DIR/install/kubernetes/addons/zipkin.yaml</b>
 </code></pre>
 
-The service mesh will be using an Ingress that leverages a version of Envoy called Ambassador.  Ambassador can be injected using the following command:
-
-<pre><code><b>kubectl apply -f https://getambassador.io/yaml/ambassador/ambassador-rbac.yaml
-</b></code></pre>
-
-Ambassador provides a gRPC HTTP/2 ingress which default AWS ELB based load balancers are not able to.  Also provisioned are services for handling authentication and token generation for the users making gRPC requests.
+# Deploying a straw-man service into the Istio control plane
 
 To deploy the platform service passwords and other secrets will be needed to allows access to Aurora and other external resources.  YAML files will be needed to populate secrets into the service mesh, individual services document the secrets they require within their README.md files found on github and provide examples, for example https://github.com/SentientTechnologies/platform-services/cmd/experimentsrv/README.md.  Secrets for these services are currently held within the Kubernetes secrets store and can be populated using the following command:
 

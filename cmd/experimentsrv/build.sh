@@ -33,7 +33,6 @@ do
 done
 flags='-X github.com/SentientTechnologies/platform-services/version.BuildTime="$DATE" -X github.com/SentientTechnologies/platform-services/version.GitHash="$HASH" -X github.com/SentientTechnologies/platform-services/version.SemVer="$SEMVER"'
 flags="$(eval echo $flags)"
-echo $flags
 [ -e gen/experimentsrv ] || mkdir -p gen/experimentsrv
 [ -e vendor/github.com/SentientTechnologies/platform-services ] || mkdir -p vendor/github.com/SentientTechnologies/platform-services
 [ -e vendor/github.com/SentientTechnologies/platform-services/gen ] || ln -s `pwd`/gen vendor/github.com/SentientTechnologies/platform-services/gen
