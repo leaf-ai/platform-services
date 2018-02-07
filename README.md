@@ -148,10 +148,10 @@ ip-172-20-55-189.us-west-2.compute.internal    Ready     master    18m       v1.
 
 Which gives a working range of 172.20.0.0/16.
 
-Once secrets are loaded individual services can be deployed from a checked out developer copy of the service repo using the following command :
+Once secrets are loaded individual services can be deployed from a checked out developer copy of the service repo using a command like the following :
 
 <pre><code><b>cd ~/mesh/src/github.com/SentientTechnologies/platform-services</b>
-<b>kubectl apply -f <(istioctl kube-inject -f ./experimentsrv.yaml --includeIPRanges="172.20.0.0/16")</b>
+<b>kubectl apply -f <(istioctl kube-inject -f [application-deployment-yaml] --includeIPRanges="172.20.0.0/16")</b>
 </code></pre>
 
 Once the application is deployed you can discover the ingress points within the kubernetes cluster by using the following:

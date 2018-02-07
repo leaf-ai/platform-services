@@ -19,9 +19,15 @@ The command to install the postgres schema into your DB instance will appear sim
 
 ## Installation
 
-Now go to the experimentsrv.yaml file and change the Egress rule to point at your endpoint.  The deployment spec, PGHOST and PGDATABASE should also be modified to the endpoint and the DB Name respectively.
-
 You should now create or edit the secrets.yaml file ready for deployment with the user name and the password.  The secrets can be injected into your kubernetes secrets DB using the kubectl apply -f [secrets_file_name] command.
+
+The experiment service is deployed using Istio into a Kubernetes (k8s) cluster.  The k8s cluster installation instructions can be found within the README.md file at the top of this github repository.  To deploy the experiment service three commands will be used bump-ver (a version wrangling tool), istioctl (a service mesh administration tool), and kubectl (a cluster orchestration tool):
+
+<pre><code><b>cd ~/mesh/src/github.com/SentientTechnologies/platform-services/cmd/experimentsrv</b>
+<b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16" -f <(bump-ver -t ./experimentsrv.yaml inject))</b>
+</code></pre>
+
+This technique can be used to upgrade software versions etc and performing rolling upgrades.
 
 # Service Authentication
 
