@@ -1,13 +1,20 @@
 #!/bin/bash -e
+[ -z "$USER" ] && echo "env variable USER must be set" && exit 1;
 docker build -t platform-services:latest --build-arg USER=$USER --build-arg USER_ID=`id -u $USER` --build-arg USER_GROUP_ID=`id -g $USER` .
-docker run -e GITHUB_TOKEN=$GITHUB_TOKEN -e TRAVIS_TAG=$TRAVIS_TAG -v $GOPATH:/project platform-services ; echo "Done" ; docker container prune -f
+docker run -e GITHUB_TOKEN=$GITHUB_TOKEN -v $GOPATH:/project platform-services 
 if [ $? -ne 0 ]; then
     echo ""
     exit $?
 fi
+
+echo "Done" ; docker container prune -f
+
 cd cmd/experimentsrv
-version=`bump-ver -f README.md extract`
+go install github.com/karlmutch/bump-ver/cmd/bump-ver
+version=`$GOPATH/bin/bump-ver -f README.md extract`
+
 docker build -t experimentsrv:$version .
+
 `aws ecr get-login --no-include-email --region us-west-2`
 if [ $? -eq 0 ]; then
     account=`aws sts get-caller-identity --output text --query Account`

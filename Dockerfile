@@ -28,9 +28,10 @@ RUN apt-get -y update
 RUN apt-get -y install git software-properties-common wget openssl ssh curl jq apt-utils unzip python-pip && \
     apt-get clean && \
     apt-get autoremove && \
-    pip install awscli --upgrade && \
-    groupadd -f -g ${USER_GROUP_ID} ${USER} && \
-    useradd -g ${USER_GROUP_ID} -u ${USER_ID} -ms /bin/bash ${USER}
+    pip install awscli --upgrade
+
+RUN groupadd -f -g ${USER_GROUP_ID} ${USER}
+RUN useradd -g ${USER_GROUP_ID} -u ${USER_ID} -ms /bin/bash ${USER}
 
 RUN wget ${PROTOBUF_URL} && \
     unzip ${PROTOBUF_ZIP} -d /usr && \

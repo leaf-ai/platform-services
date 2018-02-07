@@ -4,7 +4,7 @@ The experiment server is used to persist experiment details and to record change
 
 The experiment server offers a gRPC API that can be accessed using a machine-to-machine or human-to-machine (HCI) interface.  The HCI interface can be interacted with using the grpc_cli tool provided with the gRPC toolkita  More information about grpc_cli can be found at, https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md.
 
-Version: <repo-version>0.0.0-master-1ejCYy</repo-version>
+Version: <repo-version>0.0.0-master-1ejTOd</repo-version>
 
 # Experiment Database
 
@@ -24,7 +24,7 @@ You should now create or edit the secrets.yaml file ready for deployment with th
 The experiment service is deployed using Istio into a Kubernetes (k8s) cluster.  The k8s cluster installation instructions can be found within the README.md file at the top of this github repository.  To deploy the experiment service three commands will be used bump-ver (a version wrangling tool), istioctl (a service mesh administration tool), and kubectl (a cluster orchestration tool):
 
 <pre><code><b>cd ~/mesh/src/github.com/SentientTechnologies/platform-services/cmd/experimentsrv</b>
-<b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16" -f <(bump-ver -t ./experimentsrv.yaml inject))</b>
+<b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16" -f <(bump-ver -t ./experimentsrv.yaml -f ./README.md inject))</b>
 </code></pre>
 
 This technique can be used to upgrade software versions etc and performing rolling upgrades.

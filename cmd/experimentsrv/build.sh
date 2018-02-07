@@ -16,6 +16,7 @@ go get -u -f github.com/golang/dep/cmd/dep
 go get -u -f github.com/aktau/github-release
 go get -u google.golang.org/grpc
 go get -u github.com/golang/protobuf/protoc-gen-go
+go install github.com/karlmutch/bump-ver/cmd/bump-ver
 dep ensure -no-vendor
 export SEMVER=`bump-ver extract`
 TAG_PARTS=$(echo $SEMVER | sed "s/-/\n-/g" | sed "s/\./\n\./g" | sed "s/+/\n+/g")

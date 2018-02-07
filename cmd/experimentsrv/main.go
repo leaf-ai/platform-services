@@ -152,7 +152,7 @@ func main() {
 //
 func Main() {
 
-	fmt.Printf("%s built at %s, against commit id %s\n", os.Args[0], version.BuildTime, version.GitHash)
+	fmt.Printf("%s %s built at %s, against commit id %s\n", os.Args[0], version.SemVer, version.BuildTime, version.GitHash)
 
 	if !flag.Parsed() {
 		// Use the go options parser to load command line options that have been set, and look
