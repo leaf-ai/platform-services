@@ -51,7 +51,7 @@ The definition file can be found at cmd/experimentsrv/experimentsrv.yaml.
 
 Using k8s will use both the kops, and the kubectl tools. You should have an AWS account configured prior to starting deployments.
 
-The kops, and kubectl based deployment for AWS clusters is documented and detailed in the AWS workshop guide found at, https://github.com/aws-samples/aws-workshop-for-kubernetes.  Completing the 100 level activities will give you the means to create a basic cluster onto which Istio can be deployed,  Some of the 200 section items are superceeded by Istio.
+The kops, and kubectl based deployment for AWS clusters is documented and detailed in the AWS workshop guide found at, https://github.com/aws-samples/aws-workshop-for-kubernetes/tree/94e7d55ab6ae0bec7e80fe58a6da4da3193da05c/01-path-basics.  Completing the 100 level activities will give you the means to create a basic cluster onto which Istio can be deployed.  The version of the workshop documentation above is based upon a older version of the document that works when not using the AWS Cloud9 IDE.  Later version of the above document have a Manual Configuration section that can be used, skipping the Cloud9 portions if desired.
 
 In order to seed your S3 KOPS_STATE_STORE version controlled bucket with a cluster definition the following command could be used:
 
