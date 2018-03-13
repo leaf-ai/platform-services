@@ -1,4 +1,4 @@
-# expermimentsrv
+# experimentsrv
 
 The experiment server is used to persist experiment details and to record changes to the state of experiments.  Items included within an experiment include layer definitions and meta-data items.
 
@@ -19,17 +19,61 @@ The command to install the postgres schema into your DB instance will appear sim
 
 ## Installation
 
+### Secrets
+
 You should now create or edit the secrets.yaml file ready for deployment with the user name and the password.  The secrets can be injected into your kubernetes secrets DB using the kubectl apply -f [secrets_file_name] command.
+
+To update the secrets file information that needs to be stored should be be encoded as Base 64 and then the result text added to the file entries as appropriate. For example:
+
+<pre><code><b>base64 <(echo -n "dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com")</b>
+ZGV2LXBsYXRmb3JtLmNsdXN0ZXItY2ZmMnVodGQyanpoLnVzLXdlc3QtMi5yZHMuYW1hem9uYXdzLmNvbQ==
+# Edit the secret.yaml file and replace the host with your modified name from the RDS instance being used
+<b>cat secret.yml</b>
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres
+type: Opaque
+data:
+  username: xxx=
+  password: xxxxxxxxxxx=
+  host: ZGV2LXBsYXRmb3JtLmNsdXN0ZXItY2ZmMnVodGQyanpoLnVzLXdlc3QtMi5yZHMuYW1hem9uYXdzLmNvbQ==
+  port: NTQzMg==
+  database: cGxhdGZvcm0=
+<b>kubectl apply -f secret.yaml</b>
+secret "postgres" created
+</code></pre>
+Once the host name is inserted into the secrets file the external IP that will be used by the service needs to be determined.  In this present example using ping will reveal the host with the external IP (AWS) that can used within the application deployment file.
+<code><pre><b>ping dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com</b>
+PING ec2-52-42-136-165.us-west-2.compute.amazonaws.com (172.31.25.240) 56(84) bytes of data.
+^C
+--- ec2-52-42-136-165.us-west-2.compute.amazonaws.com ping statistics ---
+3 packets transmitted, 0 received, 100% packet loss, time 2016ms
+<b>vim experiment.yaml</b>
+# The resulting change to the egress rule would appear as follows
+apiVersion: config.istio.io/v1alpha2
+kind: EgressRule
+metadata:
+  name: rds-egress
+spec:
+  destination:
+    service: 52.42.136.165/27
+  ports:
+    - port: 5432
+      protocol: tcp
+</code></pre>
+
+### Deployment
 
 The experiment service is deployed using Istio into a Kubernetes (k8s) cluster.  The k8s cluster installation instructions can be found within the README.md file at the top of this github repository.  To deploy the experiment service three commands will be used bump-ver (a version wrangling tool), istioctl (a service mesh administration tool), and kubectl (a cluster orchestration tool):
 
 <pre><code><b>cd ~/mesh/src/github.com/SentientTechnologies/platform-services/cmd/experimentsrv</b>
-<b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16" -f <(bump-ver -t ./experimentsrv.yaml -f ./README.md inject))</b>
+<b>kubectl apply -f <(istioctl kube-inject -f <(bump-ver -t ./experimentsrv.yaml -f ./README.md inject))</b>
 </code></pre>
 
 This technique can be used to upgrade software versions etc and performing rolling upgrades.
 
-# Service Authentication
+## Service Authentication
 
 Service authetication is explained within the top level README.md file for the github.com/SentientTechnologies/platform-services repository.  All calls into the experiment service must contain metadata for the autorization brearer token and have the all:experiments claim in order to be accepted.
 
@@ -37,7 +81,7 @@ Service authetication is explained within the top level README.md file for the g
 export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
 </b></code></pre>
 
-# Using the server
+# Using the service
 
 ## grpc_cli
 
