@@ -153,16 +153,15 @@ Istio affords a control layer on top of the k8s data plane.  These instructions 
 Instructions for deploying Istio are the vanilla instructions that can be found at, https://istio.io/docs/setup/kubernetes/quick-start.html#installation-steps.  We recommend using the mTLS installation for the k8s cluster deployment, for example
 
 <pre><code><b>cd ~
-curl -LO https://github.com/istio/istio/releases/download/0./.0/istio-0.4.0-linux.tar.gz
-tar xzf istion-0.4.0-linux.tar.gz
-export ISTIO_DIR=`pwd`/istio-0.4.0
+curl -LO https://github.com/istio/istio/releases/download/0.6.0/istio-0.6.0-linux.tar.gz
+tar xzf istion-0.6.0-linux.tar.gz
+export ISTIO_DIR=`pwd`/istio-0.6.0
 export PATH=$ISTIO_DIR/bin:$PATH
 cd -
 kubectl apply -f $ISTIO_DIR/install/kubernetes/istio-auth.yaml
-sleep 3
-# Wait for a few seconds for the CRDs get loaded then reapply the states to fill in any missing resources
-kubectl apply -f $ISTIO_DIR/install/kubernetes/istio-auth.yaml
 </b></code></pre>
+
+In any custom resources are not applied or updated repeat the apply after waiting for a few seconds for the CRDs to get loaded.
 
 ## Deploying a straw-man service into the Istio control plane
 
@@ -185,13 +184,13 @@ ip-172-20-55-189.us-west-2.compute.internal    Ready     master    18m       v1.
 Once secrets are loaded individual services can be deployed from a checked out developer copy of the service repo using a command like the following :
 
 <pre><code><b>cd ~/mesh/src/github.com/SentientTechnologies/platform-services</b>
-<b>kubectl apply -f <(istioctl kube-inject -f [application-deployment-yaml])</b>
+<b>kubectl apply -f <(istioctl kube-inject -f [application-deployment-yaml] --includeIPRanges="172.20.0.0/16" )</b>
 </code></pre>
 
 When version controlled containers are being used with ECS or another docker registry the bump-ver can be used to extract a git cloned repository that has the version string embeeded inside the README.md or another file of your choice, and then use this with your application deployment yaml specification, as follows:
 
 <pre><code><b>cd ~/mesh/src/github.com/SentientTechnologies/platform-services</b>
-<b>kubectl apply -f <(istioctl kube-inject -f <(bump-ver -t ./experimentsrv.yaml -f ./README.md inject))</b>
+<b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16"  -f <(bump-ver -t cmd/experimentsrv/experimentsrv.yaml -f ./README.md inject))</b>
 </b></code></pre>
 
 The bump-ver tool can be installed using `go install github.com/karlmutch/bump-ver`.  It uses the semver repos to extract and manipulate sem vers for the build tagging and docker.
@@ -200,7 +199,7 @@ Once the application is deployed you can discover the ingress points within the 
 <pre><code><b>export CLUSTER_INGRESS=`kubectl get ingress -o wide | tail -1 | awk '{print $3":"$4}'`
 </b></code></pre>
 
-More information aboutr deploying and using the experimentsrv server can be found at, https://github.com/SentientTechnologies/platform-services/blob/master/cmd/experimentsrv/README.md.
+More information about deploying and using the experimentsrv server can be found at, https://github.com/SentientTechnologies/platform-services/blob/master/cmd/experimentsrv/README.md.
 
 # Logging and Observability
 
@@ -313,7 +312,7 @@ repeated string values = 3[json_name = "values"];
 
 # Shutting down a service, or cluster
 
-<pre><code><b>kubectl delete service experiments ; kubectl delete ingress ingress-exp ; kubectl delete deployment experiments-v1 ; kubectl delete secrets postgres
+<pre><code><b>kubectl delete -f experimentsrv.yaml
 </b></code></pre>
 
 <pre><code><b>kops delete cluster $CLUSTER_NAME --yes

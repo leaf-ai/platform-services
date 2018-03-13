@@ -67,7 +67,7 @@ spec:
 The experiment service is deployed using Istio into a Kubernetes (k8s) cluster.  The k8s cluster installation instructions can be found within the README.md file at the top of this github repository.  To deploy the experiment service three commands will be used bump-ver (a version wrangling tool), istioctl (a service mesh administration tool), and kubectl (a cluster orchestration tool):
 
 <pre><code><b>cd ~/mesh/src/github.com/SentientTechnologies/platform-services/cmd/experimentsrv</b>
-<b>kubectl apply -f <(istioctl kube-inject -f <(bump-ver -git ../.. -t ./experimentsrv.yaml -f ../../README.md inject))</b>
+<b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16" -f <(bump-ver -git ../.. -t ./experimentsrv.yaml -f ../../README.md inject))</b>
 </code></pre>
 
 This technique can be used to upgrade software versions etc and performing rolling upgrades.
