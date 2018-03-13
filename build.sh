@@ -11,7 +11,7 @@ echo "Done" ; docker container prune -f
 
 cd cmd/experimentsrv
 go install github.com/karlmutch/bump-ver/cmd/bump-ver
-version=`$GOPATH/bin/bump-ver -f README.md extract`
+version=`$GOPATH/bin/bump-ver -git ../.. -f ../../README.md extract`
 
 docker build -t experimentsrv:$version .
 

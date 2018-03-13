@@ -4,8 +4,6 @@ The experiment server is used to persist experiment details and to record change
 
 The experiment server offers a gRPC API that can be accessed using a machine-to-machine or human-to-machine (HCI) interface.  The HCI interface can be interacted with using the grpc_cli tool provided with the gRPC toolkita  More information about grpc_cli can be found at, https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md.
 
-Version: <repo-version>0.0.0-master-1ejTOd</repo-version>
-
 # Experiment Database
 
 The experiment server makes use of a Postgres DB.  The installation process is specific to AWS Aurora.  To begin installation you will need to create a Postgres Aurora RDS instance.  Use values of your choosing for the DB name and user/password combinations.
