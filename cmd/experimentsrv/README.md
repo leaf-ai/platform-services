@@ -47,9 +47,10 @@ PING ec2-52-42-136-165.us-west-2.compute.amazonaws.com (172.31.25.240) 56(84) by
 ^C
 --- ec2-52-42-136-165.us-west-2.compute.amazonaws.com ping statistics ---
 3 packets transmitted, 0 received, 100% packet loss, time 2016ms
-<b>vim experiment.yaml</b>
-# The resulting change to the egress rule would appear as follows
-apiVersion: config.istio.io/v1alpha2
+</code></pre>
+ The resulting change to the egress rule would appear as follows within the experiment.yaml file:
+
+<pre><code>apiVersion: config.istio.io/v1alpha2
 kind: EgressRule
 metadata:
   name: rds-egress
@@ -66,7 +67,7 @@ spec:
 The experiment service is deployed using Istio into a Kubernetes (k8s) cluster.  The k8s cluster installation instructions can be found within the README.md file at the top of this github repository.  To deploy the experiment service three commands will be used bump-ver (a version wrangling tool), istioctl (a service mesh administration tool), and kubectl (a cluster orchestration tool):
 
 <pre><code><b>cd ~/mesh/src/github.com/SentientTechnologies/platform-services/cmd/experimentsrv</b>
-<b>kubectl apply -f <(istioctl kube-inject -f <(bump-ver -t ./experimentsrv.yaml -f ./README.md inject))</b>
+<b>kubectl apply -f <(istioctl kube-inject -f <(bump-ver -git ../.. -t ./experimentsrv.yaml -f ../../README.md inject))</b>
 </code></pre>
 
 This technique can be used to upgrade software versions etc and performing rolling upgrades.
