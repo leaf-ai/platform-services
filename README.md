@@ -45,13 +45,49 @@ A combined build script is provided 'platform-services/build.sh' to allow all st
 
 # Deploying the Istio Service platform on AWS with Kubernetes
 
+The k8s instructions in this section are for unmanaged solutions.  They are included as a baseline for AWS prior to the wide availability of EKS.  Once EKS is in wide distribution and managed offerings for k8s is available from the big three cloud vendors and k8s receeds into the cloud platform then these instructions will become redundant and the cloud vendors tooling will take over this function.
+
+## Kubernetes (unmanaged)
+
 The experimentsrv component comes with an Istio definition file for deployment into AWS using Kubernetes (k8s) and Istio.
 
-The definition file can be found at cmd/experimentsrv/experimentsrv.yaml.
+The deployment definition file can be found at cmd/experimentsrv/experimentsrv.yaml.
 
-Using k8s will use both the kops, and the kubectl tools. You should have an AWS account configured prior to starting deployments.
+Using k8s will use both the kops, and the kubectl tools. You should have an AWS account configured prior to starting deployments, and your environment variables for using the AWS cli should also be done.
 
-The kops, and kubectl based deployment for AWS clusters is documented and detailed in the AWS workshop guide found at, https://github.com/aws-samples/aws-workshop-for-kubernetes/tree/94e7d55ab6ae0bec7e80fe58a6da4da3193da05c/01-path-basics.  Completing the 100 level activities will give you the means to create a basic cluster onto which Istio can be deployed.  The version of the workshop documentation above is based upon a older version of the document that works when not using the AWS Cloud9 IDE.  Later version of the above document have a Manual Configuration section that can be used, skipping the Cloud9 portions if desired.
+### Verify Docker Version
+
+Docker is preinstalled.  You can verify the version by running the following:
+<pre><code><b>docker --version</b>
+Docker version 17.12.0-ce, build c97c6d6
+</code></pre>
+You should have a similar or newer version.
+## Install Kubectl CLI
+
+Install the kubectl CLI can be done using any 1.9.x version.
+
+<pre><code><b> curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/v1.9.3/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/</b>
+</code></pre>
+
+Add kubectl autocompletion to your current shell:
+
+<pre><code><b>source <(kubectl completion bash)</b>
+</code></pre>
+
+You can verify that kubectl is installed by executing the following command:
+
+<pre><code><b>kubectl version --client</b>
+Client Version: version.Info{Major:"1", Minor:"9", GitVersion:"v1.9.2", GitCommit:"5fa2db2bd46ac79e5e00a4e6ed24191080aa463b", GitTreeState:"clean", BuildDate:"2018-01-18T10:09:24Z", GoVersion:"go1.9.2", Compiler:"gc", Platform:"linux/amd64"}
+</code></pre>
+
+### Install kops
+
+At the time this guide was updated kops 1.9.0 Alpha 1 was released, if you are reading this guide in April of 2018 or later look for the release version of kops 1.9 or later.  kops for the AWS use case at the alpha is a very restricted use case for our purposes and works in a stable fashion.  If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
+
+<pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/1.9.0-alpha.1/kops-linux-amd64
+chmod +x kops-linux-amd64
+sudo mv kops-linux-amd64 /usr/local/bin/kops
+</b></code></pre>
 
 In order to seed your S3 KOPS_STATE_STORE version controlled bucket with a cluster definition the following command could be used:
 
@@ -69,59 +105,66 @@ kops create cluster --name $CLUSTER_NAME --zones $AWS_AVAILABILITY_ZONES --node-
 
 Optionally use an image from your preferred zone e.g. --image=ami-0def3275.  Also you can modify the AWS machine types, recommended during developer testing using options such as '--master-size=m4.large --node-size=m4.large'.
 
-The Istio install as of 1/1/2018 requires additions to the kops cluster specification. Using the 'kops edit cluster' command change the following:
-
-1. Instead of allowAny on the autorization section use rbac.
-<pre><code>-   authorization:
--     allowAny: {}
-+   authorization:
-+     rbac: {}
-</code></pre>
-2. Add into the spec section add the following block as documented at the bottom of, https://github.com/kubernetes/kops/issues/4052 :
-
-<pre><code>  kubeAPIServer:
-    admissionControl:
-    - Initializers
-    - NamespaceLifecycle
-    - LimitRanger
-    - ServiceAccount
-    - PersistentVolumeLabel
-    - DefaultStorageClass
-    - DefaultTolerationSeconds
-    - NodeRestriction
-    - Priority
-    - ResourceQuota
-    runtimeConfig:
-      admissionregistration.k8s.io/v1alpha1: "true"
-</code></pre>
 
 Starting the cluster can now be done using the following command:
 
-<pre><code><b>kops update cluster $CLUSTER_NAME --yes
-</b></code></pre>
+<pre><code><b>kops update cluster $CLUSTER_NAME --yes</b>
+I0309 13:48:49.798777    6195 apply_cluster.go:442] Gossip DNS: skipping DNS validation
+I0309 13:48:49.961602    6195 executor.go:91] Tasks: 0 done / 81 total; 30 can run
+I0309 13:48:50.383671    6195 vfs_castore.go:715] Issuing new certificate: "ca"
+I0309 13:48:50.478788    6195 vfs_castore.go:715] Issuing new certificate: "apiserver-aggregator-ca"
+I0309 13:48:50.599605    6195 executor.go:91] Tasks: 30 done / 81 total; 26 can run
+I0309 13:48:51.013957    6195 vfs_castore.go:715] Issuing new certificate: "kube-controller-manager"
+I0309 13:48:51.087447    6195 vfs_castore.go:715] Issuing new certificate: "kube-proxy"
+I0309 13:48:51.092714    6195 vfs_castore.go:715] Issuing new certificate: "kubelet"
+I0309 13:48:51.118145    6195 vfs_castore.go:715] Issuing new certificate: "apiserver-aggregator"
+I0309 13:48:51.133527    6195 vfs_castore.go:715] Issuing new certificate: "kube-scheduler"
+I0309 13:48:51.157876    6195 vfs_castore.go:715] Issuing new certificate: "kops"
+I0309 13:48:51.167195    6195 vfs_castore.go:715] Issuing new certificate: "apiserver-proxy-client"
+I0309 13:48:51.172542    6195 vfs_castore.go:715] Issuing new certificate: "kubecfg"
+I0309 13:48:51.179730    6195 vfs_castore.go:715] Issuing new certificate: "kubelet-api"
+I0309 13:48:51.431304    6195 executor.go:91] Tasks: 56 done / 81 total; 21 can run
+I0309 13:48:51.568136    6195 launchconfiguration.go:334] waiting for IAM instance profile "nodes.test.platform.cluster.k8s.local" to be ready
+I0309 13:48:51.576067    6195 launchconfiguration.go:334] waiting for IAM instance profile "masters.test.platform.cluster.k8s.local" to be ready
+I0309 13:49:01.973887    6195 executor.go:91] Tasks: 77 done / 81 total; 3 can run
+I0309 13:49:02.489343    6195 vfs_castore.go:715] Issuing new certificate: "master"
+I0309 13:49:02.775403    6195 executor.go:91] Tasks: 80 done / 81 total; 1 can run
+I0309 13:49:03.074583    6195 executor.go:91] Tasks: 81 done / 81 total; 0 can run
+I0309 13:49:03.168822    6195 update_cluster.go:279] Exporting kubecfg for cluster
+kops has set your kubectl context to test.platform.cluster.k8s.local
+
+Cluster is starting.  It should be ready in a few minutes.
+
+Suggestions:
+ * validate cluster: kops validate cluster
+ * list nodes: kubectl get nodes --show-labels
+ * ssh to the master: ssh -i ~/.ssh/id_rsa admin@api.test.platform.cluster.k8s.local
+ * the admin user is specific to Debian. If not using Debian please use the appropriate user based on your OS.
+ * read about installing addons at: https://github.com/kubernetes/kops/blob/master/docs/addons.md.
+
+</code></pre>
 
 The initial cluster spinup will take sometime, use kops commands such as 'kops validate cluster' to determine when the cluster is spun up ready for Istio and the platform services.
 
-You can follow up with the Istio on K8s installation to complete your service mesh cluster found at https://istio.io/docs/setup/kubernetes/quick-start.html. Complete the Installation steps for the Istio tools.  The following commands could be used once the Istio installation is done to the appropriate location as one example:
+## Istio
 
-<pre><code><b>export ISTIO_DIR=~/istio-0.4.0</b>
-<b>export PATH=$PATH:$ISTIO_DIR/bin</b>
-# Begin the istio deploy using mTLS internally within the cluster
-<b>kubectl apply -f $ISTIO_DIR/install/kubernetes/istio-auth.yaml</b>
-# Wait until the crd times are all valid durations and then continue to apply the 
-# initializer, if you saw errors from the initial apply step go back and 
-# reapply the instio.yaml state
-<b>kubectl get crd</b>
-# Now after validating the above continue with the following
-<b>kubectl apply -f $ISTIO_DIR/install/kubernetes/istio-initializer.yaml</b>
-# Now continue to the optional deployment of horizontal mesh functionality</b>
-<b>kubectl apply -f $ISTIO_DIR/install/kubernetes/addons/grafana.yaml</b>
-<b>kubectl apply -f $ISTIO_DIR/install/kubernetes/addons/prometheus.yaml</b>
-<b>kubectl apply -f $ISTIO_DIR/install/kubernetes/addons/servicegraph.yaml</b>
-<b>kubectl apply -f $ISTIO_DIR/install/kubernetes/addons/zipkin.yaml</b>
-</code></pre>
+Istio affords a control layer on top of the k8s data plane.  These instructions have been updated for istio 0.6.0
 
-# Deploying a straw-man service into the Istio control plane
+Instructions for deploying Istio are the vanilla instructions that can be found at, https://istio.io/docs/setup/kubernetes/quick-start.html#installation-steps.  We recommend using the mTLS installation for the k8s cluster deployment, for example
+
+<pre><code><b>cd ~
+curl -LO https://github.com/istio/istio/releases/download/0./.0/istio-0.4.0-linux.tar.gz
+tar xzf istion-0.4.0-linux.tar.gz
+export ISTIO_DIR=`pwd`/istio-0.4.0
+export PATH=$ISTIO_DIR/bin:$PATH
+cd -
+kubectl apply -f $ISTIO_DIR/install/kubernetes/istio-auth.yaml
+sleep 3
+# Wait for a few seconds for the CRDs get loaded then reapply the states to fill in any missing resources
+kubectl apply -f $ISTIO_DIR/install/kubernetes/istio-auth.yaml
+</b></code></pre>
+
+## Deploying a straw-man service into the Istio control plane
 
 To deploy the platform service passwords and other secrets will be needed to allows access to Aurora and other external resources.  YAML files will be needed to populate secrets into the service mesh, individual services document the secrets they require within their README.md files found on github and provide examples, for example https://github.com/SentientTechnologies/platform-services/cmd/experimentsrv/README.md.  Secrets for these services are currently held within the Kubernetes secrets store and can be populated using the following command:
 
@@ -132,27 +175,23 @@ To deploy the platform service passwords and other secrets will be needed to all
 
 Platform services use Dockerfiles to encapsulate their build steps which are documented within their respective README.md files.  Building services are single step CLI operations and require only the installation of Docker, and any version of Go 1.7 or later.  Builds will produce containers and will upload these to your current AWS account users ECS docker registry.  Deployments are staged from this registry.  
 
-When creating a cluster an IPv4 address range will have been assigned by AWS and kops for your service cluster.  The details for your address can be found by running the 'kubectl get nodes' command.  Take note of the range and determine the mask as this will be used when deploying the service images into the cluster.  For example:
-
 <pre><code><b>kubectl get nodes</b>
 NAME                                           STATUS    ROLES     AGE       VERSION
-ip-172-20-118-127.us-west-2.compute.internal   Ready     node      17m       v1.8.4
-ip-172-20-41-63.us-west-2.compute.internal     Ready     node      17m       v1.8.4
-ip-172-20-55-189.us-west-2.compute.internal    Ready     master    18m       v1.8.4
+ip-172-20-118-127.us-west-2.compute.internal   Ready     node      17m       v1.9.3
+ip-172-20-41-63.us-west-2.compute.internal     Ready     node      17m       v1.9.3
+ip-172-20-55-189.us-west-2.compute.internal    Ready     master    18m       v1.9.3
 </code></pre>
-
-Which gives a working range of 172.20.0.0/16.
 
 Once secrets are loaded individual services can be deployed from a checked out developer copy of the service repo using a command like the following :
 
 <pre><code><b>cd ~/mesh/src/github.com/SentientTechnologies/platform-services</b>
-<b>kubectl apply -f <(istioctl kube-inject -f [application-deployment-yaml] --includeIPRanges="172.20.0.0/16")</b>
+<b>kubectl apply -f <(istioctl kube-inject -f [application-deployment-yaml])</b>
 </code></pre>
 
-When version controlled containers are being used with ECS or another docker registry the bump-ver tool can be used to extract a git cloned repository that has the version string embeeded inside the README.md or another file of your choice, and then use this with your application deployment yaml specification, as follows:
+When version controlled containers are being used with ECS or another docker registry the bump-ver can be used to extract a git cloned repository that has the version string embeeded inside the README.md or another file of your choice, and then use this with your application deployment yaml specification, as follows:
 
 <pre><code><b>cd ~/mesh/src/github.com/SentientTechnologies/platform-services</b>
-<b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16" -f <(bump-ver -t ./experimentsrv.yaml -f ./README.md inject))</b>
+<b>kubectl apply -f <(istioctl kube-inject -f <(bump-ver -t ./experimentsrv.yaml -f ./README.md inject))</b>
 </b></code></pre>
 
 The bump-ver tool can be installed using `go install github.com/karlmutch/bump-ver`.  It uses the semver repos to extract and manipulate sem vers for the build tagging and docker.
@@ -160,6 +199,8 @@ The bump-ver tool can be installed using `go install github.com/karlmutch/bump-v
 Once the application is deployed you can discover the ingress points within the kubernetes cluster by using the following:
 <pre><code><b>export CLUSTER_INGRESS=`kubectl get ingress -o wide | tail -1 | awk '{print $3":"$4}'`
 </b></code></pre>
+
+More information aboutr deploying and using the experimentsrv server can be found at, https://github.com/SentientTechnologies/platform-services/blob/master/cmd/experimentsrv/README.md.
 
 # Logging and Observability
 

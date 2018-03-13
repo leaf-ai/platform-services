@@ -81,10 +81,22 @@ spec:
 apiVersion: config.istio.io/v1alpha2
 kind: EgressRule
 metadata:
-  name: auth0-egress-rule
+  name: auth0-egress
 spec:
   destination:
-    service: sentientai.auth0.com
+    service: 54.149.162.63/27
   ports:
     - port: 443
-      protocol: https
+      protocol: tcp
+---
+apiVersion: config.istio.io/v1alpha2
+kind: EgressRule
+metadata:
+  name: rds-egress
+spec:
+  destination:
+    service: 52.42.136.165/27
+  ports:
+    - port: 5432
+      protocol: tcp
+
