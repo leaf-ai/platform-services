@@ -40,7 +40,7 @@ spec:
     spec:
       containers:
       - name: experiments
-        image: 353515307211.dkr.ecr.us-west-2.amazonaws.com/experimentsrv:<repo-version></repo-version>
+        image: 613076437200.dkr.ecr.us-west-2.amazonaws.com/experimentsrv:<repo-version></repo-version>
         imagePullPolicy: Always
         ports:
         - containerPort: 30001

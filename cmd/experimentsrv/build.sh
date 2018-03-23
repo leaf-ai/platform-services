@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/bin/bash -e
 
 if ( find /project -maxdepth 0 -empty | read v );
 then
-  experiment "source code must be mounted into the /project directory"
-  exit 990
+  echo "source code must be mounted into the /project directory"
+  exit -1
 fi
 
 set -e
@@ -17,6 +17,7 @@ go get -u -f github.com/aktau/github-release
 go get -u google.golang.org/grpc
 go get -u github.com/golang/protobuf/protoc-gen-go
 go install github.com/karlmutch/bump-ver/cmd/bump-ver
+go install github.com/golang/dep/cmd/dep
 dep ensure -no-vendor
 export SEMVER=`bump-ver -f README.md -git ../.. extract`
 TAG_PARTS=$(echo $SEMVER | sed "s/-/\n-/g" | sed "s/\./\n\./g" | sed "s/+/\n+/g")

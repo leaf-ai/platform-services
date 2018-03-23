@@ -64,7 +64,11 @@ spec:
 
 ### Deployment
 
-The experiment service is deployed using Istio into a Kubernetes (k8s) cluster.  The k8s cluster installation instructions can be found within the README.md file at the top of this github repository.  To deploy the experiment service three commands will be used bump-ver (a version wrangling tool), istioctl (a service mesh administration tool), and kubectl (a cluster orchestration tool):
+The experiment service is deployed using Istio into a Kubernetes (k8s) cluster.  The k8s cluster installation instructions can be found within the README.md file at the top of this github repository.  
+
+Before deploying the service the experiment.yaml file will need modification to change the AWS account number for the container registry.  At this time the account number is hard coded to the platform account, 613076437200, please change it your own account number so that the cluster can pull your service images.  Search for this account number in the file and simply replace it with the value you get when you run the 'aws sts get-caller-identity --output text --query Account' command.
+
+To deploy the experiment service three commands will be used bump-ver (a version wrangling tool), istioctl (a service mesh administration tool), and kubectl (a cluster orchestration tool):
 
 <pre><code><b>cd ~/mesh/src/github.com/SentientTechnologies/platform-services/cmd/experimentsrv</b>
 <b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16" -f <(bump-ver -git ../.. -t ./experimentsrv.yaml -f ../../README.md inject))</b>

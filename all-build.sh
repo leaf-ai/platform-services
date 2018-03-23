@@ -1,5 +1,8 @@
 #!/bin/bash -x
 set -e
+go get -u github.com/golang/dep/cmd/dep
+go install github.com/golang/dep/cmd/dep
+go get github.com/karlmutch/bump-ver
 go install github.com/karlmutch/bump-ver/cmd/bump-ver
 ./cmd/experimentsrv/build.sh
 if [ $? -ne 0 ]; then

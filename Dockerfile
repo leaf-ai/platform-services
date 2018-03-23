@@ -12,7 +12,7 @@ LABEL vendor="Sentient Technologies INC" \
 ENV LANG C.UTF-8
 
 # Protobuf version
-ENV PROTOBUF_VERSION="3.5.0"
+ENV PROTOBUF_VERSION="3.5.1"
 ENV PROTOBUF_ZIP=protoc-${PROTOBUF_VERSION}-linux-x86_64.zip
 ENV PROTOBUF_URL=https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/${PROTOBUF_ZIP}
 

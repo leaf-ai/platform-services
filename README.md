@@ -1,7 +1,7 @@
 # platform-services
 A PoC with functioning service using simple Istio Mesh running on K8s
 
-Version : <repo-version>0.1.0</repo-version>
+Version : <repo-version>0.1.1</repo-version>
 
 # Installation
 
@@ -12,6 +12,7 @@ Version : <repo-version>0.1.0</repo-version>
 
 Clone the repository using the following instructions when this is part of a larger project using multiple services:
 <pre><code><b>mkdir ~/project
+cd ~/project
 export GOPATH=`pwd`
 export PATH=$GOPATH/bin:$PATH
 mkdir -p src/github.com/SentientTechnologies
@@ -37,8 +38,8 @@ Creating a build container to isolate the build into a versioned environment
 
 Running the build using the container
 
-Prior to doing the build a GitHub OAUTH token needs to be defined within your environment.  Use the gibhub admin pages for your account to generate a token, in Travis builds the token is probably already defined by the Travis service.
-<pre><code><b>docker run -e GITHUB_TOKEN=$GITHUB_TOKEN -e TRAVIS_TAG=$TRAVIS_TAG -v $GOPATH:/project platform-services ; echo "Done" ; docker container prune -f</b>
+Prior to doing the build a GitHub OAUTH token needs to be defined within your environment.  Use the github admin pages for your account to generate a token, in Travis builds the token is probably already defined by the Travis service.
+<pre><code><b>docker run -e GITHUB_TOKEN=$GITHUB_TOKEN -v $GOPATH:/project platform-services ; echo "Done" ; docker container prune -f</b>
 </code></pre>
 
 A combined build script is provided 'platform-services/build.sh' to allow all stages of the build including producing docker images to be run together.
@@ -82,19 +83,23 @@ Client Version: version.Info{Major:"1", Minor:"9", GitVersion:"v1.9.2", GitCommi
 
 ### Install kops
 
-At the time this guide was updated kops 1.9.0 Alpha 1 was released, if you are reading this guide in April of 2018 or later look for the release version of kops 1.9 or later.  kops for the AWS use case at the alpha is a very restricted use case for our purposes and works in a stable fashion.  If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
+At the time this guide was updated kops 1.9.0 Alpha 2 was released, if you are reading this guide in April of 2018 or later look for the release version of kops 1.9 or later.  kops for the AWS use case at the alpha is a very restricted use case for our purposes and works in a stable fashion.  If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
 
-<pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/1.9.0-alpha.1/kops-linux-amd64
+<pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/1.9.0-alpha.2/kops-linux-amd64
 chmod +x kops-linux-amd64
 sudo mv kops-linux-amd64 /usr/local/bin/kops
+
+Add kubectl autocompletion to your current shell:
+
+source <(kops completion bash)
 </b></code></pre>
 
 In order to seed your S3 KOPS_STATE_STORE version controlled bucket with a cluster definition the following command could be used:
 
 <pre><code><b>export AWS_AVAILABILITY_ZONES="$(aws ec2 describe-availability-zones --query 'AvailabilityZones[].ZoneName' --output text | awk -v OFS="," '$1=$1')"
 
-export S3_BUCKET=kops-platform
-export KOPS_STATE_STORE=s3://kops-platform
+export S3_BUCKET=kops-platform-$USER
+export KOPS_STATE_STORE=s3://$S3_BUCKET
 aws s3 mb $KOPS_STATE_STORE
 aws s3api put-bucket-versioning --bucket $S3_BUCKET --versioning-configuration Status=Enabled
 
@@ -183,13 +188,13 @@ ip-172-20-55-189.us-west-2.compute.internal    Ready     master    18m       v1.
 
 Once secrets are loaded individual services can be deployed from a checked out developer copy of the service repo using a command like the following :
 
-<pre><code><b>cd ~/mesh/src/github.com/SentientTechnologies/platform-services</b>
+<pre><code><b>cd ~/project/src/github.com/SentientTechnologies/platform-services</b>
 <b>kubectl apply -f <(istioctl kube-inject -f [application-deployment-yaml] --includeIPRanges="172.20.0.0/16" )</b>
 </code></pre>
 
 When version controlled containers are being used with ECS or another docker registry the bump-ver can be used to extract a git cloned repository that has the version string embeeded inside the README.md or another file of your choice, and then use this with your application deployment yaml specification, as follows:
 
-<pre><code><b>cd ~/mesh/src/github.com/SentientTechnologies/platform-services</b>
+<pre><code><b>cd ~/project/src/github.com/SentientTechnologies/platform-services<b>
 <b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16"  -f <(bump-ver -t cmd/experimentsrv/experimentsrv.yaml -f ./README.md inject))</b>
 </b></code></pre>
 
