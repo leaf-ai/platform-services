@@ -194,7 +194,7 @@ Once secrets are loaded individual services can be deployed from a checked out d
 
 When version controlled containers are being used with ECS or another docker registry the bump-ver can be used to extract a git cloned repository that has the version string embeeded inside the README.md or another file of your choice, and then use this with your application deployment yaml specification, as follows:
 
-<pre><code><b>cd ~/project/src/github.com/SentientTechnologies/platform-services<b>
+<pre><code><b>cd ~/project/src/github.com/SentientTechnologies/platform-services</b>
 <b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16"  -f <(bump-ver -t cmd/experimentsrv/experimentsrv.yaml -f ./README.md inject))</b>
 </b></code></pre>
 
