@@ -83,7 +83,7 @@ To deploy the experiment service three commands will be used stencil (a SDLC awa
 
 When version controlled containers are being used with ECS or another docker registry the bump-ver can be used to extract a git cloned repository that has the version string embeeded inside the README.md or another file of your choice, and then use this with your application deployment yaml specification, as follows:
 
-<pre><code><b>cd ~/project/src/github.com/SentientTechnologies/platform-services/cmd/experimentsrv<b>
+<pre><code><b>cd ~/project/src/github.com/SentientTechnologies/platform-services/cmd/experimentsrv</b>
 <b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16"  -f <(stencil < experimentsrv.yaml))
 </b></code></pre>
 
