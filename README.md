@@ -67,7 +67,7 @@ You should have a similar or newer version.
 
 Install the kubectl CLI can be done using any 1.9.x version.
 
-<pre><code><b> curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/v1.9.3/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/</b>
+<pre><code><b> curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/v1.9.6/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/</b>
 </code></pre>
 
 Add kubectl autocompletion to your current shell:
@@ -83,9 +83,9 @@ Client Version: version.Info{Major:"1", Minor:"9", GitVersion:"v1.9.2", GitCommi
 
 ### Install kops
 
-At the time this guide was updated kops 1.9.0 Alpha 2 was released, if you are reading this guide in April of 2018 or later look for the release version of kops 1.9 or later.  kops for the AWS use case at the alpha is a very restricted use case for our purposes and works in a stable fashion.  If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
+At the time this guide was updated kops 1.9.0 Alpha 3 was released, if you are reading this guide in April of 2018 or later look for the release version of kops 1.9 or later.  kops for the AWS use case at the alpha is a very restricted use case for our purposes and works in a stable fashion.  If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
 
-<pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/1.9.0-alpha.2/kops-linux-amd64
+<pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/1.9.0-alpha.3/kops-linux-amd64
 chmod +x kops-linux-amd64
 sudo mv kops-linux-amd64 /usr/local/bin/kops
 
@@ -103,7 +103,7 @@ export KOPS_STATE_STORE=s3://$S3_BUCKET
 aws s3 mb $KOPS_STATE_STORE
 aws s3api put-bucket-versioning --bucket $S3_BUCKET --versioning-configuration Status=Enabled
 
-export CLUSTER_NAME=test.platform.cluster.k8s.local
+export CLUSTER_NAME=test-$USER.platform.cluster.k8s.local
 
 kops create cluster --name $CLUSTER_NAME --zones $AWS_AVAILABILITY_ZONES --node-count 1
 </b></code></pre>
@@ -192,19 +192,11 @@ Once secrets are loaded individual services can be deployed from a checked out d
 <b>kubectl apply -f <(istioctl kube-inject -f [application-deployment-yaml] --includeIPRanges="172.20.0.0/16" )</b>
 </code></pre>
 
-When version controlled containers are being used with ECS or another docker registry the bump-ver can be used to extract a git cloned repository that has the version string embeeded inside the README.md or another file of your choice, and then use this with your application deployment yaml specification, as follows:
-
-<pre><code><b>cd ~/project/src/github.com/SentientTechnologies/platform-services<b>
-<b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16"  -f <(bump-ver -t cmd/experimentsrv/experimentsrv.yaml -f ./README.md inject))</b>
-</b></code></pre>
-
-The bump-ver tool can be installed using `go install github.com/karlmutch/bump-ver`.  It uses the semver repos to extract and manipulate sem vers for the build tagging and docker.
-
 Once the application is deployed you can discover the ingress points within the kubernetes cluster by using the following:
 <pre><code><b>export CLUSTER_INGRESS=`kubectl get ingress -o wide | tail -1 | awk '{print $3":"$4}'`
 </b></code></pre>
 
-More information about deploying and using the experimentsrv server can be found at, https://github.com/SentientTechnologies/platform-services/blob/master/cmd/experimentsrv/README.md.
+More information about deploying a real service and using the experimentsrv server can be found at, https://github.com/SentientTechnologies/platform-services/blob/master/cmd/experimentsrv/README.md.
 
 # Logging and Observability
 

@@ -2,7 +2,7 @@
 
 The experiment server is used to persist experiment details and to record changes to the state of experiments.  Items included within an experiment include layer definitions and meta-data items.
 
-The experiment server offers a gRPC API that can be accessed using a machine-to-machine or human-to-machine (HCI) interface.  The HCI interface can be interacted with using the grpc_cli tool provided with the gRPC toolkita  More information about grpc_cli can be found at, https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md.
+The experiment server offers a gRPC API that can be accessed using a machine-to-machine or human-to-machine (HCI) interface.  The HCI interface can be interacted with using the grpc_cli tool provided with the gRPC toolkit  More information about grpc_cli can be found at, https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md.
 
 # Experiment Database
 
@@ -16,6 +16,12 @@ The command to install the postgres schema into your DB instance will appear sim
 </b></code></pre>
 
 ## Installation
+
+Before starting you should install several build and deployment tools that will be useful for managing the service configuration file.
+
+<pre><code><b>wget -O $GOPATH/bin/stencil https://github.com/karlmutch/duat/releases/download/0.4.0/stencil
+chmod +x $GOPATH/bin/stencil
+</b></code></pre>
 
 ### Secrets
 
@@ -66,13 +72,20 @@ spec:
 
 The experiment service is deployed using Istio into a Kubernetes (k8s) cluster.  The k8s cluster installation instructions can be found within the README.md file at the top of this github repository.  
 
-Before deploying the service the experiment.yaml file will need modification to change the AWS account number for the container registry.  At this time the account number is hard coded to the platform account, 613076437200, please change it your own account number so that the cluster can pull your service images.  Search for this account number in the file and simply replace it with the value you get when you run the 'aws sts get-caller-identity --output text --query Account' command.
+When using AWS the local workstation should first associate your local docker instance against your AWS ECR account. To do this run the following command using the AWS CLI.  You should change your named AWS_PROFILE to match that set in your ~/.aws/credentials file.
 
-To deploy the experiment service three commands will be used bump-ver (a version wrangling tool), istioctl (a service mesh administration tool), and kubectl (a cluster orchestration tool):
+<pre><code><b>export AWS_PROFILE=platform
+export AWS_REGION=us-west-2
+`aws ecr get-login --no-include-email`
+</b></code></pre>
 
-<pre><code><b>cd ~/mesh/src/github.com/SentientTechnologies/platform-services/cmd/experimentsrv</b>
-<b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16" -f <(bump-ver -git ../.. -t ./experimentsrv.yaml -f ../../README.md inject))</b>
-</code></pre>
+To deploy the experiment service three commands will be used stencil (a SDLC aware templating tool), istioctl (a service mesh administration tool), and kubectl (a cluster orchestration tool):
+
+When version controlled containers are being used with ECS or another docker registry the bump-ver can be used to extract a git cloned repository that has the version string embeeded inside the README.md or another file of your choice, and then use this with your application deployment yaml specification, as follows:
+
+<pre><code><b>cd ~/project/src/github.com/SentientTechnologies/platform-services/cmd/experimentsrv<b>
+<b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16"  -f <(stencil < experimentsrv.yaml))
+</b></code></pre>
 
 This technique can be used to upgrade software versions etc and performing rolling upgrades.
 
@@ -85,6 +98,11 @@ export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/
 </b></code></pre>
 
 # Using the service
+
+In order to use the service the ingress should be determined using the following command.  Production systems will be configured using AWS Route 53 or similar.
+
+<pre><code><b>export CLUSTER_INGRESS=`kubectl get ingress -o wide | tail -1 | awk '{print $3":"$4}'`
+</b></code></pre>
 
 ## grpc_cli
 
@@ -103,13 +121,13 @@ First, you will need the ingress iendpoint for your cluster.  The following comm
 
 <pre><code><b>export AUTH0_DOMAIN=sentientai.auth0.com
 export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
-/tmp/grpc_cli call localhost:30001 ai.sentient.experiment.Service.Get "id: ''" --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
+/tmp/grpc_cli call localhost:30001 ai.sentient.experiment.Service.Get "uid: ''" --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
 connecting to localhost:30001
 Sending client initial metadata:
 authorization : ...
 Rpc failed with status code 2, error message: selecting an experiment requires either the DB id or the experiment unique id to be specified stack="[db.go:533 server.go:42 experimentsrv.pb.go:375 auth.go:88 experimentsrv.pb.go:377 server.go:900 server.go:1122 server.go:617]"
 
-<b>/tmp/grpc_cli call localhost:30001 ai.sentient.experiment.Service.Get "id: 't'" --metadata authorization:"$AUTH0_TOKEN"</b>
+<b>/tmp/grpc_cli call $CLUSTER_INGRESS:30001 ai.sentient.experiment.Service.Get "uid: 't'" --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
 connecting to localhost:30001
 Sending client initial metadata:
 authorization : ...
@@ -127,7 +145,7 @@ export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/
 _id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.
 ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:
 experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
-/tmp/grpc_cli call 100.96.1.14:30001 ai.sentient.experiment.Service.Get "id: 't'"  --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
+/tmp/grpc_cli call 100.96.1.14:30001 ai.sentient.experiment.Service.Get "uid: 't'"  --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
 </code></pre>
 
 When Istio is used without a Load balancer the IP of the host on which the pod is running can be determined by using the following command:
