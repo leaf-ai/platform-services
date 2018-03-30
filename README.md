@@ -1,7 +1,7 @@
 # platform-services
 A PoC with functioning service using simple Istio Mesh running on K8s
 
-Version : <repo-version>0.1.1</repo-version>
+Version : <repo-version>0.2.0-feature-07-trivial-inmesh-example-1f1wyz</repo-version>
 
 # Installation
 
@@ -23,7 +23,7 @@ cd platform-services
 
 To boostrap development you will need a copy of Go and the go dependency tools available.  Builds do not need this general however for our purposes we might want to change dependency versions so we should install go and the dep tool.
 
-Go installation instructions can be foubnd at, https://golang.org/doc/install.
+Go installation instructions can be found at, https://golang.org/doc/install.
 
 Now download any dependencies, once, into our development environment.
 
@@ -109,7 +109,6 @@ kops create cluster --name $CLUSTER_NAME --zones $AWS_AVAILABILITY_ZONES --node-
 </b></code></pre>
 
 Optionally use an image from your preferred zone e.g. --image=ami-0def3275.  Also you can modify the AWS machine types, recommended during developer testing using options such as '--master-size=m4.large --node-size=m4.large'.
-
 
 Starting the cluster can now be done using the following command:
 

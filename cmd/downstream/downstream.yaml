@@ -1,0 +1,64 @@
+---
+apiVersion: config.istio.io/v1alpha2
+kind: RouteRule
+metadata:
+  name: grpc-downstream-default
+spec:
+  destination:
+    name: downstream
+  match:
+    - source:
+        name: experiments
+      tcp:
+  route:
+  - labels:
+      version: v1
+    weight: 100
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: downstream
+  labels:
+    app: downstream
+spec:
+  ports:
+  - port: 30001
+    name: grpc-downstream
+  selector:
+    app: downstream
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: downstream-v1
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: downstream
+        version: v1
+    spec:
+      containers:
+      - name: downstream
+        image: {{.duat.awsecr}}/{{.duat.module}}:{{.duat.version}}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 30001
+          name: grpc-downstream
+        env:
+        - name: "LOGXI_FORMAT"
+          value: "happy,maxcol=1024"
+        - name: "LOGXI"
+          value: "*=TRC"
+        - name: "IP_PORT"
+          value: ":30001,0.0.0.0:30001"
+      resources:
+        requests:
+          memory: "256Mi"
+          cpu: "0.5"
+        limits:
+          memory: "512Mi"
+          cpu: "1"
+---

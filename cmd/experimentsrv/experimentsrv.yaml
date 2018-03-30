@@ -42,6 +42,13 @@ spec:
       - name: experiments
         image: {{.duat.awsecr}}/{{.duat.module}}:{{.duat.version}}
         imagePullPolicy: Always
+        resources:
+          requests:
+            memory: "2048Mi"
+            cpu: "1"
+          limits:
+            memory: "2048Mi"
+            cpu: "1"
         ports:
         - containerPort: 30001
           name: grpc-exp

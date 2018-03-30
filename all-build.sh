@@ -9,6 +9,11 @@ if [ $? -ne 0 ]; then
     echo "experimentsrv build failed"
     exit $?
 fi
+./cmd/downstream/build.sh
+if [ $? -ne 0 ]; then
+    echo "experimentsrv build failed"
+    exit $?
+fi
 ./cmd/echosrv/build.sh 
 if [ $? -ne 0 ]; then
     echo "echosrv build failed"
