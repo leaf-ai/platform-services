@@ -16,10 +16,10 @@ go get -u -f github.com/golang/dep/cmd/dep
 go get -u -f github.com/aktau/github-release
 go get -u google.golang.org/grpc
 go get -u github.com/golang/protobuf/protoc-gen-go
-go install github.com/karlmutch/bump-ver/cmd/bump-ver
+go install github.com/karlmutch/duat/cmd/semver
 go install github.com/golang/dep/cmd/dep
 dep ensure -no-vendor
-export SEMVER=`bump-ver -f README.md -git ../.. extract`
+export SEMVER=`semver`
 TAG_PARTS=$(echo $SEMVER | sed "s/-/\n-/g" | sed "s/\./\n\./g" | sed "s/+/\n+/g")
 PATCH=""
 for part in $TAG_PARTS

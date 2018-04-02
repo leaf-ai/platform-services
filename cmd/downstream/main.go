@@ -34,7 +34,7 @@ const serviceName = "downstream"
 var (
 	logger = platform.NewLogger(serviceName)
 
-	ipPort = flag.String("ip-port", ":30001,[::]:30001", "TCP/IP adapter IP and port to run this gRPC service on, a comma seperated list of IPv4, and IPv6 addresses")
+	ipPort = flag.String("ip-port", ":30002,[::]:30002", "TCP/IP adapter IP and port to run this gRPC service on, a comma seperated list of IPv4, and IPv6 addresses")
 )
 
 func usage() {
