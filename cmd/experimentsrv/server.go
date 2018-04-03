@@ -20,6 +20,19 @@ import (
 type ExperimentServer struct {
 }
 
+func (*ExperimentServer) MeshCheck(ctx context.Context, in *experiment.CheckRequest) (resp *experiment.CheckResponse, err error) {
+
+	resp = &experiment.CheckResponse{
+        Modules: []string{},
+	}
+
+    if ds := aliveDownstream(); len(ds) != 0 {
+        resp.Modules = append(resp.Modules, ds)
+    }
+
+	return resp, nil
+}
+
 func (*ExperimentServer) Create(ctx context.Context, in *experiment.CreateRequest) (resp *experiment.CreateResponse, err error) {
 	if in == nil {
 		return nil, fmt.Errorf("request is missing a message to experiment")

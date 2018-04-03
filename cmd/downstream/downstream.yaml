@@ -24,7 +24,7 @@ metadata:
     app: downstream
 spec:
   ports:
-  - port: 30002
+  - port: 30001
     name: grpc-downstream
   selector:
     app: downstream
@@ -46,7 +46,7 @@ spec:
         image: {{.duat.awsecr}}/{{.duat.module}}:{{.duat.version}}
         imagePullPolicy: Always
         ports:
-        - containerPort: 30002
+        - containerPort: 30001
           name: grpc-downstream
         env:
         - name: "LOGXI_FORMAT"
@@ -54,7 +54,7 @@ spec:
         - name: "LOGXI"
           value: "*=TRC"
         - name: "IP_PORT"
-          value: ":30002,0.0.0.0:30002"
+          value: ":30001,0.0.0.0:30001"
       resources:
         requests:
           memory: "256Mi"

@@ -1,7 +1,7 @@
 # platform-services
 A PoC with functioning service using simple Istio Mesh running on K8s
 
-Version : <repo-version>0.2.0-feature-07-trivial-inmesh-example-1f33D1</repo-version>
+Version : <repo-version>0.2.0-feature-07-trivial-inmesh-example-1f3RBz</repo-version>
 
 # Installation
 
