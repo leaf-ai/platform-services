@@ -81,7 +81,7 @@ export AWS_REGION=us-west-2
 
 To deploy the experiment service three commands will be used stencil (a SDLC aware templating tool), istioctl (a service mesh administration tool), and kubectl (a cluster orchestration tool):
 
-When version controlled containers are being used with ECS or another docker registry the bump-ver can be used to extract a git cloned repository that has the version string embeeded inside the README.md or another file of your choice, and then use this with your application deployment yaml specification, as follows:
+When version controlled containers are being used with ECS or another docker registry the semver, and stencil tools can be used to extract a git cloned repository that has the version string embeeded inside the README.md or another file of your choice, and then use this with your application deployment yaml specification, as follows:
 
 <pre><code><b>cd ~/project/src/github.com/SentientTechnologies/platform-services/cmd/experimentsrv</b>
 <b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16"  -f <(stencil < experimentsrv.yaml))
@@ -91,7 +91,7 @@ This technique can be used to upgrade software versions etc and performing rolli
 
 ## Service Authentication
 
-Service authetication is explained within the top level README.md file for the github.com/SentientTechnologies/platform-services repository.  All calls into the experiment service must contain metadata for the autorization brearer token and have the all:experiments claim in order to be accepted.
+Service authentication is explained within the top level README.md file for the github.com/SentientTechnologies/platform-services repository.  All calls into the experiment service must contain metadata for the autorization brearer token and have the all:experiments claim in order to be accepted.
 
 <pre><code><b>export AUTH0_DOMAIN=sentientai.auth0.com
 export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
@@ -112,7 +112,7 @@ Should you be considering writing or using a service with gRPC then the followin
 
 Two pieces of information are needed in order to make use of the service:
 
-First, you will need the ingress iendpoint for your cluster.  The following command sets an environment variable that you will be using as the CLUSTER_INGRESS environment variable across all of the examples within this guide.
+First, you will need the ingress endpoint for your cluster.  The following command sets an environment variable that you will be using as the CLUSTER_INGRESS environment variable across all of the examples within this guide.
 
 <pre><code><b>grpc_cli call $CLUSTER_INGRESS ai.sentient.experiment.Service.Create "experiment: {uid: 't', name: 'name', description: 'description'}"  --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
 </pre></code>
@@ -217,11 +217,11 @@ LOGXI=*=TRC PGUSER=pl PGHOST=dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.ama
 
 # Version management
 
-The experiment server README.md file is designed to be used with the bump-ver utility that is obtained by using 'go get github.com/karlmutch/bump-ver'.  This utility allows the semantic version string to be bumpd at the major, minor, patch or pre-release level.  The build scripts will extract the version from the README.md file and use the version to tag docker images that are being released to AWS ECS or your local docker images.  Also the version strings are present within the experiment server code as well and will be processed by the build scripts to add the semantic version into the compiled binaries.
+The experiment server README.md file is designed to be used with the semver utility that is obtained by using 'go get github.com/karlmutch/duat/cmd/semver'.  This utility allows the semantic version string to be bumped at the major, minor, patch or pre-release level.  The build scripts will extract the version from the README.md file and use the version to tag docker images that are being released to AWS ECS or your local docker images.  Also the version strings are present within the experiment server code as well and will be processed by the build scripts to add the semantic version into the compiled binaries.
 
-The bump-ver utility can be used to manually set your patch levels on every build, or to promote builds.  When using semantic versioning and generating developer versions of builds when you first start from a current release you should first use the 'bump-ver -f [Your README.md] patch' command then add the developer tags using 'bump-ver -f [Your README.md] dev'.  The dev or prerelease versions actually come before the patch version without the pre-release tag in them according to semver sorting.  This means that if you run the patch option again the pre-release tags are stripped off and you will be left with the naked patch version.  Real Semver!
+The semver utility can also be used to manually set your patch levels on every build, or to promote builds.  When using semantic versioning and generating developer versions of builds when you first start from a current release you should first use the 'semver -f [Your README.md] patch' command then add the developer tags using 'semver -f [Your README.md] pre'.  The dev or prerelease versions actually come before the patch version without the pre-release tag in them according to semver sorting.  This means that if you run the patch option again the pre-release tags are stripped off and you will be left with the naked patch version.  Real Semver!
 
-During builds the scripts will run the bump-ver command to retrieve your current version strings from the README.md and then use then to tags things like docker images etc.  It is also used during deployment to inject the versions into deployment yaml files used by kubernetes and Istio as they are being applied to version managed services inside your service mesh or directly on Kubernetes docker image artifacts.  This is really useful for cases where rolling blue/green upgrades are being done etc.
+During builds the scripts will run the semver command to retrieve your current version strings from the README.md and then use then to tags things like docker images etc.  It is also used during deployment to inject the versions into deployment yaml files used by kubernetes and Istio as they are being applied to version managed services inside your service mesh or directly on Kubernetes docker image artifacts.  This is really useful for cases where rolling blue/green upgrades are being done etc.
 
 Version management when doing pre-release style builds can result in a lot of images so you'll want to be familiar with the wildcarding features of docker to expunge then selectively from your local repository.
 

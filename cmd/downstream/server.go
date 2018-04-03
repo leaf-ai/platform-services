@@ -9,66 +9,31 @@ import (
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
 
+	"github.com/golang/protobuf/ptypes"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
-	model "github.com/SentientTechnologies/platform-services/experiment"
-	experiment "github.com/SentientTechnologies/platform-services/gen/experimentsrv"
+	downstream "github.com/SentientTechnologies/platform-services/gen/downstream"
 )
 
-type ExperimentServer struct {
+type DownstreamServer struct {
 }
 
-func (*ExperimentServer) MeshCheck(ctx context.Context, in *experiment.CheckRequest) (resp *experiment.CheckResponse, err error) {
-
-	resp = &experiment.CheckResponse{
-        Modules: []string{},
-	}
-
-    if ds := aliveDownstream(); len(ds) != 0 {
-        resp.Modules = append(resp.Modules, ds)
-    }
-
-	return resp, nil
-}
-
-func (*ExperimentServer) Create(ctx context.Context, in *experiment.CreateRequest) (resp *experiment.CreateResponse, err error) {
+func (*DownstreamServer) Ping(ctx context.Context, in *downstream.PingRequest) (resp *downstream.PingResponse, err error) {
 	if in == nil {
-		return nil, fmt.Errorf("request is missing a message to experiment")
+		return nil, fmt.Errorf("request is missing a message to downstream")
 	}
 
-	exp, err := model.InsertExperiment(in.Experiment)
-	if err != nil {
-		return nil, err
-	}
-
-	resp = &experiment.CreateResponse{
-		Uid: exp.Uid,
+	resp = &downstream.PingResponse{
+		Tm: ptypes.TimestampNow(),
 	}
 
 	return resp, nil
 }
 
-func (*ExperimentServer) Get(ctx context.Context, in *experiment.GetRequest) (resp *experiment.GetResponse, err error) {
-	if in == nil || len(strings.TrimSpace(in.Uid)) == 0 {
-		return nil, fmt.Errorf("request is missing input parameters")
-	}
-
-	resp = &experiment.GetResponse{}
-
-	resp.Experiment, err = model.SelectExperimentWide(in.Uid)
-	if err != nil {
-		return nil, err
-	}
-	if resp.Experiment == nil {
-		return nil, fmt.Errorf("no matching experiments found matching user specified input parameters")
-	}
-
-	return resp, nil
-}
-
-func (es *ExperimentServer) Check(ctx context.Context, in *grpc_health_v1.HealthCheckRequest) (resp *grpc_health_v1.HealthCheckResponse, err error) {
+func (*DownstreamServer) Check(ctx context.Context, in *grpc_health_v1.HealthCheckRequest) (resp *grpc_health_v1.HealthCheckResponse, err error) {
 	return grpcHealth(ctx, in)
 }
 
@@ -97,11 +62,11 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 
 	errC = make(chan errors.Error, 3)
 
-	server := grpc.NewServer(grpc.UnaryInterceptor(authInterceptor))
-	experimentSrv := &ExperimentServer{}
+	server := grpc.NewServer()
+	handler := &DownstreamServer{}
 
-	experiment.RegisterServiceServer(server, experimentSrv)
-	grpc_health_v1.RegisterHealthServer(server, experimentSrv)
+	downstream.RegisterServiceServer(server, handler)
+	grpc_health_v1.RegisterHealthServer(server, handler)
 
 	reflection.Register(server)
 

@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package ai.sentient.downstream;
+
+import "google/protobuf/timestamp.proto";
+
+message PingRequest {
+}
+
+message PingResponse {
+  google.protobuf.Timestamp tm = 1;
+}
+
+service Service {
+  rpc Ping(PingRequest) returns (PingResponse);
+}

@@ -9,12 +9,15 @@ fi
 
 echo "Done" ; docker container prune -f
 
-cd cmd/experimentsrv
-go get github.com/karlmutch/bump-ver
-go install github.com/karlmutch/bump-ver/cmd/bump-ver
-version=`$GOPATH/bin/bump-ver -git ../.. -f ../../README.md extract`
+go get github.com/karlmutch/duat
+go install github.com/karlmutch/duat/cmd/semver
+version=`$GOPATH/bin/semver`
 
+cd cmd/experimentsrv
 docker build -t experimentsrv:$version .
+cd ../../cmd/downstream
+docker build -t downstream:$version .
+cd ../..
 
 `aws ecr get-login --no-include-email --region us-west-2`
 if [ $? -eq 0 ]; then
@@ -22,9 +25,11 @@ if [ $? -eq 0 ]; then
     if [ $? -eq 0 ]; then
         docker tag experimentsrv:$version $account.dkr.ecr.us-west-2.amazonaws.com/experimentsrv:$version
         docker push $account.dkr.ecr.us-west-2.amazonaws.com/experimentsrv:$version
+        docker tag downstream:$version $account.dkr.ecr.us-west-2.amazonaws.com/downstream:$version
+        docker push $account.dkr.ecr.us-west-2.amazonaws.com/downstream:$version
     fi
 fi
-cd ../echosrv
+cd ./cmd/echosrv
 docker build -t echosrv .
 cd ../timesrv
 docker build -t timesrv .

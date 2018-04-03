@@ -53,7 +53,15 @@ message GetResponse {
   Experiment experiment = 1;
 }
 
+message CheckRequest {
+}
+
+message CheckResponse {
+  repeated string modules = 1;
+}
+
 service Service {
   rpc Create(CreateRequest) returns (CreateResponse);
   rpc Get(GetRequest) returns (GetResponse);
+  rpc MeshCheck(CheckRequest) returns (CheckResponse);
 }

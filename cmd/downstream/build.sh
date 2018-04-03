@@ -34,21 +34,21 @@ do
 done
 flags='-X github.com/SentientTechnologies/platform-services/version.BuildTime="$DATE" -X github.com/SentientTechnologies/platform-services/version.GitHash="$HASH" -X github.com/SentientTechnologies/platform-services/version.SemVer="$SEMVER"'
 flags="$(eval echo $flags)"
-[ -e gen/experimentsrv ] || mkdir -p gen/experimentsrv
+[ -e gen/downstream ] || mkdir -p gen/downstream
 [ -e vendor/github.com/SentientTechnologies/platform-services ] || mkdir -p vendor/github.com/SentientTechnologies/platform-services
 [ -e vendor/github.com/SentientTechnologies/platform-services/gen ] || ln -s `pwd`/gen vendor/github.com/SentientTechnologies/platform-services/gen
-protoc -Icmd/experimentsrv -I/usr/include/google --plugin=$GOPATH/bin/protoc-gen-go --go_out=plugins=grpc:./gen/experimentsrv cmd/experimentsrv/experimentsrv.proto
-mkdir -p cmd/experimentsrv/bin
-CGO_ENABLED=0 go build -ldflags "$flags" -o cmd/experimentsrv/bin/experimentsrv cmd/experimentsrv/*.go
-go build -ldflags "$flags" -race -o cmd/experimentsrv/bin/experimentsrv-race cmd/experimentsrv/*.go
-CGO_ENABLED=0 go test -ldflags "$flags" -coverpkg="." -c -o cmd/experimentsrv/bin/experimentsrv-run-coverage cmd/experimentsrv/*.go
-CGO_ENABLED=0 go test -ldflags "$flags" -coverpkg="." -c -o bin/experimentsrv-test-coverage cmd/experimentsrv/*.go
-go test -ldflags "$flags" -race -c -o cmd/experimentsrv/bin/experimentsrv-test cmd/experimentsrv/*.go
+protoc -Icmd/downstream -I/usr/include/google --plugin=$GOPATH/bin/protoc-gen-go --go_out=plugins=grpc:./gen/downstream cmd/downstream/downstream.proto
+mkdir -p cmd/downstream/bin
+CGO_ENABLED=0 go build -ldflags "$flags" -o cmd/downstream/bin/downstream cmd/downstream/*.go
+go build -ldflags "$flags" -race -o cmd/downstream/bin/downstream-race cmd/downstream/*.go
+CGO_ENABLED=0 go test -ldflags "$flags" -coverpkg="." -c -o cmd/downstream/bin/downstream-run-coverage cmd/downstream/*.go
+CGO_ENABLED=0 go test -ldflags "$flags" -coverpkg="." -c -o bin/downstream-test-coverage cmd/downstream/*.go
+go test -ldflags "$flags" -race -c -o cmd/downstream/bin/downstream-test cmd/downstream/*.go
 if [ -z "$PATCH" ]; then
     if ! [ -z "${SEMVER}" ]; then
         if ! [ -z "${GITHUB_TOKEN}" ]; then
             github-release release --user SentientTechnologies --repo platform-services --tag ${SEMVER} --pre-release && \
-            github-release upload --user SentientTechnologies --repo platform-services  --tag ${SEMVER} --name platform-services --file cmd/experimentsrv/bin/experimentsrv
+            github-release upload --user SentientTechnologies --repo platform-services  --tag ${SEMVER} --name platform-services --file cmd/downstream/bin/downstream
         fi
     fi
 fi

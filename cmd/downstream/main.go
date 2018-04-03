@@ -1,6 +1,6 @@
 package main
 
-// This file contains the implementation of an experiment service.  This service
+// This file contains the implementation of a minimal service.  This service
 // supports reflection in the same manner as does swagger style services.
 // To access these facilities and to use a command line tool for testing the
 // grpc_cli tool is used.  This tool can be installed using the instructions
@@ -8,54 +8,6 @@ package main
 //
 // Testing this service can be done by starting the binary and then using commands
 // such as:
-//
-// bins/opt/grpc_cli call localhost:3000 ai.sentient.EchoService.Echo "message: 'test'"
-// connecting to localhost:3000
-// message: "test"
-// date_time {
-// 	  seconds: 1513910233
-// }
-//
-// Rpc succeeded with OK status
-//
-// Using the cli tool more detailed information can be uncovered, for example:
-//
-// bins/opt/grpc_cli ls localhost:3000 ai.sentient.EchoService Echo
-// Echo
-//
-// bins/opt/grpc_cli ls localhost:3000 ai.sentient.EchoService/Echo --l
-//   rpc Echo(ai.sentient.EchoRequest) returns (ai.sentient.EchoResponse) {}
-//
-// bins/opt/grpc_cli type localhost:3000 ai.sentient.EchoResponse
-// message EchoResponse {
-//  string message = 1[json_name = "message"];
-//    .google.protobuf.Timestamp date_time = 2[json_name = "dateTime"];
-// }
-//
-// bins/opt/grpc_cli type localhost:3000 google.protobuf.Timestamp
-// message Timestamp {
-//  int64 seconds = 1[json_name = "seconds"];
-//    int32 nanos = 2[json_name = "nanos"];
-// }
-//
-// ~/grpc/bins/opt/grpc_cli call localhost:30001 grpc.health.v1.Health/Check "service: 'experimentsrv'"
-// connecting to localhost:30001
-// status: SERVING
-//
-// Rpc succeeded with OK status
-//
-// To run this server in test mode you might use a command line such as:
-//
-// PGUSER=pl PGHOST=dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com PGDATABASE=platform cmd/experimentsrv/bin/experimentsrv
-//
-// To call the methods within the API you will need to first fetch a security token for the API and then use the grpc CLI command to exercise the API for example:
-//
-// export AUTH0_DOMAIN=sentientai.auth0.com
-// export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
-//
-// grpc_cli ls localhost:30001 ai.sentient.experiment.Service -l
-// grpc_cli type localhost:30001 ai.sentient.experiment.GetRequest -l
-// grpc_cli call localhost:30001 ai.sentient.experiment.Service.Get "id: 't'"  --metadata authorization:"Bearer $AUTH0_TOKEN"
 //
 
 import (
@@ -75,11 +27,9 @@ import (
 
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
-
-	"github.com/SentientTechnologies/platform-services/experiment"
 )
 
-const serviceName = "experimentsrv"
+const serviceName = "downstream"
 
 var (
 	logger = platform.NewLogger(serviceName)
@@ -89,7 +39,7 @@ var (
 
 func usage() {
 	fmt.Fprintln(os.Stderr, path.Base(os.Args[0]))
-	fmt.Fprintln(os.Stderr, "usage: ", os.Args[0], "[arguments]      Sentient Technologies experiment service ")
+	fmt.Fprintln(os.Stderr, "usage: ", os.Args[0], "[arguments]      Sentient Technologies downstream service ")
 	fmt.Fprintln(os.Stderr, "version: ", version.SemVer, " ", version.BuildTime, " ", version.GitHash)
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Arguments:")
@@ -233,44 +183,6 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 	// In order to keep track internally of the depdencies within the server
 	// we make use of a module up/down state tracking component
 	initModuleTracking(ctx.Done())
-
-	// Initiate authentication services that will be used by
-	// our server to validate the authentication claims of clients
-	initJwksUpdate(ctx.Done())
-
-	// Initiate database processing.  Without the DB at least entering a retry state the
-	// server will never run so immediately return if this cannot be started
-	//
-	dbMsgC, dbErrorC, err := experiment.StartDB(ctx.Done())
-	if err != nil {
-		errs = append(errs, err)
-	} else {
-
-		go func() {
-			for {
-				select {
-				case msg := <-dbMsgC:
-					logger.Info(msg)
-				case errMsg := <-dbErrorC:
-					if errMsg == nil {
-						logger.Debug("error channel emptied")
-						return
-					}
-					if errMsg.Fatal {
-						logger.Fatal(fmt.Sprint(errMsg.Err))
-						os.Exit(-5)
-					} else {
-						logger.Warn(fmt.Sprint(errMsg.Err))
-					}
-				}
-			}
-		}()
-	}
-
-
-    // Initiate a regular checker that looks to the example downstream gRPC service
-    // and validates that it is working
-    initiateDownstream(ctx.Done())
 
 	// Now check for any fatal errors before allowing the system to continue.  This allows
 	// all errors that could have ocuured as a result of incorrect options to be flushed

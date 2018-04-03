@@ -1,7 +1,7 @@
 # platform-services
 A PoC with functioning service using simple Istio Mesh running on K8s
 
-Version : <repo-version>0.1.1</repo-version>
+Version : <repo-version>0.2.0-feature-07-trivial-inmesh-example-1f3RBz</repo-version>
 
 # Installation
 
@@ -21,14 +21,19 @@ git clone https://github.com/SentientTechnologies/platform-services
 cd platform-services
 </b></code></pre>
 
-To boostrap development you will need a copy of Go and the go dependency tools available.  Builds do not need this general however for our purposes we might want to change dependency versions so we should install go and the dep tool.
+To boostrap development you will need a copy of Go and the go dependency tools available.  Builds do not need this general however for our purposes we might want to change dependency versions so we should install go and the dep tool, along with severla utilities needed when deploying using templates.
 
-Go installation instructions can be foubnd at, https://golang.org/doc/install.
+Go installation instructions can be found at, https://golang.org/doc/install.
 
 Now download any dependencies, once, into our development environment.
 
 <pre><code><b>go get -u github.com/golang/dep/cmd/dep
+go get github.com/karlmutch/duat
 dep ensure
+go install github.com/karlmutch/duat/cmd/semver
+go install github.com/karlmutch/duat/cmd/github-release
+go install github.com/karlmutch/duat/cmd/image-release
+go install github.com/karlmutch/duat/cmd/stencil
 </b></code></pre>
 
 Creating a build container to isolate the build into a versioned environment
@@ -83,9 +88,9 @@ Client Version: version.Info{Major:"1", Minor:"9", GitVersion:"v1.9.2", GitCommi
 
 ### Install kops
 
-At the time this guide was updated kops 1.9.0 Alpha 3 was released, if you are reading this guide in April of 2018 or later look for the release version of kops 1.9 or later.  kops for the AWS use case at the alpha is a very restricted use case for our purposes and works in a stable fashion.  If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
+At the time this guide was updated kops 1.9.0 Beta 1 was released, if you are reading this guide in April of 2018 or later look for the release version of kops 1.9 or later.  kops for the AWS use case at the alpha is a very restricted use case for our purposes and works in a stable fashion.  If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
 
-<pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/1.9.0-alpha.3/kops-linux-amd64
+<pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/1.9.0-beta.1/kops-linux-amd64
 chmod +x kops-linux-amd64
 sudo mv kops-linux-amd64 /usr/local/bin/kops
 
@@ -109,7 +114,6 @@ kops create cluster --name $CLUSTER_NAME --zones $AWS_AVAILABILITY_ZONES --node-
 </b></code></pre>
 
 Optionally use an image from your preferred zone e.g. --image=ami-0def3275.  Also you can modify the AWS machine types, recommended during developer testing using options such as '--master-size=m4.large --node-size=m4.large'.
-
 
 Starting the cluster can now be done using the following command:
 
@@ -163,7 +167,7 @@ tar xzf istion-0.6.0-linux.tar.gz
 export ISTIO_DIR=`pwd`/istio-0.6.0
 export PATH=$ISTIO_DIR/bin:$PATH
 cd -
-kubectl apply -f $ISTIO_DIR/install/kubernetes/istio-auth.yaml
+kubectl apply -f $ISTIO_DIR/install/kubernetes/istio.yaml
 </b></code></pre>
 
 In any custom resources are not applied or updated repeat the apply after waiting for a few seconds for the CRDs to get loaded.

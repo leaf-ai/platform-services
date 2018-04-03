@@ -2,9 +2,14 @@
 set -e
 go get -u github.com/golang/dep/cmd/dep
 go install github.com/golang/dep/cmd/dep
-go get github.com/karlmutch/bump-ver
-go install github.com/karlmutch/bump-ver/cmd/bump-ver
+go get github.com/karlmutch/duat
+go install github.com/karlmutch/duat/cmd/semver
 ./cmd/experimentsrv/build.sh
+if [ $? -ne 0 ]; then
+    echo "experimentsrv build failed"
+    exit $?
+fi
+./cmd/downstream/build.sh
 if [ $? -ne 0 ]; then
     echo "experimentsrv build failed"
     exit $?
