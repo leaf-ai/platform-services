@@ -157,14 +157,14 @@ The initial cluster spinup will take sometime, use kops commands such as 'kops v
 
 ## Istio
 
-Istio affords a control layer on top of the k8s data plane.  These instructions have been updated for istio 0.6.0
+Istio affords a control layer on top of the k8s data plane.  These instructions have been updated for istio 0.7.1
 
 Instructions for deploying Istio are the vanilla instructions that can be found at, https://istio.io/docs/setup/kubernetes/quick-start.html#installation-steps.  We recommend using the mTLS installation for the k8s cluster deployment, for example
 
 <pre><code><b>cd ~
-curl -LO https://github.com/istio/istio/releases/download/0.6.0/istio-0.6.0-linux.tar.gz
-tar xzf istion-0.6.0-linux.tar.gz
-export ISTIO_DIR=`pwd`/istio-0.6.0
+curl -LO https://github.com/istio/istio/releases/download/0.7.1/istio-0.7.1-linux.tar.gz
+tar xzf istion-0.7.1-linux.tar.gz
+export ISTIO_DIR=`pwd`/istio-0.7.1
 export PATH=$ISTIO_DIR/bin:$PATH
 cd -
 kubectl apply -f $ISTIO_DIR/install/kubernetes/istio.yaml
