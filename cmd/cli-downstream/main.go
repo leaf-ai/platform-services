@@ -7,6 +7,7 @@ import (
 
 	"github.com/SentientTechnologies/platform-services"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
 
@@ -39,5 +40,5 @@ func main() {
 		logger.Error(fmt.Sprint(errors.Wrap(errGo).With("address", *serverAddr).With("stack", stack.Trace().TrimRuntime())))
 		os.Exit(-1)
 	}
-	fmt.Sprintf("%+v", response)
+	spew.Fdump(os.Stdout, response)
 }
