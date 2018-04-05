@@ -8,6 +8,10 @@ spec:
   rules:
   - http:
       paths:
+      - path: /ai.sentient.downstream.Service/.*
+        backend:
+          serviceName: downstream
+          servicePort: grpc-downstream
       - path: /.*
         backend:
           serviceName: experiments
