@@ -163,7 +163,7 @@ Instructions for deploying Istio are the vanilla instructions that can be found 
 
 <pre><code><b>cd ~
 curl -LO https://github.com/istio/istio/releases/download/0.7.1/istio-0.7.1-linux.tar.gz
-tar xzf istion-0.7.1-linux.tar.gz
+tar xzf istio-0.7.1-linux.tar.gz
 export ISTIO_DIR=`pwd`/istio-0.7.1
 export PATH=$ISTIO_DIR/bin:$PATH
 cd -
