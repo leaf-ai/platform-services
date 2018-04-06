@@ -1,3 +1,16 @@
+# The ingress block is used to route requests using path prefix strings.  The downstream
+# example uses the protoc file package name and then followed by the name of the service
+# from the same protoc file with a dot seperator, a gRPC standard.  The trailing /.* is Istio 
+# version specific to 0.7.1 and is being changed on a regular basis, it indicates prefix based
+# matching but will change in the future to using a Gateway approach, please read
+# https://istio.io/docs/tasks/traffic-management/ingress.html
+#
+# URL paths for formed in gRPC using '[package].[service]/[method]'. gRPC documentation
+# on the topic can be found at, https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md
+#
+# The empty prefix is used to allow the default route to the experiment service
+# so that reflection, and health checking is defaulted to it.
+#
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -8,6 +21,10 @@ spec:
   rules:
   - http:
       paths:
+      - path: /ai.sentient.downstream.Service/.*
+        backend:
+          serviceName: downstream
+          servicePort: grpc-downstream
       - path: /.*
         backend:
           serviceName: experiments

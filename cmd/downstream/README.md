@@ -1,4 +1,4 @@
-# downstrearm
+# downstream
 
 The downstream server is used to exercise the internal service mesh communications and support just a simple ping request.
 
