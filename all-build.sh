@@ -29,8 +29,3 @@ if [ $? -ne 0 ]; then
     echo "restpoc build failed"
     exit $?
 fi
-./cmd/cli-downstream/build.sh
-if [ $? -ne 0 ]; then
-    echo "restpoc build failed"
-    exit $?
-fi
