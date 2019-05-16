@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package dev.cognizant-ai.downstream;
+package dev.cognizant_ai.downstream;
 
 import "google/protobuf/timestamp.proto";
 

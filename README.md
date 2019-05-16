@@ -21,7 +21,7 @@ git clone https://github.com/leaf-ai/platform-services
 cd platform-services
 </b></code></pre>
 
-To boostrap development you will need a copy of Go and the go dependency tools available.  Builds do not need this general however for our purposes we might want to change dependency versions so we should install go and the dep tool, along with severla utilities needed when deploying using templates.
+To boostrap development you will need a copy of Go and the go dependency tools available.  Builds do not need this general however for our purposes we might want to change dependency versions so we should install go and the dep tool, along with several utilities needed when deploying using templates.
 
 Go installation instructions can be found at, https://golang.org/doc/install.
 
@@ -37,13 +37,13 @@ go install github.com/karlmutch/duat/cmd/stencil
 
 Creating a build container to isolate the build into a versioned environment
 
-<pre><code><b>docker build -t platform-services:latest --build-arg USER=$USER --build-arg USER_ID=`id -u $USER` --build-arg USER_GROUP_ID=`id -g $USER` .
+<pre><code><b>docker build -t platform-services:latest --build-arg USER=$USER --build-arg USER\_ID=`id -u $USER` --build-arg USER\_GROUP\_ID=`id -g $USER` .
 </b></code></pre>
 
 Running the build using the container
 
 Prior to doing the build a GitHub OAUTH token needs to be defined within your environment.  Use the github admin pages for your account to generate a token, in Travis builds the token is probably already defined by the Travis service.
-<pre><code><b>docker run -e GITHUB_TOKEN=$GITHUB_TOKEN -v $GOPATH:/project platform-services ; echo "Done" ; docker container prune -f</b>
+<pre><code><b>docker run -e GITHUB\_TOKEN=$GITHUB\_TOKEN -v $GOPATH:/project platform-services ; echo "Done" ; docker container prune -f</b>
 </code></pre>
 
 A combined build script is provided 'platform-services/build.sh' to allow all stages of the build including producing docker images to be run together.
@@ -76,7 +76,7 @@ Install the kubectl CLI can be done using any 1.9.x version.
 
 Add kubectl autocompletion to your current shell:
 
-<pre><code><b>source <(kubectl completion bash)</b>
+<pre><code><b>source \<(kubectl completion bash)</b>
 </code></pre>
 
 You can verify that kubectl is installed by executing the following command:
@@ -98,47 +98,47 @@ Add kubectl autocompletion to your current shell:
 source <(kops completion bash)
 </b></code></pre>
 
-In order to seed your S3 KOPS_STATE_STORE version controlled bucket with a cluster definition the following command could be used:
+In order to seed your S3 KOPS\_STATE\_STORE version controlled bucket with a cluster definition the following command could be used:
 
-<pre><code><b>export AWS_AVAILABILITY_ZONES="$(aws ec2 describe-availability-zones --query 'AvailabilityZones[].ZoneName' --output text | awk -v OFS="," '$1=$1')"
+<pre><code><b>export AWS\_AVAILABILITY\_ZONES="$(aws ec2 describe-availability-zones --query 'AvailabilityZones[].ZoneName' --output text | awk -v OFS="," '$1=$1')"
 
-export S3_BUCKET=kops-platform-$USER
-export KOPS_STATE_STORE=s3://$S3_BUCKET
-aws s3 mb $KOPS_STATE_STORE
-aws s3api put-bucket-versioning --bucket $S3_BUCKET --versioning-configuration Status=Enabled
+export S3\_BUCKET=kops-platform-$USER
+export KOPS\_STATE\_STORE=s3://$S3\_BUCKET
+aws s3 mb $KOPS\_STATE\_STORE
+aws s3api put-bucket-versioning --bucket $S3\_BUCKET --versioning-configuration Status=Enabled
 
-export CLUSTER_NAME=test-$USER.platform.cluster.k8s.local
+export CLUSTER\_NAME=test-$USER.platform.cluster.k8s.local
 
-kops create cluster --name $CLUSTER_NAME --zones $AWS_AVAILABILITY_ZONES --node-count 1
+kops create cluster --name $CLUSTER\_NAME --zones $AWS\_AVAILABILITY\_ZONES --node-count 1
 </b></code></pre>
 
 Optionally use an image from your preferred zone e.g. --image=ami-0def3275.  Also you can modify the AWS machine types, recommended during developer testing using options such as '--master-size=m4.large --node-size=m4.large'.
 
 Starting the cluster can now be done using the following command:
 
-<pre><code><b>kops update cluster $CLUSTER_NAME --yes</b>
-I0309 13:48:49.798777    6195 apply_cluster.go:442] Gossip DNS: skipping DNS validation
+<pre><code><b>kops update cluster $CLUSTER\_NAME --yes</b>
+I0309 13:48:49.798777    6195 apply\_cluster.go:442] Gossip DNS: skipping DNS validation
 I0309 13:48:49.961602    6195 executor.go:91] Tasks: 0 done / 81 total; 30 can run
-I0309 13:48:50.383671    6195 vfs_castore.go:715] Issuing new certificate: "ca"
-I0309 13:48:50.478788    6195 vfs_castore.go:715] Issuing new certificate: "apiserver-aggregator-ca"
+I0309 13:48:50.383671    6195 vfs\_castore.go:715] Issuing new certificate: "ca"
+I0309 13:48:50.478788    6195 vfs\_castore.go:715] Issuing new certificate: "apiserver-aggregator-ca"
 I0309 13:48:50.599605    6195 executor.go:91] Tasks: 30 done / 81 total; 26 can run
-I0309 13:48:51.013957    6195 vfs_castore.go:715] Issuing new certificate: "kube-controller-manager"
-I0309 13:48:51.087447    6195 vfs_castore.go:715] Issuing new certificate: "kube-proxy"
-I0309 13:48:51.092714    6195 vfs_castore.go:715] Issuing new certificate: "kubelet"
-I0309 13:48:51.118145    6195 vfs_castore.go:715] Issuing new certificate: "apiserver-aggregator"
-I0309 13:48:51.133527    6195 vfs_castore.go:715] Issuing new certificate: "kube-scheduler"
-I0309 13:48:51.157876    6195 vfs_castore.go:715] Issuing new certificate: "kops"
-I0309 13:48:51.167195    6195 vfs_castore.go:715] Issuing new certificate: "apiserver-proxy-client"
-I0309 13:48:51.172542    6195 vfs_castore.go:715] Issuing new certificate: "kubecfg"
-I0309 13:48:51.179730    6195 vfs_castore.go:715] Issuing new certificate: "kubelet-api"
+I0309 13:48:51.013957    6195 vfs\_castore.go:715] Issuing new certificate: "kube-controller-manager"
+I0309 13:48:51.087447    6195 vfs\_castore.go:715] Issuing new certificate: "kube-proxy"
+I0309 13:48:51.092714    6195 vfs\_castore.go:715] Issuing new certificate: "kubelet"
+I0309 13:48:51.118145    6195 vfs\_castore.go:715] Issuing new certificate: "apiserver-aggregator"
+I0309 13:48:51.133527    6195 vfs\_castore.go:715] Issuing new certificate: "kube-scheduler"
+I0309 13:48:51.157876    6195 vfs\_castore.go:715] Issuing new certificate: "kops"
+I0309 13:48:51.167195    6195 vfs\_castore.go:715] Issuing new certificate: "apiserver-proxy-client"
+I0309 13:48:51.172542    6195 vfs\_castore.go:715] Issuing new certificate: "kubecfg"
+I0309 13:48:51.179730    6195 vfs\_castore.go:715] Issuing new certificate: "kubelet-api"
 I0309 13:48:51.431304    6195 executor.go:91] Tasks: 56 done / 81 total; 21 can run
 I0309 13:48:51.568136    6195 launchconfiguration.go:334] waiting for IAM instance profile "nodes.test.platform.cluster.k8s.local" to be ready
 I0309 13:48:51.576067    6195 launchconfiguration.go:334] waiting for IAM instance profile "masters.test.platform.cluster.k8s.local" to be ready
 I0309 13:49:01.973887    6195 executor.go:91] Tasks: 77 done / 81 total; 3 can run
-I0309 13:49:02.489343    6195 vfs_castore.go:715] Issuing new certificate: "master"
+I0309 13:49:02.489343    6195 vfs\_castore.go:715] Issuing new certificate: "master"
 I0309 13:49:02.775403    6195 executor.go:91] Tasks: 80 done / 81 total; 1 can run
 I0309 13:49:03.074583    6195 executor.go:91] Tasks: 81 done / 81 total; 0 can run
-I0309 13:49:03.168822    6195 update_cluster.go:279] Exporting kubecfg for cluster
+I0309 13:49:03.168822    6195 update\_cluster.go:279] Exporting kubecfg for cluster
 kops has set your kubectl context to test.platform.cluster.k8s.local
 
 Cluster is starting.  It should be ready in a few minutes.
@@ -146,7 +146,7 @@ Cluster is starting.  It should be ready in a few minutes.
 Suggestions:
  * validate cluster: kops validate cluster
  * list nodes: kubectl get nodes --show-labels
- * ssh to the master: ssh -i ~/.ssh/id_rsa admin@api.test.platform.cluster.k8s.local
+ * ssh to the master: ssh -i ~/.ssh/id\_rsa admin@api.test.platform.cluster.k8s.local
  * the admin user is specific to Debian. If not using Debian please use the appropriate user based on your OS.
  * read about installing addons at: https://github.com/kubernetes/kops/blob/master/docs/addons.md.
 
@@ -192,7 +192,7 @@ ip-172-20-55-189.us-west-2.compute.internal    Ready     master    18m       v1.
 Once secrets are loaded individual services can be deployed from a checked out developer copy of the service repo using a command like the following :
 
 <pre><code><b>cd ~/project/src/github.com/leaf-ai/platform-services</b>
-<b>kubectl apply -f <(istioctl kube-inject -f [application-deployment-yaml] --includeIPRanges="172.20.0.0/16" )</b>
+<b>kubectl apply -f \<(istioctl kube-inject -f [application-deployment-yaml] --includeIPRanges="172.20.0.0/16" ) </b>
 </code></pre>
 
 Once the application is deployed you can discover the ingress points within the kubernetes cluster by using the following:
@@ -215,7 +215,7 @@ kubernetes    ClusterIP   100.64.0.1     <none>        443/TCP     1h
 NAME                             READY     STATUS    RESTARTS   AGE
 experiments-v1-bc46b5d68-tltg9   2/2       Running   0          12m
 <b>kubectl logs experiments-v1-bc46b5d68-tltg9 experiments</b>
-./experimentsrv built at 2018-01-18_15:22:47+0000, against commit id 34e761994b895ac48cd832ac3048854a671256b0
+./experimentsrv built at 2018-01-18\_15:22:47+0000, against commit id 34e761994b895ac48cd832ac3048854a671256b0
 2018-01-18T16:50:18+0000 INF experimentsrv git hash version 34e761994b895ac48cd832ac3048854a671256b0 _: [host experiments-v1-bc46b5d68-tltg9]
 2018-01-18T16:50:18+0000 INF experimentsrv database startup / recovery has been performed dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com:5432 name platform _: [host experiments-v1-bc46b5d68-tltg9]
 2018-01-18T16:50:18+0000 INF experimentsrv database has 1 connections  dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com:5432 name platform dbConnectionCount 1 _: [host experiments-v1-bc46b5d68-tltg9]
@@ -244,7 +244,7 @@ secret_kube=`kubectl get secret $secret_name -o json | jq '.data.token' -r | bas
 kubectl create clusterrolebinding serviceaccounts-cluster-admin --clusterrole=cluster-admin --group=system:serviceaccounts
 ```
 
-The value in secret kube can be used to login to the k8s web UI.  First start 'kube proxy' in a terminal window to create a proxy server for the cluster.  Use a browser to navigate to http://localhost:8001/ui.  Then use the value in the secret_kube variable as your 'Token' (Service Account Bearer Token).
+The value in secret kube can be used to login to the k8s web UI.  First start 'kube proxy' in a terminal window to create a proxy server for the cluster.  Use a browser to navigate to http://localhost:8001/ui.  Then use the value in the secret\_kube variable as your 'Token' (Service Account Bearer Token).
 
 You will now have access to the Web UI for your cluster with full privs.
 
@@ -285,13 +285,13 @@ The services used within the platfor all support reflection when using gRPC.  To
 
 <pre><code><b>export CLUSTER_INGRESS=`kubectl get ingress -o wide | tail -1 | awk '{print $3":"$4}'`</b>
 <b>grpc_cli ls $CLUSTER_INGRESS -l</b>
-filename: grpc_health_v1/health.proto
+filename: grpc\_health\_v1/health.proto
 package: grpc.health.v1;
 service Health {
   rpc Check(grpc.health.v1.HealthCheckRequest) returns (grpc.health.v1.HealthCheckResponse) {}
 }
 
-filename: grpc_reflection_v1alpha/reflection.proto
+filename: grpc\_reflection\_v1alpha/reflection.proto
 package: grpc.reflection.v1alpha;
 service ServerReflection {
   rpc ServerReflectionInfo(stream grpc.reflection.v1alpha.ServerReflectionRequest) returns (stream grpc.reflection.v1alpha.ServerReflectionResponse) {}
@@ -309,18 +309,18 @@ To drill further into interfaces and examine the types being used within calls y
 
 <pre><code><b>grpc_cli type $CLUSTER_INGRESS dev.cognizant-ai.experiment.CreateRequest -l</b>
 message CreateRequest {
-.dev.cognizant-ai.experiment.Experiment experiment = 1[json_name = "experiment"];
+.dev.cognizant-ai.experiment.Experiment experiment = 1[json\_name = "experiment"];
 }
 <b>grpc_cli type $CLUSTER_INGRESS dev.cognizant-ai.experiment.Experiment -l</b>
 message Experiment {
-string uid = 1[json_name = "uid"];
-string name = 2[json_name = "name"];
-string description = 3[json_name = "description"];
-.google.protobuf.Timestamp created = 4[json_name = "created"];
-map&lt;uint32, .dev.cognizant-ai.experiment.InputLayer&gt; inputLayers = 5[json_name = "inputLayers"];
-map&lt;uint32, .dev.cognizant-ai.experiment.OutputLayer&gt; outputLayers = 6[json_name = "outputLayers"];
+string uid = 1[json\_name = "uid"];
+string name = 2[json\_name = "name"];
+string description = 3[json\_name = "description"];
+.google.protobuf.Timestamp created = 4[json\_name = "created"];
+map&lt;uint32, .dev.cognizant-ai.experiment.InputLayer&gt; inputLayers = 5[json\_name = "inputLayers"];
+map&lt;uint32, .dev.cognizant-ai.experiment.OutputLayer&gt; outputLayers = 6[json\_name = "outputLayers"];
 }
-<b>grpc_cli type $CLUSTER_INGRESS dev.cognizant-ai.experiment.InputLayer -l</b>
+<b>grpc\_cli type $CLUSTER\_INGRESS dev.cognizant-ai.experiment.InputLayer -l</b>
 message InputLayer {
 enum Type {
 	Unknown = 0;
@@ -328,9 +328,9 @@ enum Type {
 	Time = 2;
 	Raw = 3;
 }
-string name = 1[json_name = "name"];
-.dev.cognizant-ai.experiment.InputLayer.Type type = 2[json_name = "type"];
-repeated string values = 3[json_name = "values"];
+string name = 1[json\_name = "name"];
+.dev.cognizant-ai.experiment.InputLayer.Type type = 2[json\_name = "type"];
+repeated string values = 3[json\_name = "values"];
 }
 </code></pre>
 
@@ -340,5 +340,5 @@ repeated string values = 3[json_name = "values"];
 <pre><code><b>kubectl delete -f experimentsrv.yaml
 </b></code></pre>
 
-<pre><code><b>kops delete cluster $CLUSTER_NAME --yes
+<pre><code><b>kops delete cluster $CLUSTER\_NAME --yes
 </b></code></pre>
