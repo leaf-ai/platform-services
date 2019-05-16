@@ -45,5 +45,5 @@ Two pieces of information are needed in order to make use of the service:
 
 First, you will need the ingress iendpoint for your cluster.  The following command sets an environment variable that you will be using as the CLUSTER_INGRESS environment variable across all of the examples within this guide.
 
-<pre><code><b>grpc_cli call $CLUSTER_INGRESS ai.sentient.experiment.Service.Create "experiment: {uid: 't', name: 'name', description: 'description'}"  --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
+<pre><code><b>grpc_cli call $CLUSTER_INGRESS dev.cognizant-ai.experiment.Service.Create "experiment: {uid: 't', name: 'name', description: 'description'}"  --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
 </pre></code>

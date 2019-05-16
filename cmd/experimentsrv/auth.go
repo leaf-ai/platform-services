@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	auth0Domain = flag.String("auth0-domain", "cognizantai.auth0.com", "The domain assigned to the server API by Auth0")
+	auth0Domain = flag.String("auth0-domain", "cognizant-ai.auth0.com", "The domain assigned to the server API by Auth0")
 	jwksCache   = &jwksState{
 		ok: false,
 	}
@@ -118,7 +118,7 @@ func validateToken(token string, claimCheck string) (err errors.Error) {
 	logger.Debug("cache miss")
 
 	audience := []string{
-		"http://api.sentient.ai/experimentsrv",
+		"http://api.cognizant-ai.dev/experimentsrv",
 	}
 
 	jwksCache.Lock()

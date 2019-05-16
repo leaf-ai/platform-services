@@ -360,7 +360,7 @@ func initDB(url string, user string) (err errors.Error) {
 		// shell issues in the salt startup try a hard coded but
 		// well known location
 		if _, errGo := os.Stat(pgPassFile); os.IsNotExist(errGo) {
-			pgPassFile = "/opt/sentient/.pgpass"
+			pgPassFile = "/opt/cognizant-ai/.pgpass"
 		}
 	}
 

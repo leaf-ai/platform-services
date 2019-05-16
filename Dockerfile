@@ -6,8 +6,8 @@ FROM golang:1.11.10
 MAINTAINER karlmutch@gmail.com
 
 LABEL vendor="Cognizant Technologies" \
-      ai.cognizant.version=0.0.0 \
-      ai.cognizant.module=platform-services
+      dev.cognizant-ai.version=0.0.0 \
+      dev.cognizant-ai.module=platform-services
 
 ENV LANG C.UTF-8
 

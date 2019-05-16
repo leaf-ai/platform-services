@@ -261,7 +261,7 @@ When adding the API client definition against which the platform services will i
 
 You can now use various commands to manipulate the APIs outside of what will exist in the application code, this is a distinct advantage over directly using enterprise tools such as Okta.  Should you wish to use Okta as an Identity provider, or backend, to Auth0 then this can be done however you will need help from our Tech Ops department to do this and is an expensive option.  At this time the user and passwords being used for securing APIs can be managed through the Auth0 dashboard including the ability to invite users to become admins.
 
-<pre><code><b>curl --request POST --url 'https://cognizantai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"RjWuqwm1CM72iQ5G32aUjwIYx6vKTXBa", "client_secret": "MK_jpHrTcthM_HoNETnytYpqgMNS4e7zLMgp1_Wj2aePaPpubjN1UNKKCAfZlD_r", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "openid", "realm": "Username-Password-Authentication" }'
+<pre><code><b>curl --request POST --url 'https://cognizant-ai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"RjWuqwm1CM72iQ5G32aUjwIYx6vKTXBa", "client_secret": "MK_jpHrTcthM_HoNETnytYpqgMNS4e7zLMgp1_Wj2aePaPpubjN1UNKKCAfZlD_r", "audience": "http://api.cognizant-ai.dev/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "openid", "realm": "Username-Password-Authentication" }'
 </b>
 c.f. https://auth0.com/docs/quickstart/backend/golang/02-using#obtaining-an-access-token-for-testing.
 </code></pre>
@@ -269,8 +269,8 @@ c.f. https://auth0.com/docs/quickstart/backend/golang/02-using#obtaining-an-acce
 If you are using the test API you can do something like:
 
 <pre><code><b>cd cmd/experimentsrv
-export AUTH0_DOMAIN=cognizantai.auth0.com
-export AUTH0_TOKEN=$(curl -s --request POST --url 'https://cognizantai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
+export AUTH0_DOMAIN=cognizant-ai.auth0.com
+export AUTH0_TOKEN=$(curl -s --request POST --url 'https://cognizant-ai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.cognizant-ai.dev/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
 LOGXI_FORMAT=happy,maxcol=1024 LOGXI=*=TRC go test -v -ip-port ":30001"
 </b></code></pre>
 
@@ -278,7 +278,7 @@ LOGXI_FORMAT=happy,maxcol=1024 LOGXI=*=TRC go test -v -ip-port ":30001"
 
 Services used within the platform require that not only is the link integrity and security is maintained using mTLS but that an authorization block is also supplied to verify the user requesting a service.  The authorization can be supplied when using the gRPC command line tool using the metadata options.  First we retrieve a token using curl and then make a request against the service as follows:
 
-<pre><code><b>grpc_cli call localhost:30001 ai.sentient.experiment.Service.Get "id: 'test'" --metadata authorization:"Bearer $AUTH0_TOKEN"
+<pre><code><b>grpc_cli call localhost:30001 dev.cognizant-ai.experiment.Service.Get "id: 'test'" --metadata authorization:"Bearer $AUTH0_TOKEN"
 </b></code></pre>
 
 The services used within the platfor all support reflection when using gRPC.  To examine calls available for a server you should first identify the endpoint through which the ingress is being routed, for example:
@@ -298,29 +298,29 @@ service ServerReflection {
 }
 
 filename: experimentsrv.proto
-package: ai.sentient.experiment;
+package: dev.cognizant-ai.experiment;
 service Service {
-  rpc Create(ai.sentient.experiment.CreateRequest) returns (ai.sentient.experiment.CreateResponse) {}
-  rpc Get(ai.sentient.experiment.GetRequest) returns (ai.sentient.experiment.GetResponse) {}
+  rpc Create(dev.cognizant-ai.experiment.CreateRequest) returns (dev.cognizant-ai.experiment.CreateResponse) {}
+  rpc Get(dev.cognizant-ai.experiment.GetRequest) returns (dev.cognizant-ai.experiment.GetResponse) {}
 }
 </code></pre>
 
 To drill further into interfaces and examine the types being used within calls you can perform commands such as:
 
-<pre><code><b>grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.CreateRequest -l</b>
+<pre><code><b>grpc_cli type $CLUSTER_INGRESS dev.cognizant-ai.experiment.CreateRequest -l</b>
 message CreateRequest {
-.ai.sentient.experiment.Experiment experiment = 1[json_name = "experiment"];
+.dev.cognizant-ai.experiment.Experiment experiment = 1[json_name = "experiment"];
 }
-<b>grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.Experiment -l</b>
+<b>grpc_cli type $CLUSTER_INGRESS dev.cognizant-ai.experiment.Experiment -l</b>
 message Experiment {
 string uid = 1[json_name = "uid"];
 string name = 2[json_name = "name"];
 string description = 3[json_name = "description"];
 .google.protobuf.Timestamp created = 4[json_name = "created"];
-map&lt;uint32, .ai.sentient.experiment.InputLayer&gt; inputLayers = 5[json_name = "inputLayers"];
-map&lt;uint32, .ai.sentient.experiment.OutputLayer&gt; outputLayers = 6[json_name = "outputLayers"];
+map&lt;uint32, .dev.cognizant-ai.experiment.InputLayer&gt; inputLayers = 5[json_name = "inputLayers"];
+map&lt;uint32, .dev.cognizant-ai.experiment.OutputLayer&gt; outputLayers = 6[json_name = "outputLayers"];
 }
-<b>grpc_cli type $CLUSTER_INGRESS ai.sentient.experiment.InputLayer -l</b>
+<b>grpc_cli type $CLUSTER_INGRESS dev.cognizant-ai.experiment.InputLayer -l</b>
 message InputLayer {
 enum Type {
 	Unknown = 0;
@@ -329,7 +329,7 @@ enum Type {
 	Raw = 3;
 }
 string name = 1[json_name = "name"];
-.ai.sentient.experiment.InputLayer.Type type = 2[json_name = "type"];
+.dev.cognizant-ai.experiment.InputLayer.Type type = 2[json_name = "type"];
 repeated string values = 3[json_name = "values"];
 }
 </code></pre>

@@ -41,7 +41,9 @@ func checkDownstream(addr string) (err errors.Error) {
 
 	client := downstream.NewServiceClient(conn)
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Duration(10*time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10*time.Second))
+	defer cancel()
+
 	if _, errGo = client.Ping(ctx, &downstream.PingRequest{}); errGo != nil {
 		return errors.Wrap(errGo).With("address", addr).With("stack", stack.Trace().TrimRuntime())
 	}

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package ai.sentient.echo;
+package dev.cognizant-ai.echo;
 
 import "google/protobuf/timestamp.proto";
 
