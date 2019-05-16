@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	auth0Domain = flag.String("auth0-domain", "sentientai.auth0.com", "The domain assigned to the server API by Auth0")
+	auth0Domain = flag.String("auth0-domain", "cognizantai.auth0.com", "The domain assigned to the server API by Auth0")
 	jwksCache   = &jwksState{
 		ok: false,
 	}
@@ -101,8 +101,8 @@ func validateToken(token string, claimCheck string) (err errors.Error) {
 
 	if isPresent {
 		claims = item.(map[string]interface{})
-		exp, isPresent := claims["exp"]
-		if isPresent {
+		exp, isExpPresent := claims["exp"]
+		if isExpPresent {
 			// Check the time at which the claim expires and if it has reject the request BUT dont
 			// clear the cache so that any further attempts wont result in a round trip to the
 			// ID provider
@@ -151,8 +151,8 @@ func validateToken(token string, claimCheck string) (err errors.Error) {
 	// if we are here then we really only need to check the exp for caching purposes.a c.f.
 	// https://tools.ietf.org/html/rfc7519#section-4.1.4
 
-	exp, isPresent := claims["exp"]
-	if !isPresent {
+	exp, isExpPresent := claims["exp"]
+	if !isExpPresent {
 		return errors.New("token did not contain an expiry").With("stack", stack.Trace().TrimRuntime())
 	}
 	expires := time.Unix(int64(platform.Round(exp.(float64))), 0)
