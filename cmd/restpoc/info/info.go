@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/SentientTechnologies/platform-services/version"
+	"github.com/leaf-ai/platform-services/internal/version"
 )
 
 type info struct {

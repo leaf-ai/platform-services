@@ -25,7 +25,7 @@ var (
 // in production are done seperately.  This unit test allows the runner to do
 // both at the same time.  To do this a test binary is generated using the command
 //
-// cd $(GOROOT)/src/github.com/SentientTechnologies/platform-services/cmd/downstream
+// cd $(GOROOT)/src/github.com/leaf-ai/platform-services/cmd/downstream
 // go test -coverpkg="." -c -o bin/downstream-cpu-run-coverage
 //
 // Then the resulting /bin/downstream-cpu-run-coverage binary is run as through it were a traditional

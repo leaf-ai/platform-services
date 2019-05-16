@@ -32,12 +32,15 @@ do
         PATCH+=$part
     fi
 done
-flags='-X github.com/SentientTechnologies/platform-services/version.BuildTime="$DATE" -X github.com/SentientTechnologies/platform-services/version.GitHash="$HASH" -X github.com/SentientTechnologies/platform-services/version.SemVer="$SEMVER"'
+flags='-X github.com/leaf-ai/platform-services/version.BuildTime="$DATE" -X github.com/leaf-ai/platform-services/version.GitHash="$HASH" -X github.com/leaf-ai/platform-services/version.SemVer="$SEMVER"'
 flags="$(eval echo $flags)"
 [ -e gen/downstream ] || mkdir -p gen/downstream
-[ -e vendor/github.com/SentientTechnologies/platform-services ] || mkdir -p vendor/github.com/SentientTechnologies/platform-services
-[ -e vendor/github.com/SentientTechnologies/platform-services/gen ] || ln -s `pwd`/gen vendor/github.com/SentientTechnologies/platform-services/gen
+[ -e vendor/github.com/leaf-ai/platform-services ] || mkdir -p vendor/github.com/leaf-ai/platform-services
+[ -e vendor/github.com/leaf-ai/platform-services/gen ] || ln -s `pwd`/gen vendor/github.com/leaf-ai/platform-services/gen
 protoc -Icmd/downstream -I/usr/include/google --plugin=$GOPATH/bin/protoc-gen-go --go_out=plugins=grpc:./gen/downstream cmd/downstream/downstream.proto
+if [ "$1" == "gen" ]; then
+    exit 0
+fi
 mkdir -p cmd/downstream/bin
 CGO_ENABLED=0 go build -ldflags "$flags" -o cmd/downstream/bin/downstream cmd/downstream/*.go
 go build -ldflags "$flags" -race -o cmd/downstream/bin/downstream-race cmd/downstream/*.go
@@ -47,8 +50,8 @@ go test -ldflags "$flags" -race -c -o cmd/downstream/bin/downstream-test cmd/dow
 if [ -z "$PATCH" ]; then
     if ! [ -z "${SEMVER}" ]; then
         if ! [ -z "${GITHUB_TOKEN}" ]; then
-            github-release release --user SentientTechnologies --repo platform-services --tag ${SEMVER} --pre-release && \
-            github-release upload --user SentientTechnologies --repo platform-services  --tag ${SEMVER} --name platform-services --file cmd/downstream/bin/downstream
+            github-release release --user leaf-ai --repo platform-services --tag ${SEMVER} --pre-release && \
+            github-release upload --user leaf-ai --repo platform-services  --tag ${SEMVER} --name platform-services --file cmd/downstream/bin/downstream
         fi
     fi
 fi

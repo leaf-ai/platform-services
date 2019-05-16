@@ -1,11 +1,11 @@
 # platform-services
 A PoC with functioning service using simple Istio Mesh running on K8s
 
-Version : <repo-version>0.3.0</repo-version>
+Version : <repo-version>0.4.0</repo-version>
 
 # Installation
 
-<pre><code><b>go get github.com/SentientTechnologies/platform-services
+<pre><code><b>go get github.com/leaf-ai/platform-services
 </b></code></pre>
 
 # Development and Building from source
@@ -15,9 +15,9 @@ Clone the repository using the following instructions when this is part of a lar
 cd ~/project
 export GOPATH=`pwd`
 export PATH=$GOPATH/bin:$PATH
-mkdir -p src/github.com/SentientTechnologies
-cd src/github.com/SentientTechnologies
-git clone https://github.com/SentientTechnologies/platform-services
+mkdir -p src/github.com/leaf-ai
+cd src/github.com/leaf-ai
+git clone https://github.com/leaf-ai/platform-services
 cd platform-services
 </b></code></pre>
 
@@ -32,7 +32,6 @@ go get github.com/karlmutch/duat
 dep ensure
 go install github.com/karlmutch/duat/cmd/semver
 go install github.com/karlmutch/duat/cmd/github-release
-go install github.com/karlmutch/duat/cmd/image-release
 go install github.com/karlmutch/duat/cmd/stencil
 </b></code></pre>
 
@@ -174,7 +173,7 @@ In any custom resources are not applied or updated repeat the apply after waitin
 
 ## Deploying a straw-man service into the Istio control plane
 
-To deploy the platform service passwords and other secrets will be needed to allows access to Aurora and other external resources.  YAML files will be needed to populate secrets into the service mesh, individual services document the secrets they require within their README.md files found on github and provide examples, for example https://github.com/SentientTechnologies/platform-services/cmd/experimentsrv/README.md.  Secrets for these services are currently held within the Kubernetes secrets store and can be populated using the following command:
+To deploy the platform service passwords and other secrets will be needed to allows access to Aurora and other external resources.  YAML files will be needed to populate secrets into the service mesh, individual services document the secrets they require within their README.md files found on github and provide examples, for example https://github.com/leaf-ai/platform-services/cmd/experimentsrv/README.md.  Secrets for these services are currently held within the Kubernetes secrets store and can be populated using the following command:
 
 <pre><code># Read https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables
 # create secrets, postgres:username, postgres:password
@@ -192,7 +191,7 @@ ip-172-20-55-189.us-west-2.compute.internal    Ready     master    18m       v1.
 
 Once secrets are loaded individual services can be deployed from a checked out developer copy of the service repo using a command like the following :
 
-<pre><code><b>cd ~/project/src/github.com/SentientTechnologies/platform-services</b>
+<pre><code><b>cd ~/project/src/github.com/leaf-ai/platform-services</b>
 <b>kubectl apply -f <(istioctl kube-inject -f [application-deployment-yaml] --includeIPRanges="172.20.0.0/16" )</b>
 </code></pre>
 
@@ -200,7 +199,7 @@ Once the application is deployed you can discover the ingress points within the 
 <pre><code><b>export CLUSTER_INGRESS=`kubectl get ingress -o wide | tail -1 | awk '{print $3":"$4}'`
 </b></code></pre>
 
-More information about deploying a real service and using the experimentsrv server can be found at, https://github.com/SentientTechnologies/platform-services/blob/master/cmd/experimentsrv/README.md.
+More information about deploying a real service and using the experimentsrv server can be found at, https://github.com/leaf-ai/platform-services/blob/master/cmd/experimentsrv/README.md.
 
 # Logging and Observability
 

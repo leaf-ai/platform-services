@@ -13,8 +13,8 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
-	model "github.com/SentientTechnologies/platform-services/experiment"
-	experiment "github.com/SentientTechnologies/platform-services/gen/experimentsrv"
+	experiment "github.com/leaf-ai/platform-services/gen/experimentsrv"
+	model "github.com/leaf-ai/platform-services/internal/experiment"
 )
 
 type ExperimentServer struct {
@@ -23,12 +23,12 @@ type ExperimentServer struct {
 func (*ExperimentServer) MeshCheck(ctx context.Context, in *experiment.CheckRequest) (resp *experiment.CheckResponse, err error) {
 
 	resp = &experiment.CheckResponse{
-        Modules: []string{},
+		Modules: []string{},
 	}
 
-    if ds := aliveDownstream(); len(ds) != 0 {
-        resp.Modules = append(resp.Modules, ds)
-    }
+	if ds := aliveDownstream(); len(ds) != 0 {
+		resp.Modules = append(resp.Modules, ds)
+	}
 
 	return resp, nil
 }

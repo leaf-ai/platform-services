@@ -16,7 +16,7 @@ import (
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
 
-	"github.com/SentientTechnologies/platform-services"
+	"github.com/leaf-ai/platform-services/internal/platform"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"

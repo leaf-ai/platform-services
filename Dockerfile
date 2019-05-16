@@ -1,18 +1,18 @@
 # Docker multi stage build formatted file.  This is used to build then prepare
 # containers for the services that this repository uses
 #
-FROM golang:1.10.0
+FROM golang:1.11.10
 
 MAINTAINER karlmutch@gmail.com
 
-LABEL vendor="Sentient Technologies INC" \
-      ai.sentient.version=0.0.0 \
-      ai.sentient.module=studio-go-runner
+LABEL vendor="Cognizant Technologies" \
+      ai.cognizant.version=0.0.0 \
+      ai.cognizant.module=platform-services
 
 ENV LANG C.UTF-8
 
 # Protobuf version
-ENV PROTOBUF_VERSION="3.5.1"
+ENV PROTOBUF_VERSION="3.7.1"
 ENV PROTOBUF_ZIP=protoc-${PROTOBUF_VERSION}-linux-x86_64.zip
 ENV PROTOBUF_URL=https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/${PROTOBUF_ZIP}
 
@@ -44,6 +44,6 @@ WORKDIR /home/${USER}
 
 ENV GOPATH=/project
 VOLUME /project
-WORKDIR /project/src/github.com/SentientTechnologies/platform-services
+WORKDIR /project/src/github.com/leaf-ai/platform-services
 
 CMD /bin/bash -C ./all-build.sh

@@ -19,14 +19,17 @@ go get -u -f github.com/go-swagger/go-swagger/cmd/swagger
 swagger generate server -q -t gen -f cmd/timesrv/swagger.yaml --exclude-main -A timesrv
 # go get -u -f gen/...
 dep ensure -no-vendor
-[ -e vendor/github.com/SentientTechnologies/platform-services ] || mkdir -p vendor/github.com/SentientTechnologies/platform-services
-[ -e vendor/github.com/SentientTechnologies/platform-services/gen ] || ln -s `pwd`/gen vendor/github.com/SentientTechnologies/platform-services/gen
+[ -e vendor/github.com/leaf-ai/platform-services ] || mkdir -p vendor/github.com/leaf-ai/platform-services
+[ -e vendor/github.com/leaf-ai/platform-services/gen ] || ln -s `pwd`/gen vendor/github.com/leaf-ai/platform-services/gen
+if [ "$1" == "gen" ]; then
+    exit 0
+fi
 mkdir -p cmd/timesrv/bin
-go build -ldflags "-X github.com/SentientTechnologies/platform-services/version.BuildTime=$DATE -X github.com/SentientTechnologies/platform-services/version.GitHash=$HASH" -o cmd/timesrv/bin/timesrv cmd/timesrv/*.go
-go build -ldflags "-X github.com/SentientTechnologies/platform-services/version.BuildTime=$DATE -X github.com/SentientTechnologies/platform-services/version.GitHash=$HASH" -race -o cmd/timesrv/bin/timesrv-race cmd/timesrv/*.go
+go build -ldflags "-X github.com/leaf-ai/platform-services/version.BuildTime=$DATE -X github.com/leaf-ai/platform-services/version.GitHash=$HASH" -o cmd/timesrv/bin/timesrv cmd/timesrv/*.go
+go build -ldflags "-X github.com/leaf-ai/platform-services/version.BuildTime=$DATE -X github.com/leaf-ai/platform-services/version.GitHash=$HASH" -race -o cmd/timesrv/bin/timesrv-race cmd/timesrv/*.go
 if ! [ -z "${TRAVIS_TAG}" ]; then
     if ! [ -z "${GITHUB_TOKEN}" ]; then
-        github-release release --user SentientTechnologies --repo platform-services --tag ${TRAVIS_TAG} --pre-release && \
-        github-release upload --user SentientTechnologies --repo platform-services  --tag ${TRAVIS_TAG} --name platform-services --file cmd/timesrv/bin/timesrv
+        github-release release --user leaf-ai --repo platform-services --tag ${TRAVIS_TAG} --pre-release && \
+        github-release upload --user leaf-ai --repo platform-services  --tag ${TRAVIS_TAG} --name platform-services --file cmd/timesrv/bin/timesrv
     fi
 fi

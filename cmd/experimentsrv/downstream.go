@@ -10,7 +10,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	downstream "github.com/SentientTechnologies/platform-services/gen/downstream"
+	downstream "github.com/leaf-ai/platform-services/gen/downstream"
 )
 
 var (

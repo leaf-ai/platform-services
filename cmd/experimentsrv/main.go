@@ -68,15 +68,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/SentientTechnologies/platform-services"
-	"github.com/SentientTechnologies/platform-services/version"
+	"github.com/leaf-ai/platform-services/internal/platform"
+	"github.com/leaf-ai/platform-services/internal/version"
 
 	"github.com/karlmutch/envflag"
 
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
 
-	"github.com/SentientTechnologies/platform-services/experiment"
+	"github.com/leaf-ai/platform-services/internal/experiment"
 )
 
 const serviceName = "experimentsrv"
@@ -267,10 +267,9 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 		}()
 	}
 
-
-    // Initiate a regular checker that looks to the example downstream gRPC service
-    // and validates that it is working
-    initiateDownstream(ctx.Done())
+	// Initiate a regular checker that looks to the example downstream gRPC service
+	// and validates that it is working
+	initiateDownstream(ctx.Done())
 
 	// Now check for any fatal errors before allowing the system to continue.  This allows
 	// all errors that could have ocuured as a result of incorrect options to be flushed

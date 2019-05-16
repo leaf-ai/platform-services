@@ -83,7 +83,7 @@ To deploy the experiment service three commands will be used stencil (a SDLC awa
 
 When version controlled containers are being used with ECS or another docker registry the semver, and stencil tools can be used to extract a git cloned repository that has the version string embeeded inside the README.md or another file of your choice, and then use this with your application deployment yaml specification, as follows:
 
-<pre><code><b>cd ~/project/src/github.com/SentientTechnologies/platform-services/cmd/experimentsrv</b>
+<pre><code><b>cd ~/project/src/github.com/leaf-ai/platform-services/cmd/experimentsrv</b>
 <b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16"  -f <(stencil < experimentsrv.yaml))
 </b></code></pre>
 
@@ -91,7 +91,7 @@ This technique can be used to upgrade software versions etc and performing rolli
 
 ## Service Authentication
 
-Service authentication is explained within the top level README.md file for the github.com/SentientTechnologies/platform-services repository.  All calls into the experiment service must contain metadata for the autorization brearer token and have the all:experiments claim in order to be accepted.
+Service authentication is explained within the top level README.md file for the github.com/leaf-ai/platform-services repository.  All calls into the experiment service must contain metadata for the autorization brearer token and have the all:experiments claim in order to be accepted.
 
 <pre><code><b>export AUTH0_DOMAIN=sentientai.auth0.com
 export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')

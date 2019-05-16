@@ -41,7 +41,7 @@ import (
 
 	sq "github.com/Masterminds/squirrel"
 
-	grpc "github.com/SentientTechnologies/platform-services/gen/experimentsrv"
+	grpc "github.com/leaf-ai/platform-services/gen/experimentsrv"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
