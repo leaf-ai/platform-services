@@ -16,7 +16,7 @@ import (
 
 	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 
-	echo "github.com/leaf-ai/platform-services/gen/echosrv"
+	echo "github.com/leaf-ai/platform-services/internal/gen/echosrv"
 )
 
 type echoServer struct {

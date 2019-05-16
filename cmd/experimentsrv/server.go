@@ -13,8 +13,8 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
-	experiment "github.com/leaf-ai/platform-services/gen/experimentsrv"
 	model "github.com/leaf-ai/platform-services/internal/experiment"
+	experiment "github.com/leaf-ai/platform-services/internal/gen/experimentsrv"
 )
 
 type ExperimentServer struct {

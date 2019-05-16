@@ -4,7 +4,7 @@ go get -u github.com/golang/dep/cmd/dep
 go install github.com/golang/dep/cmd/dep
 go get github.com/karlmutch/duat
 go install github.com/karlmutch/duat/cmd/semver
-mkdir -p gen
+mkdir -p internal/gen
 ./cmd/experimentsrv/build.sh gen
 if [ $? -ne 0 ]; then
     echo "experimentsrv build failed"

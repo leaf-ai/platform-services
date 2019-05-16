@@ -32,12 +32,12 @@ do
         PATCH+=$part
     fi
 done
-flags='-X github.com/leaf-ai/platform-services/version.BuildTime="$DATE" -X github.com/leaf-ai/platform-services/version.GitHash="$HASH" -X github.com/leaf-ai/platform-services/version.SemVer="$SEMVER"'
+flags='-X github.com/leaf-ai/platform-services/internal/version.BuildTime="$DATE" -X github.com/leaf-ai/platform-services/internal/version.GitHash="$HASH" -X github.com/leaf-ai/platform-services/internal/version.SemVer="$SEMVER"'
 flags="$(eval echo $flags)"
-[ -e gen/experimentsrv ] || mkdir -p gen/experimentsrv
-[ -e vendor/github.com/leaf-ai/platform-services ] || mkdir -p vendor/github.com/leaf-ai/platform-services
-[ -e vendor/github.com/leaf-ai/platform-services/gen ] || ln -s `pwd`/gen vendor/github.com/leaf-ai/platform-services/gen
-protoc -Icmd/experimentsrv -I/usr/include/google --plugin=$GOPATH/bin/protoc-gen-go --go_out=plugins=grpc:./gen/experimentsrv cmd/experimentsrv/experimentsrv.proto
+[ -e internal/gen/experimentsrv ] || mkdir -p internal/gen/experimentsrv
+#[ -e vendor/github.com/leaf-ai/platform-services/internal ] || mkdir -p vendor/github.com/leaf-ai/platform-services/internal
+#[ -e vendor/github.com/leaf-ai/platform-services/internal/gen ] || ln -s `pwd`/internal/gen vendor/github.com/leaf-ai/platform-services/internal/gen
+protoc -Icmd/experimentsrv -I/usr/include/google --plugin=$GOPATH/bin/protoc-gen-go --go_out=plugins=grpc:./internal/gen/experimentsrv cmd/experimentsrv/experimentsrv.proto
 if [ "$1" == "gen" ]; then
     exit 0
 fi
