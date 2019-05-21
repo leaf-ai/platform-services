@@ -4,32 +4,74 @@ The experiment server is used to persist experiment details and to record change
 
 The experiment server offers a gRPC API that can be accessed using a machine-to-machine or human-to-machine (HCI) interface.  The HCI interface can be interacted with using the grpc_cli tool provided with the gRPC toolkit  More information about grpc_cli can be found at, https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md.
 
-# Experiment Database
+# Experiment Deployment
 
-The experiment server makes use of a Postgres DB.  The installation process is specific to AWS Aurora.  To begin installation you will need to create a Postgres Aurora RDS instance.  Use values of your choosing for the DB name and user/password combinations.
+The experiment server makes use of a Postgres DB.  The installation process by default uses a cluster local postgres DB instances.  
 
-Parameters that impact deployment of your Aurora instance include, RDS Endpoint, DB Name, user name, and the password.
+In order to deploy against the default postgres in cluster database you will first follow the instructions in the main README.md file and on completion of the databaser initialization using helm deploy the schema.  The envionment variables being used are expected to have been already defined, for example PGRELEASE, as described in the top level README.md file.
 
-The command to install the postgres schema into your DB instance will appear similar to the following:
+<pre><code><b>
+kubectl port-forward --namespace default svc/$PGRELEASE-postgresql 5432:5432 &amp;
+PGHOST=127.0.0.1 PGDATABASE=platform psql -f sql/platform.sql -d postgres
+</b>
+Handling connection for 5432
+SET
+Time: 36.345 ms
+psql:/home/kmutch/.psqlrc.local:1: WARNING:  25P01: there is no transaction in progress
+LOCATION:  EndTransactionBlock, xact.c:3675
+COMMIT
+Time: 40.695 ms
+SET
+Time: 34.603 ms
+...
+</code></pre>
+
+Once the schema has been successfully created you can move to the next section.
+
+If you wish to use AWS Aurora then you will need to obtain the host, user and password for the database and update your environment variables to use the same.  Including parameters that impact deployment of your Aurora instance include, RDS Endpoint, DB Name, user name, and the password.
+
+The command to install the postgres schema into your DB instance, for AWS Aurora, will appear similar to the following:
 
 <pre><code><b>PGUSER=pl PGHOST=dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com PGDATABASE=platform psql -f sql/platform.sql -d postgres
 </b></code></pre>
 
 ## Installation
 
-Before starting you should install several build and deployment tools that will be useful for managing the service configuration file.
-
-<pre><code><b>wget -O $GOPATH/bin/stencil https://github.com/karlmutch/duat/releases/download/0.4.0/stencil
-chmod +x $GOPATH/bin/stencil
-</b></code></pre>
+Before starting you should have already installed the duat tools documented in the root README.md file.
 
 ### Secrets
 
-You should now create or edit the secrets.yaml file ready for deployment with the user name and the password.  The secrets can be injected into your kubernetes secrets DB using the kubectl apply -f [secrets_file_name] command.
+You should now create or edit the secrets.yaml file ready for deployment with the user name and the password.  The secrets can be injected into your kubernetes secrets DB using the kubectl apply -f [secrets\_file\_name] command.
 
-To update the secrets file information that needs to be stored should be be encoded as Base 64 and then the result text added to the file entries as appropriate. For example:
+In the case of both the default in-cluster database and AWS Aurora the credentials for the user are fixed.  If these need to be changed and the platform.sql file was modified to have the new user access details then you should base64 encode the values and place these inside the supplied secrets.yaml files.
 
-<pre><code><b>base64 <(echo -n "dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com")</b>
+This command will use the PGHOST, and possibly other environment variables from the helm based installation. Should you be using the AWS Aurora deployment then you will need to define the PGHOST environment variable to point at the AWS hostname for your database instance prior to running this command.
+
+Portions of the embeeded secrets have already been defined by the services that will use the database and encoded into the secrets file.  The definition of encoded secrets means that this proof of concept should not be cut and pasted into a production context.
+
+Secrets for these services are currently held within the Kubernetes secrets store and can be populated using the following command:
+
+<pre><code># Read https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables
+# create secrets, postgres:username, postgres:password
+<b>stencil &lt; ./cmd/experimentsrv/secret.yaml | kubectl create -f - </b>
+</code></pre>
+
+Having deployed and defined the secrets and the postgres specific environment variables the postgres client can now used to populate the database schema, these instrctions can be found within the service specific README.md files.
+When the PGHOST value has been update to point at the host name that the service within the deployment cluster can access you are ready to add the secrets to the cluster:
+
+The in-cluster value for the host would appear as follows:
+
+<pre><code><b>
+export PGHOST=$PGRELEASE-postgresql.default.svc.cluster.local
+</b></code></pre>
+
+### AWS Specific secrets notes
+
+If you were using an external DB then something like the following would be done:
+
+<pre><code><b>
+<pre><code><b>export PGHOSTbase64 <(echo -n "dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com")</b>
+</b></code></pre>
 ZGV2LXBsYXRmb3JtLmNsdXN0ZXItY2ZmMnVodGQyanpoLnVzLXdlc3QtMi5yZHMuYW1hem9uYXdzLmNvbQ==
 # Edit the secret.yaml file and replace the host with your modified name from the RDS instance being used
 <b>cat secret.yml</b>
@@ -71,6 +113,8 @@ spec:
 ### Deployment
 
 The experiment service is deployed using Istio into a Kubernetes (k8s) cluster.  The k8s cluster installation instructions can be found within the README.md file at the top of this github repository.  
+
+### AWS Specific deployment notes
 
 When using AWS the local workstation should first associate your local docker instance against your AWS ECR account. To do this run the following command using the AWS CLI.  You should change your named AWS_PROFILE to match that set in your ~/.aws/credentials file.
 

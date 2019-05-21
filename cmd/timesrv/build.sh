@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 if ( find /project -maxdepth 0 -empty | read v );
 then
@@ -16,7 +16,7 @@ go get -u -f github.com/golang/dep/cmd/dep
 go get -u -f github.com/aktau/github-release
 go get -u -f github.com/go-swagger/go-swagger/cmd/swagger
 [ -e internal/gen ] || mkdir internal/gen
-swagger generate server -q -t gen -f cmd/timesrv/swagger.yaml --exclude-main -A timesrv
+swagger generate server -q -t internal/gen -f cmd/timesrv/swagger.yaml --exclude-main -A timesrv
 # go get -u -f gen/...
 dep ensure -no-vendor
 #[ -e vendor/github.com/leaf-ai/platform-services/internal ] || mkdir -p vendor/github.com/leaf-ai/platform-services/internal

@@ -1,7 +1,7 @@
 # platform-services
 A PoC with functioning service using simple Istio Mesh running on K8s
 
-Version : <repo-version>0.4.0</repo-version>
+Version : <repo-version>0.5.0-feature-11-kops-1-11-1-leaf-branding-aaaagjprmnq</repo-version>
 
 # Installation
 
@@ -29,21 +29,23 @@ Now download any dependencies, once, into our development environment.
 
 <pre><code><b>go get -u github.com/golang/dep/cmd/dep
 go get github.com/karlmutch/duat
+go get github.com/karlmutch/petname
 dep ensure
 go install github.com/karlmutch/duat/cmd/semver
 go install github.com/karlmutch/duat/cmd/github-release
 go install github.com/karlmutch/duat/cmd/stencil
+go install github.com/karlmutch/petname/cmd/petname
 </b></code></pre>
 
 Creating a build container to isolate the build into a versioned environment
 
-<pre><code><b>docker build -t platform-services:latest --build-arg USER=$USER --build-arg USER\_ID=`id -u $USER` --build-arg USER\_GROUP\_ID=`id -g $USER` .
+<pre><code><b>docker build -t platform-services:latest --build-arg USER=$USER --build-arg USER_ID=`id -u $USER` --build-arg USER_GROUP_ID=`id -g $USER` .
 </b></code></pre>
 
 Running the build using the container
 
 Prior to doing the build a GitHub OAUTH token needs to be defined within your environment.  Use the github admin pages for your account to generate a token, in Travis builds the token is probably already defined by the Travis service.
-<pre><code><b>docker run -e GITHUB\_TOKEN=$GITHUB\_TOKEN -v $GOPATH:/project platform-services ; echo "Done" ; docker container prune -f</b>
+<pre><code><b>docker run -e GITHUB_TOKEN=$GITHUB_TOKEN -v $GOPATH:/project platform-services ; echo "Done" ; docker container prune -f</b>
 </code></pre>
 
 A combined build script is provided 'platform-services/build.sh' to allow all stages of the build including producing docker images to be run together.
@@ -69,9 +71,9 @@ Docker version 17.12.0-ce, build c97c6d6
 You should have a similar or newer version.
 ## Install Kubectl CLI
 
-Install the kubectl CLI can be done using any 1.9.x version.
+Install the kubectl CLI can be done using kubectl 1.11.x version.
 
-<pre><code><b> curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/v1.9.6/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/</b>
+<pre><code><b> curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/v1.11.1/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/</b>
 </code></pre>
 
 Add kubectl autocompletion to your current shell:
@@ -87,9 +89,9 @@ Client Version: version.Info{Major:"1", Minor:"9", GitVersion:"v1.9.2", GitCommi
 
 ### Install kops
 
-At the time this guide was updated kops 1.9.0 Beta 1 was released, if you are reading this guide in April of 2018 or later look for the release version of kops 1.9 or later.  kops for the AWS use case at the alpha is a very restricted use case for our purposes and works in a stable fashion.  If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
+At the time this guide was updated kops 1.11.1 was released, if you are reading this guide in April of 2018 or later look for the release version of kops 1.9 or later.  kops for the AWS use case at the alpha is a very restricted use case for our purposes and works in a stable fashion.  If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
 
-<pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/1.9.0-beta.1/kops-linux-amd64
+<pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/1.11.1/kops-linux-amd64
 chmod +x kops-linux-amd64
 sudo mv kops-linux-amd64 /usr/local/bin/kops
 
@@ -100,45 +102,45 @@ source <(kops completion bash)
 
 In order to seed your S3 KOPS\_STATE\_STORE version controlled bucket with a cluster definition the following command could be used:
 
-<pre><code><b>export AWS\_AVAILABILITY\_ZONES="$(aws ec2 describe-availability-zones --query 'AvailabilityZones[].ZoneName' --output text | awk -v OFS="," '$1=$1')"
+<pre><code><b>export AWS_AVAILABILITY_ZONES="$(aws ec2 describe-availability-zones --query 'AvailabilityZones[].ZoneName' --output text | awk -v OFS="," '$1=$1')"
 
-export S3\_BUCKET=kops-platform-$USER
-export KOPS\_STATE\_STORE=s3://$S3\_BUCKET
-aws s3 mb $KOPS\_STATE\_STORE
-aws s3api put-bucket-versioning --bucket $S3\_BUCKET --versioning-configuration Status=Enabled
+export S3_BUCKET=kops-platform-$USER
+export KOPS_STATE_STORE=s3://$S3_BUCKET
+aws s3 mb $KOPS_STATE_STORE
+aws s3api put-bucket-versioning --bucket $S3_BUCKET --versioning-configuration Status=Enabled
 
-export CLUSTER\_NAME=test-$USER.platform.cluster.k8s.local
+export CLUSTER_NAME=test-$USER.platform.cluster.k8s.local
 
-kops create cluster --name $CLUSTER\_NAME --zones $AWS\_AVAILABILITY\_ZONES --node-count 1
+kops create cluster --name $CLUSTER_NAME --zones $AWS_AVAILABILITY_ZONES --node-count 1
 </b></code></pre>
 
 Optionally use an image from your preferred zone e.g. --image=ami-0def3275.  Also you can modify the AWS machine types, recommended during developer testing using options such as '--master-size=m4.large --node-size=m4.large'.
 
 Starting the cluster can now be done using the following command:
 
-<pre><code><b>kops update cluster $CLUSTER\_NAME --yes</b>
-I0309 13:48:49.798777    6195 apply\_cluster.go:442] Gossip DNS: skipping DNS validation
+<pre><code><b>kops update cluster $CLUSTER_NAME --yes</b>
+I0309 13:48:49.798777    6195 apply_cluster.go:442] Gossip DNS: skipping DNS validation
 I0309 13:48:49.961602    6195 executor.go:91] Tasks: 0 done / 81 total; 30 can run
-I0309 13:48:50.383671    6195 vfs\_castore.go:715] Issuing new certificate: "ca"
-I0309 13:48:50.478788    6195 vfs\_castore.go:715] Issuing new certificate: "apiserver-aggregator-ca"
+I0309 13:48:50.383671    6195 vfs_castore.go:715] Issuing new certificate: "ca"
+I0309 13:48:50.478788    6195 vfs_castore.go:715] Issuing new certificate: "apiserver-aggregator-ca"
 I0309 13:48:50.599605    6195 executor.go:91] Tasks: 30 done / 81 total; 26 can run
-I0309 13:48:51.013957    6195 vfs\_castore.go:715] Issuing new certificate: "kube-controller-manager"
-I0309 13:48:51.087447    6195 vfs\_castore.go:715] Issuing new certificate: "kube-proxy"
-I0309 13:48:51.092714    6195 vfs\_castore.go:715] Issuing new certificate: "kubelet"
-I0309 13:48:51.118145    6195 vfs\_castore.go:715] Issuing new certificate: "apiserver-aggregator"
-I0309 13:48:51.133527    6195 vfs\_castore.go:715] Issuing new certificate: "kube-scheduler"
-I0309 13:48:51.157876    6195 vfs\_castore.go:715] Issuing new certificate: "kops"
-I0309 13:48:51.167195    6195 vfs\_castore.go:715] Issuing new certificate: "apiserver-proxy-client"
-I0309 13:48:51.172542    6195 vfs\_castore.go:715] Issuing new certificate: "kubecfg"
-I0309 13:48:51.179730    6195 vfs\_castore.go:715] Issuing new certificate: "kubelet-api"
+I0309 13:48:51.013957    6195 vfs_castore.go:715] Issuing new certificate: "kube-controller-manager"
+I0309 13:48:51.087447    6195 vfs_castore.go:715] Issuing new certificate: "kube-proxy"
+I0309 13:48:51.092714    6195 vfs_castore.go:715] Issuing new certificate: "kubelet"
+I0309 13:48:51.118145    6195 vfs_castore.go:715] Issuing new certificate: "apiserver-aggregator"
+I0309 13:48:51.133527    6195 vfs_castore.go:715] Issuing new certificate: "kube-scheduler"
+I0309 13:48:51.157876    6195 vfs_castore.go:715] Issuing new certificate: "kops"
+I0309 13:48:51.167195    6195 vfs_castore.go:715] Issuing new certificate: "apiserver-proxy-client"
+I0309 13:48:51.172542    6195 vfs_castore.go:715] Issuing new certificate: "kubecfg"
+I0309 13:48:51.179730    6195 vfs_castore.go:715] Issuing new certificate: "kubelet-api"
 I0309 13:48:51.431304    6195 executor.go:91] Tasks: 56 done / 81 total; 21 can run
 I0309 13:48:51.568136    6195 launchconfiguration.go:334] waiting for IAM instance profile "nodes.test.platform.cluster.k8s.local" to be ready
 I0309 13:48:51.576067    6195 launchconfiguration.go:334] waiting for IAM instance profile "masters.test.platform.cluster.k8s.local" to be ready
 I0309 13:49:01.973887    6195 executor.go:91] Tasks: 77 done / 81 total; 3 can run
-I0309 13:49:02.489343    6195 vfs\_castore.go:715] Issuing new certificate: "master"
+I0309 13:49:02.489343    6195 vfs_castore.go:715] Issuing new certificate: "master"
 I0309 13:49:02.775403    6195 executor.go:91] Tasks: 80 done / 81 total; 1 can run
 I0309 13:49:03.074583    6195 executor.go:91] Tasks: 81 done / 81 total; 0 can run
-I0309 13:49:03.168822    6195 update\_cluster.go:279] Exporting kubecfg for cluster
+I0309 13:49:03.168822    6195 update_cluster.go:279] Exporting kubecfg for cluster
 kops has set your kubectl context to test.platform.cluster.k8s.local
 
 Cluster is starting.  It should be ready in a few minutes.
@@ -146,7 +148,7 @@ Cluster is starting.  It should be ready in a few minutes.
 Suggestions:
  * validate cluster: kops validate cluster
  * list nodes: kubectl get nodes --show-labels
- * ssh to the master: ssh -i ~/.ssh/id\_rsa admin@api.test.platform.cluster.k8s.local
+ * ssh to the master: ssh -i ~/.ssh/id_rsa admin@api.test.platform.cluster.k8s.local
  * the admin user is specific to Debian. If not using Debian please use the appropriate user based on your OS.
  * read about installing addons at: https://github.com/kubernetes/kops/blob/master/docs/addons.md.
 
@@ -156,29 +158,126 @@ The initial cluster spinup will take sometime, use kops commands such as 'kops v
 
 ## Istio
 
-Istio affords a control layer on top of the k8s data plane.  These instructions have been updated for istio 0.7.1
-
-Instructions for deploying Istio are the vanilla instructions that can be found at, https://istio.io/docs/setup/kubernetes/quick-start.html#installation-steps.  We recommend using the mTLS installation for the k8s cluster deployment, for example
+Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, 
+https://archive.istio.io/v1.0/docs/setup/kubernetes/quick-start/#prerequisites.
+We recommend using the mTLS installation for the k8s cluster deployment, for example
 
 <pre><code><b>cd ~
-curl -LO https://github.com/istio/istio/releases/download/0.7.1/istio-0.7.1-linux.tar.gz
-tar xzf istio-0.7.1-linux.tar.gz
-export ISTIO_DIR=`pwd`/istio-0.7.1
+curl -LO https://github.com/istio/istio/releases/download/1.0.5/istio-1.0.5-linux.tar.gz
+tar xzf istio-1.0.5-linux.tar.gz
+export ISTIO_DIR=`pwd`/istio-1.0.5
 export PATH=$ISTIO_DIR/bin:$PATH
 cd -
-kubectl apply -f $ISTIO_DIR/install/kubernetes/istio.yaml
+kubectl apply -f $ISTIO_DIR/install/kubernetes/helm/istio/templates/crds.yaml
+kubectl apply -f $ISTIO_DIR/install/kubernetes/istio-demo-auth.yaml
 </b></code></pre>
 
 In any custom resources are not applied or updated repeat the apply after waiting for a few seconds for the CRDs to get loaded.
 
 ## Deploying a straw-man service into the Istio control plane
 
-To deploy the platform service passwords and other secrets will be needed to allows access to Aurora and other external resources.  YAML files will be needed to populate secrets into the service mesh, individual services document the secrets they require within their README.md files found on github and provide examples, for example https://github.com/leaf-ai/platform-services/cmd/experimentsrv/README.md.  Secrets for these services are currently held within the Kubernetes secrets store and can be populated using the following command:
+### Postgres DB
 
-<pre><code># Read https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables
-# create secrets, postgres:username, postgres:password
-<b>kubectl create -f ./cmd/experimentsrv/secret.yaml</b>
+To deploy the platform experiment service a database must be present.  The PoC is intended to use an in-cluster DB designed that is dropped after the service is destroyed.
+
+If you wish to use Aurora then you will need to use the AWS CLI Tools or the Web Console to create your Postgres Database appropriately, and then to set your environment variables PGHOST, PGPORT, PGUSER, PGPASSWORD, and PGDATABASE appropriately.  You will also be expected to run the sql setup scripts yourself.
+
+The first step is to install the postgres 11 client on your system and then to populate the schema on the remote database:
+
+<pre><code><b></b>
+wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list'
+sudo apt-get upgrade postgresql-client-11
 </code></pre>
+
+### Deploying an in-cluster Database
+
+This section gives guidence on how to install an in-cluster database for use-cases where data persistence beyond a single deployment is not a concern.  These instructions are therefore limited to testing only scenarios.  For information concerning Kubernetes storage strategies you should consult other sources and read about stateful sets in Kubernetes.  In production using a single source of truth then cloud provider offerings such as AWS Aurora are recommended.
+
+In order to deploy Postgres this document describes a helm based approach.  Helm can be installed using instructions found at, https://helm.sh/docs/using\_helm/#installing-helm.  For snap based linux distributions the following can be used as a quick-start.
+
+<pre><code><b>sudo snap install helm --classic
+kubectl create serviceaccount --namespace kube-system tiller
+kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
+helm init --history-max 200 -service-account tiller --upgrade
+helm repo update
+</b></code></pre>
+
+Now moving to postgres the bitnami distribution can be installed using the following:
+
+<pre><code><b>export PGRELEASE=`petname`
+export PGHOST=$PGRELEASE-postgresql.default.svc.cluster.local
+export PORT=5432
+export PGUSER=postgres
+export PGPASSWORD=p355w0rd
+export PGDATABASE=postgres
+helm install --name $PGRELEASE \
+  --set postgresqlPassword=$PGPASSWORD,postgresqlDatabase=$PGDATABASE\
+  stable/postgresql
+</b></code></pre>
+
+Special note should be taken of the output from the helm command it has a lot of valuable information concerning your postgres deployment that will be needed when you load the database schema.
+
+<pre><code>
+NAME:   internal-seasnail
+LAST DEPLOYED: Tue May 21 14:25:32 2019
+NAMESPACE: default
+STATUS: DEPLOYED
+
+RESOURCES:
+==> v1/Pod(related)
+NAME                            READY  STATUS   RESTARTS  AGE
+internal-seasnail-postgresql-0  0/1    Pending  0         0s
+
+==> v1/Secret
+NAME                          TYPE    DATA  AGE
+internal-seasnail-postgresql  Opaque  1     0s
+
+==> v1/Service
+NAME                                   TYPE       CLUSTER-IP     EXTERNAL-IP  PORT(S)   AGE
+internal-seasnail-postgresql           ClusterIP  100.64.75.251  <none>       5432/TCP  0s
+internal-seasnail-postgresql-headless  ClusterIP  None           <none>       5432/TCP  0s
+
+==> v1beta2/StatefulSet
+NAME                          READY  AGE
+internal-seasnail-postgresql  0/1    0s
+
+
+NOTES:
+** Please be patient while the chart is being deployed **
+
+PostgreSQL can be accessed via port 5432 on the following DNS name from within your cluster:
+
+    internal-seasnail-postgresql.default.svc.cluster.local - Read/Write connection
+To get the password for "postgres" run:
+
+    export POSTGRES_PASSWORD=$(kubectl get secret --namespace default internal-seasnail-postgresql -o jsonpath="{.data.postgresql-password}" | base64 --decode)
+
+To connect to your database run the following command:
+
+    kubectl run internal-seasnail-postgresql-client --rm --tty -i --restart='Never' --namespace default --image docker.io/bitnami/postgresql:11.3.0 --env="PGPASSWORD=$POSTGRES_PASSWORD" --command -- psql --host internal-seasnail-postgresql -U $PGUSER -d $PGDATABASE
+
+
+
+To connect to your database from outside the cluster execute the following commands:
+
+    kubectl port-forward --namespace default svc/internal-seasnail-postgresql 5432:5432 &
+    PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U $PGUSER -d $PGDATABASE
+</code></pre>
+
+Setting up the proxy will be needed prior to running the SQL database provisioning scripts.  When doing this prior to running the postgres client set the PGHOST environment variaable to 127.0.0.1 so that the proxy on the localhost is used.  The proxy will timeout after inactivity and shutdown so be prepared to restart it when needed.
+
+<pre><code><b>
+kubectl port-forward --namespace default svc/$PGRELEASE-postgresql 5432:5432 &amp;
+</b></code></pre>
+
+Further information about how to deployed the service specific database for the experiment service for example can be found in the cmd/experiment/README.md file.
+
+### Configuring the database secrets overview
+
+A secrets file containing host information, passwords and other secrets will be needed to allows access to the postgres DB, and/or other external resources.  YAML files will be needed to populate secrets into the service mesh, individual services document the secrets they require within their README.md files found on github and provide examples, for example https://github.com/leaf-ai/platform-services/cmd/experimentsrv/README.md.
+
+### Service deployment overview
 
 Platform services use Dockerfiles to encapsulate their build steps which are documented within their respective README.md files.  Building services are single step CLI operations and require only the installation of Docker, and any version of Go 1.7 or later.  Builds will produce containers and will upload these to your current AWS account users ECS docker registry.  Deployments are staged from this registry.  
 
@@ -192,7 +291,7 @@ ip-172-20-55-189.us-west-2.compute.internal    Ready     master    18m       v1.
 Once secrets are loaded individual services can be deployed from a checked out developer copy of the service repo using a command like the following :
 
 <pre><code><b>cd ~/project/src/github.com/leaf-ai/platform-services</b>
-<b>kubectl apply -f \<(istioctl kube-inject -f [application-deployment-yaml] --includeIPRanges="172.20.0.0/16" ) </b>
+<b>kubectl apply -f \<(istioctl kube-inject -f [cmd/[service]/application-deployment-yaml] --includeIPRanges="172.20.0.0/16" ) </b>
 </code></pre>
 
 Once the application is deployed you can discover the ingress points within the kubernetes cluster by using the following:
@@ -285,13 +384,13 @@ The services used within the platfor all support reflection when using gRPC.  To
 
 <pre><code><b>export CLUSTER_INGRESS=`kubectl get ingress -o wide | tail -1 | awk '{print $3":"$4}'`</b>
 <b>grpc_cli ls $CLUSTER_INGRESS -l</b>
-filename: grpc\_health\_v1/health.proto
+filename: grpc_health_v1/health.proto
 package: grpc.health.v1;
 service Health {
   rpc Check(grpc.health.v1.HealthCheckRequest) returns (grpc.health.v1.HealthCheckResponse) {}
 }
 
-filename: grpc\_reflection\_v1alpha/reflection.proto
+filename: grpc_reflection_v1alpha/reflection.proto
 package: grpc.reflection.v1alpha;
 service ServerReflection {
   rpc ServerReflectionInfo(stream grpc.reflection.v1alpha.ServerReflectionRequest) returns (stream grpc.reflection.v1alpha.ServerReflectionResponse) {}
@@ -309,18 +408,18 @@ To drill further into interfaces and examine the types being used within calls y
 
 <pre><code><b>grpc_cli type $CLUSTER_INGRESS dev.cognizant-ai.experiment.CreateRequest -l</b>
 message CreateRequest {
-.dev.cognizant-ai.experiment.Experiment experiment = 1[json\_name = "experiment"];
+.dev.cognizant-ai.experiment.Experiment experiment = 1[json_name = "experiment"];
 }
 <b>grpc_cli type $CLUSTER_INGRESS dev.cognizant-ai.experiment.Experiment -l</b>
 message Experiment {
-string uid = 1[json\_name = "uid"];
-string name = 2[json\_name = "name"];
-string description = 3[json\_name = "description"];
-.google.protobuf.Timestamp created = 4[json\_name = "created"];
-map&lt;uint32, .dev.cognizant-ai.experiment.InputLayer&gt; inputLayers = 5[json\_name = "inputLayers"];
-map&lt;uint32, .dev.cognizant-ai.experiment.OutputLayer&gt; outputLayers = 6[json\_name = "outputLayers"];
+string uid = 1[json_name = "uid"];
+string name = 2[json_name = "name"];
+string description = 3[json_name = "description"];
+.google.protobuf.Timestamp created = 4[json_name = "created"];
+map&lt;uint32, .dev.cognizant-ai.experiment.InputLayer&gt; inputLayers = 5[json_name = "inputLayers"];
+map&lt;uint32, .dev.cognizant-ai.experiment.OutputLayer&gt; outputLayers = 6[json_name = "outputLayers"];
 }
-<b>grpc\_cli type $CLUSTER\_INGRESS dev.cognizant-ai.experiment.InputLayer -l</b>
+<b>grpc_cli type $CLUSTER_INGRESS dev.cognizant-ai.experiment.InputLayer -l</b>
 message InputLayer {
 enum Type {
 	Unknown = 0;
@@ -328,9 +427,9 @@ enum Type {
 	Time = 2;
 	Raw = 3;
 }
-string name = 1[json\_name = "name"];
-.dev.cognizant-ai.experiment.InputLayer.Type type = 2[json\_name = "type"];
-repeated string values = 3[json\_name = "values"];
+string name = 1[json_name = "name"];
+.dev.cognizant-ai.experiment.InputLayer.Type type = 2[json_name = "type"];
+repeated string values = 3[json_name = "values"];
 }
 </code></pre>
 
@@ -340,5 +439,5 @@ repeated string values = 3[json\_name = "values"];
 <pre><code><b>kubectl delete -f experimentsrv.yaml
 </b></code></pre>
 
-<pre><code><b>kops delete cluster $CLUSTER\_NAME --yes
+<pre><code><b>kops delete cluster $CLUSTER_NAME --yes
 </b></code></pre>

@@ -1,5 +1,4 @@
 #!/bin/bash -x
-set -e
 go get -u github.com/golang/dep/cmd/dep
 go install github.com/golang/dep/cmd/dep
 go get github.com/karlmutch/duat

@@ -50,6 +50,14 @@
   version = "v1.1.0"
 
 [[projects]]
+  digest = "1:a8212495120c94f629a8cf5c9760c4017390e24ab8a049cf566dbd3f5627d6cb"
+  name = "github.com/docker/go-units"
+  packages = ["."]
+  pruneopts = ""
+  revision = "519db1ee28dcc9fd2474ae59fca29a810482bfb1"
+  version = "v0.4.0"
+
+[[projects]]
   branch = "master"
   digest = "1:ae162f9b5c46f6d5ff4bd53a3d78f72e2eb6676c11c5d33b8b106c36f87ddb31"
   name = "github.com/dustin/go-humanize"
@@ -138,6 +146,7 @@
   name = "github.com/go-openapi/runtime"
   packages = [
     ".",
+    "flagext",
     "logger",
     "middleware",
     "middleware/denco",
@@ -210,7 +219,11 @@
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
+    "protoc-gen-go",
     "protoc-gen-go/descriptor",
+    "protoc-gen-go/generator",
+    "protoc-gen-go/grpc",
+    "protoc-gen-go/plugin",
     "ptypes",
     "ptypes/any",
     "ptypes/duration",
@@ -218,6 +231,14 @@
   ]
   pruneopts = ""
   revision = "1e59b77b52bf8e4b449a57e6f79f21226d571845"
+
+[[projects]]
+  digest = "1:ca5c90960520407749b98c49650f54f5f90a667796e85c5ee1597478f702fb91"
+  name = "github.com/jessevdk/go-flags"
+  packages = ["."]
+  pruneopts = ""
+  revision = "c6ca198ec95c841fdb89fc0de7496fed11ab854e"
+  version = "v1.4.0"
 
 [[projects]]
   digest = "1:dc3323cd00beb2b3c36868af28fa142b059359b6385b95fe6545fe5ab03ae37c"
@@ -363,6 +384,7 @@
     "idna",
     "internal/timeseries",
     "lex/httplex",
+    "netutil",
     "trace",
   ]
   pruneopts = ""
@@ -486,29 +508,37 @@
     "github.com/go-chi/chi/middleware",
     "github.com/go-chi/docgen",
     "github.com/go-chi/render",
+    "github.com/go-openapi/errors",
     "github.com/go-openapi/loads",
+    "github.com/go-openapi/runtime",
+    "github.com/go-openapi/runtime/flagext",
     "github.com/go-openapi/runtime/middleware",
+    "github.com/go-openapi/runtime/security",
+    "github.com/go-openapi/spec",
     "github.com/go-openapi/strfmt",
     "github.com/go-openapi/swag",
+    "github.com/go-openapi/validate",
     "github.com/go-stack/stack",
     "github.com/go-test/deep",
     "github.com/golang/groupcache/lru",
     "github.com/golang/protobuf/proto",
+    "github.com/golang/protobuf/protoc-gen-go",
     "github.com/golang/protobuf/ptypes",
     "github.com/golang/protobuf/ptypes/timestamp",
+    "github.com/jessevdk/go-flags",
     "github.com/jmoiron/sqlx",
     "github.com/karlmutch/envflag",
     "github.com/karlmutch/errors",
     "github.com/lib/pq",
     "github.com/mgutz/logxi",
     "golang.org/x/net/context",
+    "golang.org/x/net/netutil",
     "google.golang.org/grpc",
     "google.golang.org/grpc/codes",
     "google.golang.org/grpc/health",
     "google.golang.org/grpc/health/grpc_health_v1",
     "google.golang.org/grpc/metadata",
     "google.golang.org/grpc/reflection",
-    "google.golang.org/grpc/status",
     "gopkg.in/square/go-jose.v2",
   ]
   solver-name = "gps-cdcl"

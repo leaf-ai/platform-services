@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash -x
 
 if ( find /project -maxdepth 0 -empty | read v );
 then
@@ -15,7 +15,7 @@ export PATH=$PATH:$GOPATH/bin
 go get -u -f github.com/golang/dep/cmd/dep
 go get -u -f github.com/aktau/github-release
 go get -u google.golang.org/grpc
-go get -u github.com/golang/protobuf/protoc-gen-go
+go install ./vendor/github.com/golang/protobuf/protoc-gen-go
 go install github.com/karlmutch/duat/cmd/semver
 go install github.com/golang/dep/cmd/dep
 dep ensure -no-vendor

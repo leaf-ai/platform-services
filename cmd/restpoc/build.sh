@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 if ( find /project -maxdepth 0 -empty | read v );
 then

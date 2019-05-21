@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 if ( find /project -maxdepth 0 -empty | read v );
 then
@@ -15,7 +15,7 @@ export PATH=$PATH:$GOPATH/bin
 go get -u -f github.com/golang/dep/cmd/dep
 go get -u -f github.com/aktau/github-release
 go get -u google.golang.org/grpc
-go get -u github.com/golang/protobuf/protoc-gen-go
+go install ./vendor/github.com/golang/protobuf/protoc-gen-go
 dep ensure -no-vendor
 [ -e internal/gen/echosrv ] || mkdir -p internal/gen/echosrv
 #[ -e vendor/github.com/leaf-ai/platform-services/internal ] || mkdir -p vendor/github.com/leaf-ai/platform-services/internal
