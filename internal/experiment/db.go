@@ -272,7 +272,7 @@ func StartDB(quitC <-chan struct{}) (msgC chan string, errorC chan *DBErrorMsg, 
 					case errorC <- err:
 					default:
 					}
-					dbCheckTimer = time.Duration(5 * time.Second)
+					dbCheckTimer = time.Duration(30 * time.Second)
 					continue
 				}
 

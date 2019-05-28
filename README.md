@@ -199,7 +199,7 @@ In order to deploy Postgres this document describes a helm based approach.  Helm
 <pre><code><b>sudo snap install helm --classic
 kubectl create serviceaccount --namespace kube-system tiller
 kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
-helm init --history-max 200 -service-account tiller --upgrade
+helm init --history-max 200 --service-account tiller --upgrade
 helm repo update
 </b></code></pre>
 
@@ -265,7 +265,7 @@ To connect to your database from outside the cluster execute the following comma
     PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U $PGUSER -d $PGDATABASE
 </code></pre>
 
-Setting up the proxy will be needed prior to running the SQL database provisioning scripts.  When doing this prior to running the postgres client set the PGHOST environment variaable to 127.0.0.1 so that the proxy on the localhost is used.  The proxy will timeout after inactivity and shutdown so be prepared to restart it when needed.
+Setting up the proxy will be needed prior to running the SQL database provisioning scripts.  When doing this prior to running the postgres client set the PGHOST environment variable to 127.0.0.1 so that the proxy on the localhost is used.  The proxy will timeout after inactivity and shutdown so be prepared to restart it when needed.
 
 <pre><code><b>
 kubectl port-forward --namespace default svc/$PGRELEASE-postgresql 5432:5432 &amp;

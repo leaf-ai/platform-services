@@ -26,7 +26,7 @@ done
 
 `aws ecr get-login --no-include-email --region us-west-2`
 if [ $? -eq 0 ]; then
-    account=`aws sts get-caller-identity --output text --query Account`
+    account=`aws sts get-caller-identity --output text --query Account 2> /dev/null || true`
     if [ $? -eq 0 ]; then
         for dir in cmd/*/ ; do
             base="${dir%%\/}"
