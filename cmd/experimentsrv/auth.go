@@ -163,6 +163,9 @@ func validateToken(token string, claimCheck string) (err errors.Error) {
 	cache.lru.Add(token, claims)
 	cache.Unlock()
 
+	if _, isPresent := claims["scope"]; !isPresent {
+		return errors.New(fmt.Sprintf("the authenticated user has no roles for this API, specifically the '%s' scope is missing", claimCheck)).With("stack", stack.Trace().TrimRuntime())
+	}
 	if !strings.Contains(claims["scope"].(string), claimCheck) {
 		return errors.New(fmt.Sprintf("the authenticated user does not have the appropriate '%s' scope", claimCheck)).With("stack", stack.Trace().TrimRuntime())
 	}

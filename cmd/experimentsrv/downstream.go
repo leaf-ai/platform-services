@@ -50,13 +50,13 @@ func checkDownstream(addr string) (err errors.Error) {
 	return nil
 }
 
-func initiateDownstream(quitC <-chan struct{}) (err errors.Error) {
+func initiateDownstream(hostAndPort string, quitC <-chan struct{}) (err errors.Error) {
 	go func() {
 		internalCheck := time.Duration(time.Second)
 		for {
 			select {
 			case <-time.After(internalCheck):
-				if err := checkDownstream("downstream:30001"); err != nil {
+				if err := checkDownstream(hostAndPort); err != nil {
 					logger.Warn(err.Error())
 					continue
 				}

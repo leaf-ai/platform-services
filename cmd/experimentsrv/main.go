@@ -84,7 +84,8 @@ const serviceName = "experimentsrv"
 var (
 	logger = platform.NewLogger(serviceName)
 
-	ipPort = flag.String("ip-port", ":30001,[::]:30001", "TCP/IP adapter IP and port to run this gRPC service on, a comma seperated list of IPv4, and IPv6 addresses")
+	downstreamHostPort = flag.String("downstream", "downstream:30001", "The Host name and the port number for the downstream service")
+	ipPort             = flag.String("ip-port", ":30001,[::]:30001", "TCP/IP adapter IP and port to run this gRPC service on, a comma seperated list of IPv4, and IPv6 addresses")
 )
 
 func usage() {
@@ -269,7 +270,7 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 
 	// Initiate a regular checker that looks to the example downstream gRPC service
 	// and validates that it is working
-	initiateDownstream(ctx.Done())
+	initiateDownstream(*downstreamHostPort, ctx.Done())
 
 	// Now check for any fatal errors before allowing the system to continue.  This allows
 	// all errors that could have ocuured as a result of incorrect options to be flushed

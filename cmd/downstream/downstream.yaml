@@ -40,7 +40,11 @@ spec:
     spec:
       containers:
       - name: downstream
+        {{if .duat.awsecr}}
         image: {{.duat.awsecr}}/platform-services/{{.duat.module}}:{{.duat.version}}
+        {{else}}
+        {{ RaiseError "AWS ECR Details are missing" }}
+        {{end}}
         imagePullPolicy: Always
         ports:
         - containerPort: 30001
