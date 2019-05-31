@@ -10,7 +10,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	downstream "github.com/SentientTechnologies/platform-services/gen/downstream"
+	downstream "github.com/leaf-ai/platform-services/internal/gen/downstream"
 )
 
 var (
@@ -41,20 +41,22 @@ func checkDownstream(addr string) (err errors.Error) {
 
 	client := downstream.NewServiceClient(conn)
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Duration(10*time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10*time.Second))
+	defer cancel()
+
 	if _, errGo = client.Ping(ctx, &downstream.PingRequest{}); errGo != nil {
 		return errors.Wrap(errGo).With("address", addr).With("stack", stack.Trace().TrimRuntime())
 	}
 	return nil
 }
 
-func initiateDownstream(quitC <-chan struct{}) (err errors.Error) {
+func initiateDownstream(hostAndPort string, quitC <-chan struct{}) (err errors.Error) {
 	go func() {
 		internalCheck := time.Duration(time.Second)
 		for {
 			select {
 			case <-time.After(internalCheck):
-				if err := checkDownstream("downstream:30001"); err != nil {
+				if err := checkDownstream(hostAndPort); err != nil {
 					logger.Warn(err.Error())
 					continue
 				}

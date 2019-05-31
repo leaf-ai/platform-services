@@ -4,32 +4,74 @@ The experiment server is used to persist experiment details and to record change
 
 The experiment server offers a gRPC API that can be accessed using a machine-to-machine or human-to-machine (HCI) interface.  The HCI interface can be interacted with using the grpc_cli tool provided with the gRPC toolkit  More information about grpc_cli can be found at, https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md.
 
-# Experiment Database
+# Experiment Deployment
 
-The experiment server makes use of a Postgres DB.  The installation process is specific to AWS Aurora.  To begin installation you will need to create a Postgres Aurora RDS instance.  Use values of your choosing for the DB name and user/password combinations.
+The experiment server makes use of a Postgres DB.  The installation process by default uses a cluster local postgres DB instances.  
 
-Parameters that impact deployment of your Aurora instance include, RDS Endpoint, DB Name, user name, and the password.
+In order to deploy against the default postgres in cluster database you will first follow the instructions in the main README.md file and on completion of the databaser initialization using helm deploy the schema.  The envionment variables being used are expected to have been already defined, for example PGRELEASE, as described in the top level README.md file.
 
-The command to install the postgres schema into your DB instance will appear similar to the following:
+<pre><code><b>
+kubectl port-forward --namespace default svc/$PGRELEASE-postgresql 5432:5432 &amp;
+PGHOST=127.0.0.1 PGDATABASE=platform psql -f sql/platform.sql -d postgres
+</b>
+Handling connection for 5432
+SET
+Time: 36.345 ms
+psql:/home/kmutch/.psqlrc.local:1: WARNING:  25P01: there is no transaction in progress
+LOCATION:  EndTransactionBlock, xact.c:3675
+COMMIT
+Time: 40.695 ms
+SET
+Time: 34.603 ms
+...
+</code></pre>
+
+Once the schema has been successfully created you can move to the next section.
+
+If you wish to use AWS Aurora then you will need to obtain the host, user and password for the database and update your environment variables to use the same.  Including parameters that impact deployment of your Aurora instance include, RDS Endpoint, DB Name, user name, and the password.
+
+The command to install the postgres schema into your DB instance, for AWS Aurora, will appear similar to the following:
 
 <pre><code><b>PGUSER=pl PGHOST=dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com PGDATABASE=platform psql -f sql/platform.sql -d postgres
 </b></code></pre>
 
 ## Installation
 
-Before starting you should install several build and deployment tools that will be useful for managing the service configuration file.
-
-<pre><code><b>wget -O $GOPATH/bin/stencil https://github.com/karlmutch/duat/releases/download/0.4.0/stencil
-chmod +x $GOPATH/bin/stencil
-</b></code></pre>
+Before starting you should have already installed the duat tools documented in the root README.md file.
 
 ### Secrets
 
-You should now create or edit the secrets.yaml file ready for deployment with the user name and the password.  The secrets can be injected into your kubernetes secrets DB using the kubectl apply -f [secrets_file_name] command.
+You should now create or edit the secrets.yaml file ready for deployment with the user name and the password.  The secrets can be injected into your kubernetes secrets DB using the kubectl apply -f [secrets\_file\_name] command.
 
-To update the secrets file information that needs to be stored should be be encoded as Base 64 and then the result text added to the file entries as appropriate. For example:
+In the case of both the default in-cluster database and AWS Aurora the credentials for the user are fixed.  If these need to be changed and the platform.sql file was modified to have the new user access details then you should base64 encode the values and place these inside the supplied secrets.yaml files.
 
-<pre><code><b>base64 <(echo -n "dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com")</b>
+This command will use the PGHOST, and possibly other environment variables from the helm based installation. Should you be using the AWS Aurora deployment then you will need to define the PGHOST environment variable to point at the AWS hostname for your database instance prior to running this command.
+
+Portions of the embeeded secrets have already been defined by the services that will use the database and encoded into the secrets file.  The definition of encoded secrets means that this proof of concept should not be cut and pasted into a production context.
+
+Secrets for these services are currently held within the Kubernetes secrets store and can be populated using the following command:
+
+<pre><code># Read https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables
+# create secrets, postgres:username, postgres:password
+<b>stencil &lt; ./cmd/experimentsrv/secret.yaml | kubectl create -f - </b>
+</code></pre>
+
+Having deployed and defined the secrets and the postgres specific environment variables the postgres client can now used to populate the database schema, these instrctions can be found within the service specific README.md files.
+When the PGHOST value has been update to point at the host name that the service within the deployment cluster can access you are ready to add the secrets to the cluster:
+
+The in-cluster value for the host would appear as follows:
+
+<pre><code><b>
+export PGHOST=$PGRELEASE-postgresql.default.svc.cluster.local
+</b></code></pre>
+
+### AWS Specific secrets notes
+
+If you were using an external DB then something like the following would be done:
+
+<pre><code><b>
+<pre><code><b>export PGHOSTbase64 <(echo -n "dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com")</b>
+</b></code></pre>
 ZGV2LXBsYXRmb3JtLmNsdXN0ZXItY2ZmMnVodGQyanpoLnVzLXdlc3QtMi5yZHMuYW1hem9uYXdzLmNvbQ==
 # Edit the secret.yaml file and replace the host with your modified name from the RDS instance being used
 <b>cat secret.yml</b>
@@ -72,6 +114,8 @@ spec:
 
 The experiment service is deployed using Istio into a Kubernetes (k8s) cluster.  The k8s cluster installation instructions can be found within the README.md file at the top of this github repository.  
 
+### AWS Specific deployment notes
+
 When using AWS the local workstation should first associate your local docker instance against your AWS ECR account. To do this run the following command using the AWS CLI.  You should change your named AWS_PROFILE to match that set in your ~/.aws/credentials file.
 
 <pre><code><b>export AWS_PROFILE=platform
@@ -83,7 +127,7 @@ To deploy the experiment service three commands will be used stencil (a SDLC awa
 
 When version controlled containers are being used with ECS or another docker registry the semver, and stencil tools can be used to extract a git cloned repository that has the version string embeeded inside the README.md or another file of your choice, and then use this with your application deployment yaml specification, as follows:
 
-<pre><code><b>cd ~/project/src/github.com/SentientTechnologies/platform-services/cmd/experimentsrv</b>
+<pre><code><b>cd ~/project/src/github.com/leaf-ai/platform-services/cmd/experimentsrv</b>
 <b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16"  -f <(stencil < experimentsrv.yaml))
 </b></code></pre>
 
@@ -91,10 +135,14 @@ This technique can be used to upgrade software versions etc and performing rolli
 
 ## Service Authentication
 
-Service authentication is explained within the top level README.md file for the github.com/SentientTechnologies/platform-services repository.  All calls into the experiment service must contain metadata for the autorization brearer token and have the all:experiments claim in order to be accepted.
+Service authentication is introduced inside the top level README.md file for the github.com/leaf-ai/platform-services repository, along with instructions for adding applications and users.  All calls into the experiment service must contain metadata for the autorization brearer token and have the all:experiments claim in order to be accepted.
 
-<pre><code><b>export AUTH0_DOMAIN=sentientai.auth0.com
-export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
+<pre><code><b>export AUTH0_DOMAIN=cognizant-ai.auth0.com
+export AUTH0_DOMAIN=cognizant-ai.auth0.com
+export AUTH0_CLIENT_ID=71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj
+export AUTH0_CLIENT_SECRET=AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms
+export AUTH0_REQUEST=$(printf '{"client_id": "%s", "client_secret": "%s", "audience":"http://api.cognizant-ai.dev/experimentsrv","grant_type":"client_credentials", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' "$AUTH0_CLIENT_ID" "$AUTH0_CLIENT_SECRET")
+export AUTH0_TOKEN=$(curl -s --request POST --url https://cognizant-ai.auth0.com/oauth/token --header 'content-type: application/json' --data "$AUTH0_REQUEST" | jq -r '"\(.access_token)"')
 </b></code></pre>
 
 # Using the service
@@ -106,7 +154,7 @@ In order to use the service the ingress should be determined using the following
 
 ## grpc_cli
 
-The grpc_cli tool can be used to interact with the server for creating and getting experiments.  Other tools do exist as curl like environments for interacting with gRPC servers including the nodejs based tool found at, https://github.com/njpatel/grpcc.  For our purposes we use the less powerful but more common grpc_cli tool that comes with the gRPC project.  Documentation for the grpc_cli tool can be found at, https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md.
+The grpc_cli tool can be used to interact with the server for creating and getting experiments.  Other tools do exist as curl like environments for interacting with gRPC servers including the nodejs based tool found at, https://github.com/njpatel/grpcc.  For our purposes we use the less powerful but more common grpc\_cli tool that comes with the gRPC project.  Documentation for the grpc\_cli tool can be found at, https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md.
 
 Should you be considering writing or using a service with gRPC then the following fully worked example might be informative, https://www.goheroe.org/2017/08/19/grpc-service-discovery-with-server-reflection-and-grpc-cli-in-go.
 
@@ -114,20 +162,20 @@ Two pieces of information are needed in order to make use of the service:
 
 First, you will need the ingress endpoint for your cluster.  The following command sets an environment variable that you will be using as the CLUSTER_INGRESS environment variable across all of the examples within this guide.
 
-<pre><code><b>grpc_cli call $CLUSTER_INGRESS ai.sentient.experiment.Service.Create "experiment: {uid: 't', name: 'name', description: 'description'}"  --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
+<pre><code><b>grpc_cli call $CLUSTER_INGRESS dev.cognizant-ai.experiment.Service.Create "experiment: {uid: 't', name: 'name', description: 'description'}"  --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
 </pre></code>
 
 # Manually exercising the server from within the mesh
 
-<pre><code><b>export AUTH0_DOMAIN=sentientai.auth0.com
-export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
-/tmp/grpc_cli call localhost:30001 ai.sentient.experiment.Service.Get "uid: ''" --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
+<pre><code><b>export AUTH0_DOMAIN=cognizant-ai.auth0.com
+export AUTH0_TOKEN=$(curl -s --request POST --url 'https://cognizant-ai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.cognizant-ai.dev/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
+/tmp/grpc_cli call localhost:30001 dev.cognizant-ai.experiment.Service.Get "uid: ''" --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
 connecting to localhost:30001
 Sending client initial metadata:
 authorization : ...
 Rpc failed with status code 2, error message: selecting an experiment requires either the DB id or the experiment unique id to be specified stack="[db.go:533 server.go:42 experimentsrv.pb.go:375 auth.go:88 experimentsrv.pb.go:377 server.go:900 server.go:1122 server.go:617]"
 
-<b>/tmp/grpc_cli call $CLUSTER_INGRESS:30001 ai.sentient.experiment.Service.Get "uid: 't'" --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
+<b>/tmp/grpc_cli call $CLUSTER_INGRESS:30001 dev.cognizant-ai.experiment.Service.Get "uid: 't'" --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
 connecting to localhost:30001
 Sending client initial metadata:
 authorization : ...
@@ -141,11 +189,10 @@ If you wish to exercise the server while it is deployed into an Istio orchestrat
 kubectl exec -it experiments-v1-bc46b5d68-bcdkv -c istio-proxy /bin/bash
 sudo apt-get update
 sudo apt-get install -y libgflags2v5 ca-certificates jq
-export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client
-_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.
-ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:
+export AUTH0_TOKEN=$(curl -s --request POST --url 'https://cognizant-ai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client
+_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.cognizant-ai.dev/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:
 experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
-/tmp/grpc_cli call 100.96.1.14:30001 ai.sentient.experiment.Service.Get "uid: 't'"  --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
+/tmp/grpc_cli call 100.96.1.14:30001 dev.cognizant-ai.experiment.Service.Get "uid: 't'"  --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
 </code></pre>
 
 When Istio is used without a Load balancer the IP of the host on which the pod is running can be determined by using the following command:
@@ -193,8 +240,8 @@ Options:
 In order to contact a remote service deployed on AWS using the Kubernetes based service mesh you should be familar with the instructions within the grpc_cli description that detail the use of metadata to pass authorization tokens to the service.  The authorization header can be specified using the --header option as follows:
 
 <pre><code><b>
-export AUTH0_DOMAIN=sentientai.auth0.com
-export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
+export AUTH0_DOMAIN=cognizant-ai.auth0.com
+export AUTH0_TOKEN=$(curl -s --request POST --url 'https://cognizant-ai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.cognizant-ai.dev/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
 export AUTH0_HEADER="Bearer $AUTH0_TOKEN"
 export CLUSTER_INGRESS_HOST=`kubectl get ingress -o wide | tail -1 | awk '{print $3}'`
 export CLUSTER_INGRESS_PORT=`kubectl get ingress -o wide | tail -1 | awk '{print $4}'`
@@ -210,8 +257,8 @@ The grpc listener is configured so that both an IPv4 and IPv6 adapter is attempe
 The server provides some testing for the DB and core functionality of the server.  In order to run this you can use the go test command and point at the relevant go package directories from which you wish to run the tests, for example to run the experiment DB and server tests you could use commands like the following:
 
 <pre><code><b>cd cmd/experimentsrv
-export AUTH0_DOMAIN=sentientai.auth0.com
-export AUTH0_TOKEN=$(curl -s --request POST --url 'https://sentientai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.sentient.ai/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
+export AUTH0_DOMAIN=cognizant-ai.auth0.com
+export AUTH0_TOKEN=$(curl -s --request POST --url 'https://cognizant-ai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.cognizant-ai.dev/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
 LOGXI=*=TRC PGUSER=pl PGHOST=dev-platform.cluster-cff2uhtd2jzh.us-west-2.rds.amazonaws.com PGDATABASE=platform go test -v . -ip-port ":30001"
 </b></code></pre>
 

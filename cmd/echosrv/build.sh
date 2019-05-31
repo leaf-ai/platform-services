@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 if ( find /project -maxdepth 0 -empty | read v );
 then
@@ -15,18 +15,21 @@ export PATH=$PATH:$GOPATH/bin
 go get -u -f github.com/golang/dep/cmd/dep
 go get -u -f github.com/aktau/github-release
 go get -u google.golang.org/grpc
-go get -u github.com/golang/protobuf/protoc-gen-go
+go install ./vendor/github.com/golang/protobuf/protoc-gen-go
 dep ensure -no-vendor
-[ -e gen/echosrv ] || mkdir -p gen/echosrv
-[ -e vendor/github.com/SentientTechnologies/platform-services ] || mkdir -p vendor/github.com/SentientTechnologies/platform-services
-[ -e vendor/github.com/SentientTechnologies/platform-services/gen ] || ln -s `pwd`/gen vendor/github.com/SentientTechnologies/platform-services/gen
-protoc -Icmd/echosrv -I/usr/include/google --plugin=$GOPATH/bin/protoc-gen-go --go_out=plugins=grpc:./gen/echosrv cmd/echosrv/echosrv.proto
+[ -e internal/gen/echosrv ] || mkdir -p internal/gen/echosrv
+#[ -e vendor/github.com/leaf-ai/platform-services/internal ] || mkdir -p vendor/github.com/leaf-ai/platform-services/internal
+#[ -e vendor/github.com/leaf-ai/platform-services/internal/gen ] || ln -s `pwd`/internal/gen vendor/github.com/leaf-ai/platform-services/internal/gen
+protoc -Icmd/echosrv -I/usr/include/google --plugin=$GOPATH/bin/protoc-gen-go --go_out=plugins=grpc:./internal/gen/echosrv cmd/echosrv/echosrv.proto
+if [ "$1" == "gen" ]; then
+    exit 0
+fi
 mkdir -p cmd/echosrv/bin
-go build -ldflags "-X github.com/SentientTechnologies/platform-services/version.BuildTime=$DATE -X github.com/SentientTechnologies/platform-services/version.GitHash=$HASH" -o cmd/echosrv/bin/echosrv cmd/echosrv/*.go
-go build -ldflags "-X github.com/SentientTechnologies/platform-services/version.BuildTime=$DATE -X github.com/SentientTechnologies/platform-services/version.GitHash=$HASH" -race -o cmd/echosrv/bin/echosrv-race cmd/echosrv/*.go
+go build -ldflags "-X github.com/leaf-ai/platform-services/internal/version.BuildTime=$DATE -X github.com/leaf-ai/platform-services/internal/version.GitHash=$HASH" -o cmd/echosrv/bin/echosrv cmd/echosrv/*.go
+go build -ldflags "-X github.com/leaf-ai/platform-services/internal/version.BuildTime=$DATE -X github.com/leaf-ai/platform-services/internal/version.GitHash=$HASH" -race -o cmd/echosrv/bin/echosrv-race cmd/echosrv/*.go
 if ! [ -z "${TRAVIS_TAG}" ]; then
     if ! [ -z "${GITHUB_TOKEN}" ]; then
-        github-release release --user SentientTechnologies --repo platform-services --tag ${TRAVIS_TAG} --pre-release && \
-        github-release upload --user SentientTechnologies --repo platform-services  --tag ${TRAVIS_TAG} --name platform-services --file cmd/echosrv/bin/echosrv
+        github-release release --user leaf-ai --repo platform-services --tag ${TRAVIS_TAG} --pre-release && \
+        github-release upload --user leaf-ai --repo platform-services  --tag ${TRAVIS_TAG} --name platform-services --file cmd/echosrv/bin/echosrv
     fi
 fi

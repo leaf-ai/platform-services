@@ -41,7 +41,7 @@ import (
 
 	sq "github.com/Masterminds/squirrel"
 
-	grpc "github.com/SentientTechnologies/platform-services/gen/experimentsrv"
+	grpc "github.com/leaf-ai/platform-services/internal/gen/experimentsrv"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
@@ -272,7 +272,7 @@ func StartDB(quitC <-chan struct{}) (msgC chan string, errorC chan *DBErrorMsg, 
 					case errorC <- err:
 					default:
 					}
-					dbCheckTimer = time.Duration(5 * time.Second)
+					dbCheckTimer = time.Duration(30 * time.Second)
 					continue
 				}
 
@@ -360,7 +360,7 @@ func initDB(url string, user string) (err errors.Error) {
 		// shell issues in the salt startup try a hard coded but
 		// well known location
 		if _, errGo := os.Stat(pgPassFile); os.IsNotExist(errGo) {
-			pgPassFile = "/opt/sentient/.pgpass"
+			pgPassFile = "/opt/cognizant-ai/.pgpass"
 		}
 	}
 

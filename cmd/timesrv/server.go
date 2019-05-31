@@ -14,9 +14,9 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 
-	"github.com/SentientTechnologies/platform-services/gen/models"
-	"github.com/SentientTechnologies/platform-services/gen/restapi"
-	"github.com/SentientTechnologies/platform-services/gen/restapi/operations"
+	"github.com/leaf-ai/platform-services/internal/gen/models"
+	"github.com/leaf-ai/platform-services/internal/gen/restapi"
+	"github.com/leaf-ai/platform-services/internal/gen/restapi/operations"
 )
 
 func runServer(ctx context.Context, port int) (errC chan errors.Error) {

@@ -16,7 +16,7 @@ import (
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
 
-	"github.com/SentientTechnologies/platform-services"
+	"github.com/leaf-ai/platform-services/internal/platform"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	auth0Domain = flag.String("auth0-domain", "sentientai.auth0.com", "The domain assigned to the server API by Auth0")
+	auth0Domain = flag.String("auth0-domain", "cognizant-ai.auth0.com", "The domain assigned to the server API by Auth0")
 	jwksCache   = &jwksState{
 		ok: false,
 	}
@@ -101,8 +101,8 @@ func validateToken(token string, claimCheck string) (err errors.Error) {
 
 	if isPresent {
 		claims = item.(map[string]interface{})
-		exp, isPresent := claims["exp"]
-		if isPresent {
+		exp, isExpPresent := claims["exp"]
+		if isExpPresent {
 			// Check the time at which the claim expires and if it has reject the request BUT dont
 			// clear the cache so that any further attempts wont result in a round trip to the
 			// ID provider
@@ -118,7 +118,7 @@ func validateToken(token string, claimCheck string) (err errors.Error) {
 	logger.Debug("cache miss")
 
 	audience := []string{
-		"http://api.sentient.ai/experimentsrv",
+		"http://api.cognizant-ai.dev/experimentsrv",
 	}
 
 	jwksCache.Lock()
@@ -151,8 +151,8 @@ func validateToken(token string, claimCheck string) (err errors.Error) {
 	// if we are here then we really only need to check the exp for caching purposes.a c.f.
 	// https://tools.ietf.org/html/rfc7519#section-4.1.4
 
-	exp, isPresent := claims["exp"]
-	if !isPresent {
+	exp, isExpPresent := claims["exp"]
+	if !isExpPresent {
 		return errors.New("token did not contain an expiry").With("stack", stack.Trace().TrimRuntime())
 	}
 	expires := time.Unix(int64(platform.Round(exp.(float64))), 0)
@@ -163,6 +163,9 @@ func validateToken(token string, claimCheck string) (err errors.Error) {
 	cache.lru.Add(token, claims)
 	cache.Unlock()
 
+	if _, isPresent := claims["scope"]; !isPresent {
+		return errors.New(fmt.Sprintf("the authenticated user has no roles for this API, specifically the '%s' scope is missing", claimCheck)).With("stack", stack.Trace().TrimRuntime())
+	}
 	if !strings.Contains(claims["scope"].(string), claimCheck) {
 		return errors.New(fmt.Sprintf("the authenticated user does not have the appropriate '%s' scope", claimCheck)).With("stack", stack.Trace().TrimRuntime())
 	}

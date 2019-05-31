@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/SentientTechnologies/platform-services"
-	"github.com/SentientTechnologies/platform-services/version"
+	"github.com/leaf-ai/platform-services/internal/platform"
+	"github.com/leaf-ai/platform-services/internal/version"
 
 	"github.com/karlmutch/envflag"
 

@@ -13,26 +13,29 @@ go get github.com/karlmutch/duat
 go install github.com/karlmutch/duat/cmd/semver
 version=`$GOPATH/bin/semver`
 
-cd cmd/experimentsrv
-docker build -t experimentsrv:$version .
-cd ../../cmd/downstream
-docker build -t downstream:$version .
-cd ../..
+for dir in cmd/*/ ; do
+    base="${dir%%\/}"
+    base="${base##*/}"
+    if [ "$base" == "cli-downstream" ] ; then
+        continue
+    fi
+    cd $dir
+    docker build -t $base:$version .
+    cd -
+done
 
 `aws ecr get-login --no-include-email --region us-west-2`
 if [ $? -eq 0 ]; then
-    account=`aws sts get-caller-identity --output text --query Account`
+    account=`aws sts get-caller-identity --output text --query Account 2> /dev/null || true`
     if [ $? -eq 0 ]; then
-        docker tag experimentsrv:$version $account.dkr.ecr.us-west-2.amazonaws.com/experimentsrv:$version
-        docker push $account.dkr.ecr.us-west-2.amazonaws.com/experimentsrv:$version
-        docker tag downstream:$version $account.dkr.ecr.us-west-2.amazonaws.com/downstream:$version
-        docker push $account.dkr.ecr.us-west-2.amazonaws.com/downstream:$version
+        for dir in cmd/*/ ; do
+            base="${dir%%\/}"
+            base="${base##*/}"
+            if [ "$base" == "cli-downstream" ] ; then
+                continue
+            fi
+            docker tag $base:$version $account.dkr.ecr.us-west-2.amazonaws.com/platform-services/$base:$version
+            docker push $account.dkr.ecr.us-west-2.amazonaws.com/platform-services/$base:$version
+        done
     fi
 fi
-cd ./cmd/echosrv
-docker build -t echosrv .
-cd ../timesrv
-docker build -t timesrv .
-cd ../restpoc
-docker build -t restpoc .
-cd ../..

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package ai.sentient.experiment;
+package dev.cognizant_ai.experiment;
 
 import "google/protobuf/timestamp.proto";
 

@@ -15,7 +15,7 @@
 
 
 bin/
-gen/
+internal/gen/
 
-vendor/github.com/SentientTechnologies/platform-services/gen
+vendor/github.com/leaf-ai/platform-services/internal/gen
 .autoenv.zsh

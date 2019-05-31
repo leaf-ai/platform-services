@@ -13,8 +13,8 @@ import (
 
 	"github.com/golang/protobuf/proto"
 
-	model "github.com/SentientTechnologies/platform-services/experiment"
-	grpc "github.com/SentientTechnologies/platform-services/gen/experimentsrv"
+	model "github.com/leaf-ai/platform-services/internal/experiment"
+	grpc "github.com/leaf-ai/platform-services/internal/gen/experimentsrv"
 
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"

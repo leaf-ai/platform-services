@@ -21,7 +21,7 @@ spec:
   rules:
   - http:
       paths:
-      - path: /ai.sentient.downstream.Service/.*
+      - path: /dev.cognizant-ai.downstream.Service/.*
         backend:
           serviceName: downstream
           servicePort: grpc-downstream
@@ -57,15 +57,19 @@ spec:
     spec:
       containers:
       - name: experiments
-        image: {{.duat.awsecr}}/{{.duat.module}}:{{.duat.version}}
+        {{if .duat.awsecr}}
+        image: {{.duat.awsecr}}/platform-services/{{.duat.module}}:{{.duat.version}}
+        {{else}}
+        {{ RaiseError "AWS ECR Details are missing" }}
+        {{end}}
         imagePullPolicy: Always
         resources:
           requests:
             memory: "2048Mi"
-            cpu: "1"
+            cpu: "100m"
           limits:
             memory: "2048Mi"
-            cpu: "1"
+            cpu: "100m"
         ports:
         - containerPort: 30001
           name: grpc-exp
@@ -102,25 +106,38 @@ spec:
               name: postgres
               key: password
 ---
-apiVersion: config.istio.io/v1alpha2
-kind: EgressRule
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
 metadata:
   name: auth0-egress
 spec:
-  destination:
-    service: 54.149.162.63/27
+  hosts:
+    - "*.ignored.org"
+  addresses:
+    - 54.149.162.63/27
   ports:
-    - port: 443
+    - name: auth-0
+      number: 443
       protocol: tcp
 ---
-apiVersion: config.istio.io/v1alpha2
-kind: EgressRule
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
 metadata:
-  name: rds-egress
+  name: psql-egress
 spec:
-  destination:
-    service: 52.42.136.165/27
+  hosts:
+    - "{{ expandenv "$PGHOST" }}"
   ports:
-    - port: 5432
+    - name: psql
+      number: 5432
       protocol: tcp
-
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+ name: psql-egress
+spec:
+ host: "{{ expandenv "$PGHOST" }}"
+ trafficPolicy:
+   tls:
+     mode: DISABLE
