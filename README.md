@@ -1,7 +1,7 @@
 # platform-services
 A PoC with functioning service using simple Istio Mesh running on K8s
 
-Version : <repo-version>0.5.0-feature-11-kops-1-11-1-leaf-branding-aaaagjprmnq</repo-version>
+Version : <repo-version>0.5.0</repo-version>
 
 # Installation
 
