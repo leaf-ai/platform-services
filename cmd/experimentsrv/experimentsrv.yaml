@@ -11,56 +11,74 @@
 # The empty prefix is used to allow the default route to the experiment service
 # so that reflection, and health checking is defaulted to it.
 #
-apiVersion: extensions/v1beta1
-kind: Ingress
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
 metadata:
-  name: ingress-exp
-  annotations:
-    kubernetes.io/ingress.class: istio
+  name: ingress-gateway
 spec:
-  rules:
-  - http:
-      paths:
-      - path: /dev.cognizant-ai.downstream.Service/.*
-        backend:
-          serviceName: downstream
-          servicePort: grpc-downstream
-      - path: /.*
-        backend:
-          serviceName: experiments
-          servicePort: grpc-exp
+  selector:
+    istio: ingressgateway # use istio default controller
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP2
+    hosts:
+    - "*"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: grpc-experiment-service
+spec:
+  gateways:
+  - ingress-gateway
+  hosts:
+  - "*"
+  http:
+  - match:
+    - uri:
+        prefix: "/dev.cognizant_ai.experiment.Service/"
+    - uri:
+       prefix: "/grpc.reflection.v1alpha.ServerReflection/"
+    route:
+    - destination:
+        host: experiment.default.svc.cluster.local
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: experiments
+  name: experiment
   labels:
-    app: experiments
+    app: experiment
 spec:
   ports:
   - port: 30001
     name: grpc-exp
+    targetPort: 30001
   selector:
-    app: experiments
+    app: experiment
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: experiments-v1
+  name: experiment-v1
+  labels:
+    version: v1
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        app: experiments
+        app: experiment
         version: v1
     spec:
       containers:
-      - name: experiments
+      - name: experiment
         {{if .duat.awsecr}}
         image: {{.duat.awsecr}}/platform-services/{{.duat.module}}:{{.duat.version}}
         {{else}}
-        {{ RaiseError "AWS ECR Details are missing" }}
+        image: localhost:32000/platform-services/{{.duat.module}}:{{.duat.version}}
         {{end}}
         imagePullPolicy: Always
         resources:

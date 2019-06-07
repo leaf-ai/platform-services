@@ -1,7 +1,7 @@
 # platform-services
 A PoC with functioning service using simple Istio Mesh running on K8s
 
-Version : <repo-version>0.5.0</repo-version>
+Version : <repo-version>0.5.1-feature-12-microk8s-attempt-aaaagjscroj</repo-version>
 
 # Installation
 
@@ -52,7 +52,9 @@ A combined build script is provided 'platform-services/build.sh' to allow all st
 
 # Deploying the Istio Service platform on AWS with Kubernetes
 
-The k8s instructions in this section are for unmanaged solutions.  They are included as a baseline for AWS prior to the wide availability of EKS.  Once EKS is in wide distribution and managed offerings for k8s is available from the big three cloud vendors and k8s receeds into the cloud platform then these instructions will become redundant and the cloud vendors tooling will take over this function.
+The k8s instructions in this section are for unmanaged solutions.  They are included as a baseline for AWS prior to the wide availability of EKS.  Once EKS is in wide distribution and managed offerings for k8s is available from the big three cloud vendors and k8s receeds into the cloud platform then the kops instructions could well become redundant and the cloud vendors tooling will take over this function.
+
+This major section describes two basic alternatives for deployment, AWS kops, and locally hosted microk8s.  Other Kubernetes distribution and deployment models will work but are not explicitly described here.
 
 ## Kubernetes (unmanaged)
 
@@ -69,6 +71,7 @@ Docker is preinstalled.  You can verify the version by running the following:
 Docker version 17.12.0-ce, build c97c6d6
 </code></pre>
 You should have a similar or newer version.
+
 ## Install Kubectl CLI
 
 Install the kubectl CLI can be done using kubectl 1.11.x version.
@@ -87,9 +90,25 @@ You can verify that kubectl is installed by executing the following command:
 Client Version: version.Info{Major:"1", Minor:"9", GitVersion:"v1.9.2", GitCommit:"5fa2db2bd46ac79e5e00a4e6ed24191080aa463b", GitTreeState:"clean", BuildDate:"2018-01-18T10:09:24Z", GoVersion:"go1.9.2", Compiler:"gc", Platform:"linux/amd64"}
 </code></pre>
 
-### Install kops
+## Installing microk8s
 
-At the time this guide was updated kops 1.11.1 was released, if you are reading this guide in April of 2018 or later look for the release version of kops 1.9 or later.  kops for the AWS use case at the alpha is a very restricted use case for our purposes and works in a stable fashion.  If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
+The microk8s solution implements a single host deployment of Kubernetes, https://microk8s.io/. Use snap on Ubuntu to install this component to allow for management of the optional features of microk8s.  When using microk8s the Istio distribution is included in the Kubernetes install as an addon.
+
+The following example details how to configure microk8s once it has been installed:
+
+```
+# Allow the containers within the cluster to communicate with the public internet.  Needed for postgres pkg to be fetched and installed
+sudo ufw default allow routed
+sudo iptables -P FORWARD ACCEPT
+sudo /snap/bin/microk8s.start
+sudo /snap/bin/microk8s.enable dashboard dns ingress storage registry istio gpu
+```
+
+## Installing AWS Kubernetes
+
+### Using kops
+
+At the time this guide was updated kops 1.10 was released, if you are reading this guide in August of 2018 or later look for the release version of kops 1.9 or later.  kops for the AWS use case at the alpha is a very restricted use case for our purposes and works in a stable fashion.  If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
 
 <pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/1.11.1/kops-linux-amd64
 chmod +x kops-linux-amd64
@@ -157,7 +176,7 @@ Suggestions:
 
 The initial cluster spinup will take sometime, use kops commands such as 'kops validate cluster' to determine when the cluster is spun up ready for Istio and the platform services.
 
-## Istio
+### Istio
 
 Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, 
 https://archive.istio.io/v1.0/docs/setup/kubernetes/quick-start/#prerequisites.
@@ -175,7 +194,7 @@ kubectl apply -f $ISTIO_DIR/install/kubernetes/istio-demo-auth.yaml
 
 In any custom resources are not applied or updated repeat the apply after waiting for a few seconds for the CRDs to get loaded.
 
-## Deploying a straw-man service into the Istio control plane
+## Deploying into the Istio mesh
 
 ### Postgres DB
 
@@ -292,12 +311,12 @@ ip-172-20-55-189.us-west-2.compute.internal    Ready     master    18m       v1.
 Once secrets are loaded individual services can be deployed from a checked out developer copy of the service repo using a command like the following :
 
 <pre><code><b>cd ~/project/src/github.com/leaf-ai/platform-services</b>
-<b>kubectl apply -f \<(istioctl kube-inject -f [cmd/[service]/application-deployment-yaml] --includeIPRanges="172.20.0.0/16" ) </b>
+<b>cd cmd/[service] ; kubectl apply -f \<(istioctl kube-inject -f \<( stencil [service].yaml 2>/dev/null)" ); cd - </b>
 </code></pre>
 
-Once the application is deployed you can discover the ingress points within the kubernetes cluster by using the following:
-<pre><code><b>export CLUSTER_INGRESS=`kubectl get ingress -o wide | tail -1 | awk '{print $3":"$4}'`
-</b></code></pre>
+In order to locate the image repository the stencil tool will test for the presence of AWS credentials and if found will use the account as the source of AWS ECR images.  In the case where the credentials are not present then the default microk8s registry will be used for image deployment.
+
+Once the application is deployed you can discover the gateway points within the kubernetes cluster by using the kubectl commands as documented in the cmd/experimentsrv/README.md file.
 
 More information about deploying a real service and using the experimentsrv server can be found at, https://github.com/leaf-ai/platform-services/blob/master/cmd/experimentsrv/README.md.
 
@@ -383,7 +402,7 @@ c.f. https://auth0.com/docs/quickstart/backend/golang/02-using#obtaining-an-acce
 
 If you are using the test API and you are either running a kubectl port-forward or have a local instance of the postgres DB, you can do something like:
 
-<pre><code><b> kubectl port-forward --namespace default svc/$PGRELEASE-postgresql 5432:5432 &
+<pre><code><b>kubectl port-forward --namespace default svc/$PGRELEASE-postgresql 5432:5432 &
 cd cmd/downstream
 go run . --ip-port=":30008" &
 cd ../..
@@ -398,14 +417,19 @@ go test -v --dbaddr=localhost:5432 -ip-port="[::]:30007" -dbname=platform -downs
 
 # Manually invoking and using services
 
+A pre-requiste of manually invoking GRPC servcies is that the grpc_cli tooling is installed.  The instructions for doing this can be found within the grpc source code repository at, https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md.
+
 Services used within the platform require that not only is the link integrity and security is maintained using mTLS but that an authorization block is also supplied to verify the user requesting a service.  The authorization can be supplied when using the gRPC command line tool using the metadata options.  First we retrieve a token using curl and then make a request against the service as follows:
 
 <pre><code><b>grpc_cli call localhost:30001 dev.cognizant-ai.experiment.Service.Get "id: 'test'" --metadata authorization:"Bearer $AUTH0_TOKEN"
 </b></code></pre>
 
-The services used within the platform all support reflection when using gRPC.  To examine calls available for a server you should first identify the endpoint through which the ingress is being routed, for example:
+The services used within the platform all support reflection when using gRPC.  To examine calls available for a server you should first identify the endpoint through which the gateway is being routed, for example:
 
-<pre><code><b>export CLUSTER_INGRESS=`kubectl get ingress -o wide | tail -1 | awk '{print $3":"$4}'`</b>
+<pre><code><b>export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
+export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
+export INGRESS_HOST=$(kubectl get po -l istio=ingressgateway -n istio-system -o jsonpath='{.items[0].status.hostIP}')
+export CLUSTER_INGRESS=$INGRESS_HOST:$INGRESS_PORT
 <b>grpc_cli ls $CLUSTER_INGRESS -l</b>
 filename: grpc_health_v1/health.proto
 package: grpc.health.v1;
@@ -420,29 +444,29 @@ service ServerReflection {
 }
 
 filename: experimentsrv.proto
-package: dev.cognizant-ai.experiment;
+package: dev.cognizant_ai.experiment;
 service Service {
-  rpc Create(dev.cognizant-ai.experiment.CreateRequest) returns (dev.cognizant-ai.experiment.CreateResponse) {}
-  rpc Get(dev.cognizant-ai.experiment.GetRequest) returns (dev.cognizant-ai.experiment.GetResponse) {}
+  rpc Create(dev.cognizant_ai.experiment.CreateRequest) returns (dev.cognizant_ai.experiment.CreateResponse) {}
+  rpc Get(dev.cognizant_ai.experiment.GetRequest) returns (dev.cognizant_ai.experiment.GetResponse) {}
 }
 </code></pre>
 
 To drill further into interfaces and examine the types being used within calls you can perform commands such as:
 
-<pre><code><b>grpc_cli type $CLUSTER_INGRESS dev.cognizant-ai.experiment.CreateRequest -l</b>
+<pre><code><b>grpc_cli type $CLUSTER_INGRESS dev.cognizant_ai.experiment.CreateRequest -l</b>
 message CreateRequest {
-.dev.cognizant-ai.experiment.Experiment experiment = 1[json_name = "experiment"];
+.dev.cognizant_ai.experiment.Experiment experiment = 1[json_name = "experiment"];
 }
-<b>grpc_cli type $CLUSTER_INGRESS dev.cognizant-ai.experiment.Experiment -l</b>
+<b>grpc_cli type $CLUSTER_INGRESS dev.cognizant_ai.experiment.Experiment -l</b>
 message Experiment {
 string uid = 1[json_name = "uid"];
 string name = 2[json_name = "name"];
 string description = 3[json_name = "description"];
 .google.protobuf.Timestamp created = 4[json_name = "created"];
-map&lt;uint32, .dev.cognizant-ai.experiment.InputLayer&gt; inputLayers = 5[json_name = "inputLayers"];
-map&lt;uint32, .dev.cognizant-ai.experiment.OutputLayer&gt; outputLayers = 6[json_name = "outputLayers"];
+map&lt;uint32, .dev.cognizant_ai.experiment.InputLayer&gt; inputLayers = 5[json_name = "inputLayers"];
+map&lt;uint32, .dev.cognizant_ai.experiment.OutputLayer&gt; outputLayers = 6[json_name = "outputLayers"];
 }
-<b>grpc_cli type $CLUSTER_INGRESS dev.cognizant-ai.experiment.InputLayer -l</b>
+<b>grpc_cli type $CLUSTER_INGRESS dev.cognizant_ai.experiment.InputLayer -l</b>
 message InputLayer {
 enum Type {
 	Unknown = 0;
@@ -451,7 +475,7 @@ enum Type {
 	Raw = 3;
 }
 string name = 1[json_name = "name"];
-.dev.cognizant-ai.experiment.InputLayer.Type type = 2[json_name = "type"];
+.dev.cognizant_ai.experiment.InputLayer.Type type = 2[json_name = "type"];
 repeated string values = 3[json_name = "values"];
 }
 </code></pre>

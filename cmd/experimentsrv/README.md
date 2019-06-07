@@ -56,8 +56,7 @@ Secrets for these services are currently held within the Kubernetes secrets stor
 <b>stencil &lt; ./cmd/experimentsrv/secret.yaml | kubectl create -f - </b>
 </code></pre>
 
-Having deployed and defined the secrets and the postgres specific environment variables the postgres client can now used to populate the database schema, these instrctions can be found within the service specific README.md files.
-When the PGHOST value has been update to point at the host name that the service within the deployment cluster can access you are ready to add the secrets to the cluster:
+Having deployed and defined the secrets and the postgres specific environment variables the postgres client can now used to populate the database schema, these instrctions can be found within the service specific README.md files.  When the PGHOST value has been updated to point at the host name that the service within the deployment cluster can access you are ready to add the secrets to the cluster:
 
 The in-cluster value for the host would appear as follows:
 
@@ -128,7 +127,7 @@ To deploy the experiment service three commands will be used stencil (a SDLC awa
 When version controlled containers are being used with ECS or another docker registry the semver, and stencil tools can be used to extract a git cloned repository that has the version string embeeded inside the README.md or another file of your choice, and then use this with your application deployment yaml specification, as follows:
 
 <pre><code><b>cd ~/project/src/github.com/leaf-ai/platform-services/cmd/experimentsrv</b>
-<b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16"  -f <(stencil < experimentsrv.yaml))
+<b>kubectl apply -f <(istioctl kube-inject -f <(stencil < experimentsrv.yaml 2>/dev/null))
 </b></code></pre>
 
 This technique can be used to upgrade software versions etc and performing rolling upgrades.
@@ -147,35 +146,59 @@ export AUTH0_TOKEN=$(curl -s --request POST --url https://cognizant-ai.auth0.com
 
 # Using the service
 
-In order to use the service the ingress should be determined using the following command.  Production systems will be configured using AWS Route 53 or similar.
+In order to use the service the gateway should be determined.  The Istio instruction for determining the host and port under various circumstances can be found at https://istio.io/docs/tasks/traffic-management/ingress/#determining-the-ingress-ip-and-ports, and in the following subsections.
 
-<pre><code><b>export CLUSTER_INGRESS=`kubectl get ingress -o wide | tail -1 | awk '{print $3":"$4}'`
+If you are using a microk8s based solution the following commands will work:
+
+<pre><code><b>export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
+export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
+export INGRESS_HOST=$(kubectl get po -l istio=ingressgateway -n istio-system -o jsonpath='{.items[0].status.hostIP}')
+export CLUSTER_INGRESS=$INGRESS_HOST:$INGRESS_PORT
 </b></code></pre>
 
-## grpc_cli
+For AWS kops the commands are slightly different:
 
-The grpc_cli tool can be used to interact with the server for creating and getting experiments.  Other tools do exist as curl like environments for interacting with gRPC servers including the nodejs based tool found at, https://github.com/njpatel/grpcc.  For our purposes we use the less powerful but more common grpc\_cli tool that comes with the gRPC project.  Documentation for the grpc\_cli tool can be found at, https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md.
+<pre><code><b>export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].port}')
+export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].port}')
+export INGRESS_HOST=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+export CLUSTER_INGRESS=$INGRESS_HOST:$INGRESS_PORT
+</b></code></pre>
+
+## grpc\_cli
+
+The grpc\_cli tool can be used to interact with the server for creating and getting experiments.  Other tools do exist as curl like environments for interacting with gRPC servers including the nodejs based tool found at, https://github.com/njpatel/grpcc.  For our purposes we use the less powerful but more common grpc\_cli tool that comes with the gRPC project.  Documentation for the grpc\_cli tool can be found at, https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md.
 
 Should you be considering writing or using a service with gRPC then the following fully worked example might be informative, https://www.goheroe.org/2017/08/19/grpc-service-discovery-with-server-reflection-and-grpc-cli-in-go.
 
 Two pieces of information are needed in order to make use of the service:
 
-First, you will need the ingress endpoint for your cluster.  The following command sets an environment variable that you will be using as the CLUSTER_INGRESS environment variable across all of the examples within this guide.
+First, you will need the gateway endpoint for your cluster.  The following command sets an environment variable that you will be using as the CLUSTER_INGRESS environment variable across all of the examples within this guide.
 
-<pre><code><b>grpc_cli call $CLUSTER_INGRESS dev.cognizant-ai.experiment.Service.Create "experiment: {uid: 't', name: 'name', description: 'description'}"  --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
+<pre><code><b>grpc_cli call $CLUSTER_INGRESS dev.cognizant_ai.experiment.Service.Create "experiment: {uid: 't', name: 'name', description: 'description'}"  --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
 </pre></code>
 
 # Manually exercising the server from within the mesh
 
+<pre><code><b>grpc_cli ls $CLUSTER_INGRESS dev.cognizant_ai.experiment.Service -l</b>
+
+filename: experimentsrv.proto
+package: dev.cognizant_ai.experiment;
+service Service {
+  rpc Create(dev.cognizant_ai.experiment.CreateRequest) returns (dev.cognizant_ai.experiment.CreateResponse) {}
+  rpc Get(dev.cognizant_ai.experiment.GetRequest) returns (dev.cognizant_ai.experiment.GetResponse) {}
+  rpc MeshCheck(dev.cognizant_ai.experiment.CheckRequest) returns (dev.cognizant_ai.experiment.CheckResponse) {}
+}
+</code></pre>
+
 <pre><code><b>export AUTH0_DOMAIN=cognizant-ai.auth0.com
 export AUTH0_TOKEN=$(curl -s --request POST --url 'https://cognizant-ai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client_id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.cognizant-ai.dev/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
-/tmp/grpc_cli call localhost:30001 dev.cognizant-ai.experiment.Service.Get "uid: ''" --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
+/tmp/grpc_cli call $CLUSTER_INGRESS dev.cognizant_ai.experiment.Service.Get "uid: ''" --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
 connecting to localhost:30001
 Sending client initial metadata:
 authorization : ...
 Rpc failed with status code 2, error message: selecting an experiment requires either the DB id or the experiment unique id to be specified stack="[db.go:533 server.go:42 experimentsrv.pb.go:375 auth.go:88 experimentsrv.pb.go:377 server.go:900 server.go:1122 server.go:617]"
 
-<b>/tmp/grpc_cli call $CLUSTER_INGRESS:30001 dev.cognizant-ai.experiment.Service.Get "uid: 't'" --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
+<b>/tmp/grpc_cli call $CLUSTER_INGRESS dev.cognizant_ai.experiment.Service.Get "uid: 't'" --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
 connecting to localhost:30001
 Sending client initial metadata:
 authorization : ...
@@ -192,7 +215,7 @@ sudo apt-get install -y libgflags2v5 ca-certificates jq
 export AUTH0_TOKEN=$(curl -s --request POST --url 'https://cognizant-ai.auth0.com/oauth/token' --header 'content-type: application/json' --data '{ "client
 _id":"71eLNu9Bw1rgfYz9PA2gZ4Ji7ujm3Uwj", "client_secret": "AifXD19Y1EKhAKoSqI5r9NWCdJJfyN0x-OywIumSd9hqq_QJr-XlbC7b65rwMjms", "audience": "http://api.cognizant-ai.dev/experimentsrv", "grant_type": "http://auth0.com/oauth/grant-type/password-realm", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:
 experiments", "realm": "Username-Password-Authentication" }' | jq -r '"\(.access_token)"')
-/tmp/grpc_cli call 100.96.1.14:30001 dev.cognizant-ai.experiment.Service.Get "uid: 't'"  --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
+/tmp/grpc_cli call 100.96.1.14:30001 dev.cognizant_ai.experiment.Service.Get "uid: 't'"  --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
 </code></pre>
 
 When Istio is used without a Load balancer the IP of the host on which the pod is running can be determined by using the following command:
@@ -202,7 +225,7 @@ When Istio is used without a Load balancer the IP of the host on which the pod i
 
 ## evans expressive grpc client (under development, only for engineering use)
 
-It is recommended that the grpc_cli tool is used by end users as it is more complete at this time, instructions can be found in the cmd/experimentsrv/README.md file.
+It is recommended that the grpc\_cli tool is used by end users as it is more complete at this time, instructions can be found in the cmd/experimentsrv/README.md file.
 
 evans is an end user tool for interacting with grpc servers using a REPL for command line interface.  It is intended to be used for casual testing and inspection by engineering staff who have access to a proto file for a service, and uses the protoc tool.
 
@@ -237,7 +260,7 @@ Options:
   --version              display version and exit
 </b></code></pre>
 
-In order to contact a remote service deployed on AWS using the Kubernetes based service mesh you should be familar with the instructions within the grpc_cli description that detail the use of metadata to pass authorization tokens to the service.  The authorization header can be specified using the --header option as follows:
+In order to contact a remote service deployed on AWS using the Kubernetes based service mesh you should be familar with the instructions within the grpc\_cli description that detail the use of metadata to pass authorization tokens to the service.  The authorization header can be specified using the --header option as follows:
 
 <pre><code><b>
 export AUTH0_DOMAIN=cognizant-ai.auth0.com
