@@ -130,13 +130,16 @@ metadata:
   name: auth0-egress
 spec:
   hosts:
-    - "*.ignored.org"
-  addresses:
-    - 54.149.162.63/27
+  - "cognizant-ai.auth0.com"
   ports:
-    - name: auth-0
-      number: 443
-      protocol: tcp
+  - number: 443
+    name: https
+    protocol: HTTPS
+  - number: 80
+    name: http
+    protocol: HTTP
+  resolution: DNS
+  location: MESH_EXTERNAL
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: ServiceEntry

@@ -1,7 +1,7 @@
 # platform-services
 A PoC with functioning service using simple Istio Mesh running on K8s
 
-Version : <repo-version>0.5.1-feature-12-microk8s-attempt-aaaagjscroj</repo-version>
+Version : <repo-version>0.5.1-feature-12-microk8s-attempt-aaaagjtmfjn</repo-version>
 
 # Installation
 
@@ -102,6 +102,9 @@ sudo ufw default allow routed
 sudo iptables -P FORWARD ACCEPT
 sudo /snap/bin/microk8s.start
 sudo /snap/bin/microk8s.enable dashboard dns ingress storage registry istio gpu
+
+microk8s.config >> $HOME/.kube/config
+microk8s.kubectl --kubeconfig=$HOME/.kube/config get no
 ```
 
 ## Installing AWS Kubernetes

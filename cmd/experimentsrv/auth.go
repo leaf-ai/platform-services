@@ -135,7 +135,7 @@ func validateToken(token string, claimCheck string) (err errors.Error) {
 
 	validResp, errGo := validator.ValidateRequest(headerTokenRequest)
 	if errGo != nil {
-		return errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
+		return errors.Wrap(errGo).With("token", "..."+token[len(token)-6:], "stack", stack.Trace().TrimRuntime())
 	}
 
 	if len(claimCheck) == 0 {
