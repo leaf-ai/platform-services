@@ -30,8 +30,10 @@ import (
 )
 
 var (
-	auth0Domain = flag.String("auth0-domain", "cognizant-ai.auth0.com", "The domain assigned to the server API by Auth0")
-	jwksCache   = &jwksState{
+	auth0Scope    = flag.String("auth0-scope", "all:experiments", "The scope that must be claimed in order to be permitted access to the service")
+	auth0Audience = flag.String("auth0-audience", "http://api.cognizant-ai.dev/experimentsrv", "The audience URL raw token string received from an invocation of {auth0-domain}/oauth/token}")
+	auth0Domain   = flag.String("auth0-domain", "cognizant-ai.auth0.com", "The domain assigned to the server API by Auth0")
+	jwksCache     = &jwksState{
 		ok: false,
 	}
 
@@ -92,7 +94,7 @@ func initJwksUpdate(quitC <-chan struct{}) {
 	}()
 }
 
-func validateToken(token string, claimCheck string) (err errors.Error) {
+func validateToken(token string, audience []string, claimCheck string) (err errors.Error) {
 
 	claims := map[string]interface{}{}
 	cache.Lock()
@@ -117,10 +119,6 @@ func validateToken(token string, claimCheck string) (err errors.Error) {
 
 	logger.Debug("cache miss")
 
-	audience := []string{
-		"http://api.cognizant-ai.dev/experimentsrv",
-	}
-
 	jwksCache.Lock()
 	configuration := auth0.NewConfiguration(jwksCache.client, audience, "https://"+*auth0Domain+"/", jose.RS256)
 	jwksCache.Unlock()
@@ -135,7 +133,7 @@ func validateToken(token string, claimCheck string) (err errors.Error) {
 
 	validResp, errGo := validator.ValidateRequest(headerTokenRequest)
 	if errGo != nil {
-		return errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())
+		return errors.Wrap(errGo).With("token", "..."+token[len(token)-6:], "stack", stack.Trace().TrimRuntime())
 	}
 
 	if len(claimCheck) == 0 {
@@ -178,17 +176,14 @@ func authInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServe
 		return nil, grpc.Errorf(codes.Unauthenticated, "missing context metadata")
 	}
 
-	//if !authenticate(md["username"], md["password"]) {
-	//	return nil, codes.Unauthenticated
-	//}
-
 	if len(meta["authorization"]) != 1 {
 		return nil, grpc.Errorf(codes.Unauthenticated, "invalid security token")
 	}
 	if len(meta["authorization"][0]) == 0 {
 		return nil, grpc.Errorf(codes.Unauthenticated, "empty security token")
 	}
-	if err := validateToken(meta["authorization"][0], ""); err != nil {
+
+	if err := validateToken(meta["authorization"][0], []string{*auth0Audience}, *auth0Scope); err != nil {
 		return nil, grpc.Errorf(codes.Unauthenticated, err.Error())
 	}
 

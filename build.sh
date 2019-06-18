@@ -24,8 +24,11 @@ for dir in cmd/*/ ; do
     cd -
 done
 
-`aws ecr get-login --no-include-email --region us-west-2`
+set +e
+`aws ecr get-login --no-include-email --region us-west-2 1>/dev/null 2>/dev/null`
 if [ $? -eq 0 ]; then
+    true
+    set -e
     account=`aws sts get-caller-identity --output text --query Account 2> /dev/null || true`
     if [ $? -eq 0 ]; then
         for dir in cmd/*/ ; do
@@ -39,3 +42,14 @@ if [ $? -eq 0 ]; then
         done
     fi
 fi
+
+set -e
+for dir in cmd/*/ ; do
+    base="${dir%%\/}"
+    base="${base##*/}"
+    if [ "$base" == "cli-downstream" ] ; then
+        continue
+    fi
+    docker tag $base:$version localhost:32000/platform-services/$base:$version
+    docker push localhost:32000/platform-services/$base:$version
+done

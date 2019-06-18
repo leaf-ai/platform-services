@@ -1,18 +1,4 @@
 ---
----
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
-metadata:
-  name: grpc-downstream-default
-spec:
-  hosts:
-  - downstream
-  tcp:
-  - route:
-    - destination:
-        host: downstream
-        subset: v1
----
 apiVersion: v1
 kind: Service
 metadata:
@@ -30,6 +16,8 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: downstream-v1
+  labels:
+    version: v1
 spec:
   replicas: 1
   template:
@@ -43,7 +31,7 @@ spec:
         {{if .duat.awsecr}}
         image: {{.duat.awsecr}}/platform-services/{{.duat.module}}:{{.duat.version}}
         {{else}}
-        {{ RaiseError "AWS ECR Details are missing" }}
+        image: localhost:32000/platform-services/{{.duat.module}}:{{.duat.version}}
         {{end}}
         imagePullPolicy: Always
         ports:
@@ -64,3 +52,12 @@ spec:
           memory: "512Mi"
           cpu: "100m"
 ---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: "downstream-client-mtls"
+spec:
+  host: downstream
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL

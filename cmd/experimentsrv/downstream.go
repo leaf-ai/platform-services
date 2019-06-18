@@ -52,7 +52,7 @@ func checkDownstream(addr string) (err errors.Error) {
 
 func initiateDownstream(hostAndPort string, quitC <-chan struct{}) (err errors.Error) {
 	go func() {
-		internalCheck := time.Duration(time.Second)
+		internalCheck := time.Duration(10 * time.Second)
 		for {
 			select {
 			case <-time.After(internalCheck):
