@@ -1,7 +1,7 @@
 # platform-services
 A PoC with functioning service using simple Istio Mesh running on K8s
 
-Version : <repo-version>0.5.1-feature-12-microk8s-attempt-aaaagjtmfjn</repo-version>
+Version : <repo-version>0.6.0</repo-version>
 
 # Installation
 
