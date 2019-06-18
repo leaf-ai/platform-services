@@ -74,9 +74,9 @@ You should have a similar or newer version.
 
 ## Install Kubectl CLI
 
-Install the kubectl CLI can be done using kubectl 1.11.x version.
+Install the kubectl CLI can be done using kubectl 1.12.x version.
 
-<pre><code><b> curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/v1.11.1/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/</b>
+<pre><code><b> curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/v1.12.9/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/</b>
 </code></pre>
 
 Add kubectl autocompletion to your current shell:
@@ -111,9 +111,9 @@ microk8s.kubectl --kubeconfig=$HOME/.kube/config get no
 
 ### Using kops
 
-At the time this guide was updated kops 1.10 was released, if you are reading this guide in August of 2018 or later look for the release version of kops 1.9 or later.  kops for the AWS use case at the alpha is a very restricted use case for our purposes and works in a stable fashion.  If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
+At the time this guide was updated kops 1.12 was released, if you are reading this guide in August of 2019 or later look for the release version of kops 1.12 or later.  kops for the AWS use case at the alpha is a very restricted use case for our purposes and works in a stable fashion.  If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
 
-<pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/1.11.1/kops-linux-amd64
+<pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/1.12.9/kops-linux-amd64
 chmod +x kops-linux-amd64
 sudo mv kops-linux-amd64 /usr/local/bin/kops
 
@@ -179,42 +179,32 @@ Suggestions:
 
 The initial cluster spinup will take sometime, use kops commands such as 'kops validate cluster' to determine when the cluster is spun up ready for Istio and the platform services.
 
-### Istio
+## Helm Kubernetes package manager
 
-Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, 
-https://archive.istio.io/v1.0/docs/setup/kubernetes/quick-start/#prerequisites.
-We recommend using the mTLS installation for the k8s cluster deployment, for example
+Helm is used by several packages that are deployed using Kubernetes.  Helm can be installed using instructions found at, https://helm.sh/docs/using\_helm/#installing-helm.  
+For snap based linux distributions the following can be used as a quick-start.
 
-<pre><code><b>cd ~
-curl -LO https://github.com/istio/istio/releases/download/1.0.5/istio-1.0.5-linux.tar.gz
-tar xzf istio-1.0.5-linux.tar.gz
-export ISTIO_DIR=`pwd`/istio-1.0.5
-export PATH=$ISTIO_DIR/bin:$PATH
-cd -
-kubectl apply -f $ISTIO_DIR/install/kubernetes/helm/istio/templates/crds.yaml
-kubectl apply -f $ISTIO_DIR/install/kubernetes/istio-demo-auth.yaml
+<pre><code><b>sudo snap install helm --classic
+kubectl create serviceaccount --namespace kube-system tiller
+kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
+helm init --history-max 200 --service-account tiller --upgrade
+helm repo update
 </b></code></pre>
 
-In any custom resources are not applied or updated repeat the apply after waiting for a few seconds for the CRDs to get loaded.
-
-
-### Istio 1.1+
+## Istio 1.1.x
 
 Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, 
 https://archive.istio.io/v1.1/docs/setup/kubernetes/quick-start/#prerequisites. Helm will also be needed for installation of these more recent versions of Istio, please see the instructions for postgres.  We recommend using the mTLS installation for the k8s cluster deployment, for example
 
 <pre><code><b>cd ~
-curl -LO https://github.com/istio/istio/releases/download/1.1.8/istio-1.1.8-linux.tar.gz
-tar xzf istio-1.1.8-linux.tar.gz
-export ISTIO_DIR=`pwd`/istio-1.1.8
+curl -LO https://github.com/istio/istio/releases/download/1.1.9/istio-1.1.9-linux.tar.gz
+tar xzf istio-1.1.9-linux.tar.gz
+export ISTIO_DIR=`pwd`/istio-1.1.9
 export PATH=$ISTIO_DIR/bin:$PATH
 cd -
 helm install $ISTIO_DIR/install/kubernetes/helm/istio-init --name istio-init --namespace istio-system -f helm_custom.yaml
 helm install $ISTIO_DIR/install/kubernetes/helm/istio --name istio --namespace istio-system -f helm_custom.yaml
-
 </b></code></pre>
-
-
 
 ## Deploying into the Istio mesh
 
@@ -236,17 +226,7 @@ sudo apt-get upgrade postgresql-client-11
 
 This section gives guidence on how to install an in-cluster database for use-cases where data persistence beyond a single deployment is not a concern.  These instructions are therefore limited to testing only scenarios.  For information concerning Kubernetes storage strategies you should consult other sources and read about stateful sets in Kubernetes.  In production using a single source of truth then cloud provider offerings such as AWS Aurora are recommended.
 
-In order to deploy Postgres this document describes a helm based approach.  
-Helm can be installed using instructions found at, https://helm.sh/docs/using\_helm/#installing-helm.  For snap based linux distributions the following can be used as a quick-start.
-
-<pre><code><b>sudo snap install helm --classic
-kubectl create serviceaccount --namespace kube-system tiller
-kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
-helm init --history-max 200 --service-account tiller --upgrade
-helm repo update
-</b></code></pre>
-
-Now moving to postgres the bitnami distribution can be installed using the following:
+In order to deploy Postgres this document describes a helm based approach.  The bitnami postgresql distribution can be installed using the following:
 
 <pre><code><b>export PGRELEASE=`petname`
 export PGHOST=$PGRELEASE-postgresql.default.svc.cluster.local
