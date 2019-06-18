@@ -1,20 +1,3 @@
-#---
-#apiVersion: networking.istio.io/v1alpha3
-#kind: VirtualService
-#metadata:
-#  name: grpc-downstream-service
-#spec:
-#  hosts:
-#  - downstream.default.svc.cluster.local
-#  gateways:
-#  - ingress-gateway
-#  http:
-#  - match:
-#    - uri:
-#        prefix: "/dev.cognizant_ai.downstream.Service/"
-#    route:
-#    - destination:
-#        host: downstream.default.svc.cluster.local
 ---
 apiVersion: v1
 kind: Service
@@ -69,3 +52,12 @@ spec:
           memory: "512Mi"
           cpu: "100m"
 ---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: "downstream-client-mtls"
+spec:
+  host: downstream
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL

@@ -197,6 +197,25 @@ kubectl apply -f $ISTIO_DIR/install/kubernetes/istio-demo-auth.yaml
 
 In any custom resources are not applied or updated repeat the apply after waiting for a few seconds for the CRDs to get loaded.
 
+
+### Istio 1.1+
+
+Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, 
+https://archive.istio.io/v1.1/docs/setup/kubernetes/quick-start/#prerequisites. Helm will also be needed for installation of these more recent versions of Istio, please see the instructions for postgres.  We recommend using the mTLS installation for the k8s cluster deployment, for example
+
+<pre><code><b>cd ~
+curl -LO https://github.com/istio/istio/releases/download/1.1.8/istio-1.1.8-linux.tar.gz
+tar xzf istio-1.1.8-linux.tar.gz
+export ISTIO_DIR=`pwd`/istio-1.1.8
+export PATH=$ISTIO_DIR/bin:$PATH
+cd -
+helm install $ISTIO_DIR/install/kubernetes/helm/istio-init --name istio-init --namespace istio-system -f helm_custom.yaml
+helm install $ISTIO_DIR/install/kubernetes/helm/istio --name istio --namespace istio-system -f helm_custom.yaml
+
+</b></code></pre>
+
+
+
 ## Deploying into the Istio mesh
 
 ### Postgres DB
@@ -217,7 +236,8 @@ sudo apt-get upgrade postgresql-client-11
 
 This section gives guidence on how to install an in-cluster database for use-cases where data persistence beyond a single deployment is not a concern.  These instructions are therefore limited to testing only scenarios.  For information concerning Kubernetes storage strategies you should consult other sources and read about stateful sets in Kubernetes.  In production using a single source of truth then cloud provider offerings such as AWS Aurora are recommended.
 
-In order to deploy Postgres this document describes a helm based approach.  Helm can be installed using instructions found at, https://helm.sh/docs/using\_helm/#installing-helm.  For snap based linux distributions the following can be used as a quick-start.
+In order to deploy Postgres this document describes a helm based approach.  
+Helm can be installed using instructions found at, https://helm.sh/docs/using\_helm/#installing-helm.  For snap based linux distributions the following can be used as a quick-start.
 
 <pre><code><b>sudo snap install helm --classic
 kubectl create serviceaccount --namespace kube-system tiller
@@ -373,7 +393,7 @@ You will now have access to the Web UI for your cluster with full privs.
 
 # AAA using Auth0
 
-Platform services are secured using the Auth0 service.  Auth0 is a service that provides support for headless machine to machine authentication.  Auth0 is being used initially to provide Bearer tokens for both headless and CLI clients to platform services proof of concept.
+Platform services are secured using the Auth0.com service.  Auth0 is a service that provides support for headless machine to machine authentication.  Auth0 is being used initially to provide Bearer tokens for both headless and CLI clients to platform services proof of concept.
 
 Auth0 supports the ability to create a hosted database for storing user account and credential information.  You should navigate to the Connections -> Database section and create a database with the name of "Username-Password-Authentication".  This will be used later when creating applications as your source of user information.
 

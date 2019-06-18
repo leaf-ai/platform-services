@@ -11,6 +11,15 @@
 # The empty prefix is used to allow the default route to the experiment service
 # so that reflection, and health checking is defaulted to it.
 #
+apiVersion: rbac.istio.io/v1alpha1
+kind: ClusterRbacConfig
+metadata:
+  name: default
+spec:
+  mode: 'ON_WITH_INCLUSION'
+  inclusion:
+    namespaces: ["default"]
+---
 apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
@@ -25,6 +34,50 @@ spec:
       protocol: HTTP2
     hosts:
     - "*"
+#
+# Authentication is still an alpha feature so retain the service side validation and make
+# mesh authentication optional as it is not yet stable
+#
+---
+apiVersion: authentication.istio.io/v1alpha1
+kind: Policy
+metadata:
+  name: experiment-auth-policy
+spec:
+  targets:
+  - name: ingress-gateway
+  peers:
+  - mtls: {}
+  origins:
+  - jwt:
+      issuer: "https://cognizant-ai.auth0.com/"
+      jwksUri: "https://cognizant-ai.auth0.com/.well-known/jwks.json"
+      audiences:
+        - "http://api.cognizant-ai.dev/experimentsrv"
+  principalBinding: USE_ORIGIN
+---
+apiVersion: rbac.istio.io/v1alpha1
+kind: ServiceRole
+metadata:
+  name: service-user
+spec:
+  rules:
+  - services: ["*"]
+    paths: ["*"]
+    methods: ["*"]
+---
+apiVersion: rbac.istio.io/v1alpha1
+kind: ServiceRoleBinding
+metadata:
+  name: all-authenticated-users
+spec:
+  subjects:
+  - properties:
+      source.principal: "*"
+#      request.auth.claims[scope]: "all:experiments"
+  roleRef:
+    kind: ServiceRole
+    name: service-user
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
@@ -44,6 +97,16 @@ spec:
     route:
     - destination:
         host: experiment.default.svc.cluster.local
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: experiment
+spec:
+  host: experiment
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
 ---
 apiVersion: v1
 kind: Service

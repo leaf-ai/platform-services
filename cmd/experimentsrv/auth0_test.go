@@ -26,13 +26,13 @@ func TestAuth0(t *testing.T) {
 	}
 
 	start := time.Now()
-	err := validateToken("Bearer "+*auth0TestToken, "all:experiments")
+	err := validateToken("Bearer "+*auth0TestToken, []string{*auth0Audience}, "all:experiments")
 	if err != nil {
 		t.Error("expected nil, got ", err.Error())
 	}
 
 	uncached := time.Now().Sub(start)
-	err = validateToken("Bearer "+*auth0TestToken, "all:experiments")
+	err = validateToken("Bearer "+*auth0TestToken, []string{*auth0Audience}, "all:experiments")
 	if err != nil {
 		t.Error("expected nil, got ", err.Error())
 	}
