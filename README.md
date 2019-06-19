@@ -1,7 +1,7 @@
 # platform-services
 A PoC with functioning service using simple Istio Mesh running on K8s
 
-Version : <repo-version>0.6.0</repo-version>
+Version : <repo-version>0.6.1</repo-version>
 
 # Installation
 
@@ -202,6 +202,23 @@ tar xzf istio-1.1.9-linux.tar.gz
 export ISTIO_DIR=`pwd`/istio-1.1.9
 export PATH=$ISTIO_DIR/bin:$PATH
 cd -
+helm install $ISTIO_DIR/install/kubernetes/helm/istio-init --name istio-init --namespace istio-system -f helm_custom.yaml
+helm install $ISTIO_DIR/install/kubernetes/helm/istio --name istio --namespace istio-system -f helm_custom.yaml
+</b></code></pre>
+
+## Istio 1.2.x
+
+Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, 
+https://archive.istio.io/v1.2/docs/setup/kubernetes/quick-start/#prerequisites. Helm will also be needed for installation of these more recent versions of Istio, please see the instructions for postgres.  We recommend using the mTLS installation for the k8s cluster deployment, for example
+
+<pre><code><b>cd ~
+curl -LO https://github.com/istio/istio/releases/download/1.2.0/istio-1.2.0-linux.tar.gz
+tar xzf istio-1.2.0-linux.tar.gz
+export ISTIO_DIR=`pwd`/istio-1.2.0
+export PATH=$ISTIO_DIR/bin:$PATH
+cd -
+kubectl apply -f $ISTIO_DIR/install/kubernetes/helm/helm-service-account.yaml
+
 helm install $ISTIO_DIR/install/kubernetes/helm/istio-init --name istio-init --namespace istio-system -f helm_custom.yaml
 helm install $ISTIO_DIR/install/kubernetes/helm/istio --name istio --namespace istio-system -f helm_custom.yaml
 </b></code></pre>
