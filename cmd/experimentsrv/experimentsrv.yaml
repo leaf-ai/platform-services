@@ -43,9 +43,11 @@ apiVersion: authentication.istio.io/v1alpha1
 kind: Policy
 metadata:
   name: experiment-auth-policy
+  namespace: istio-system
 spec:
   targets:
-  - name: ingress-gateway
+  - name: istio-ingressgateway
+    namespace: istio-system
   peers:
   - mtls: {}
   origins:
@@ -201,6 +203,20 @@ spec:
   - number: 80
     name: http
     protocol: HTTP
+  resolution: DNS
+  location: MESH_EXTERNAL
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: honeycomb-egress
+spec:
+  hosts:
+  - "api.honeycomb.io"
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
   resolution: DNS
   location: MESH_EXTERNAL
 ---

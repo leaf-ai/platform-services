@@ -66,6 +66,30 @@
   revision = "bb3d318650d48840a39aa21a027c6630e198e626"
 
 [[projects]]
+  branch = "master"
+  digest = "1:88b37f144a80737f9e5cd50c887c00c2f3c7211257f884b8b80ce97e61ed1ccb"
+  name = "github.com/facebookgo/clock"
+  packages = ["."]
+  pruneopts = ""
+  revision = "600d898af40aa09a7a93ecb9265d87b0504b6f03"
+
+[[projects]]
+  branch = "master"
+  digest = "1:6930cf0ed08691a27eec5fbdc4e9766867ad5f1694b780b5e2cef8ce601a6604"
+  name = "github.com/facebookgo/limitgroup"
+  packages = ["."]
+  pruneopts = ""
+  revision = "6abd8d71ec01451d7f1929eacaa263bbe2935d05"
+
+[[projects]]
+  branch = "master"
+  digest = "1:4ab698691b394194bdd1bf44f140ddd5f822dfac321d00d925611a2e4ba72224"
+  name = "github.com/facebookgo/muster"
+  packages = ["."]
+  pruneopts = ""
+  revision = "fd3d7953fd52354a74b9f6b3d70d0c9650c4ec2a"
+
+[[projects]]
   digest = "1:e0bab6e40ae5fedfd8b21a011cae3befea347f1370578d4cec36f4258861b5df"
   name = "github.com/go-chi/chi"
   packages = [
@@ -231,6 +255,25 @@
   ]
   pruneopts = ""
   revision = "1e59b77b52bf8e4b449a57e6f79f21226d571845"
+
+[[projects]]
+  digest = "1:9a0b2dd1f882668a3d7fbcd424eed269c383a16f1faa3a03d14e0dd5fba571b1"
+  name = "github.com/grpc-ecosystem/go-grpc-middleware"
+  packages = ["."]
+  pruneopts = ""
+  revision = "c250d6563d4d4c20252cd865923440e829844f4e"
+  version = "v1.0.0"
+
+[[projects]]
+  digest = "1:ca7b5bad33bfc270ddaa11bb678a5448b74704204faee3c86c8678161e12132a"
+  name = "github.com/honeycombio/libhoney-go"
+  packages = [
+    ".",
+    "transmission",
+  ]
+  pruneopts = ""
+  revision = "05d1382bc21ae054131360ef0fd95b70f473009a"
+  version = "v1.10.0"
 
 [[projects]]
   digest = "1:ca5c90960520407749b98c49650f54f5f90a667796e85c5ee1597478f702fb91"
@@ -465,6 +508,14 @@
   version = "v1.8.2"
 
 [[projects]]
+  digest = "1:73ebcbf8b130be886f04e5b928308604a36620e53343b833926a3aa4f2582abd"
+  name = "gopkg.in/alexcesaro/statsd.v2"
+  packages = ["."]
+  pruneopts = ""
+  revision = "7fea3f0d2fab1ad973e641e51dba45443a311a90"
+  version = "v2.0.0"
+
+[[projects]]
   branch = "v2"
   digest = "1:c80894778314c7fb90d94a5ab925214900e1341afeddc953cda7398b8cdcd006"
   name = "gopkg.in/mgo.v2"
@@ -525,6 +576,8 @@
     "github.com/golang/protobuf/protoc-gen-go",
     "github.com/golang/protobuf/ptypes",
     "github.com/golang/protobuf/ptypes/timestamp",
+    "github.com/grpc-ecosystem/go-grpc-middleware",
+    "github.com/honeycombio/libhoney-go",
     "github.com/jessevdk/go-flags",
     "github.com/jmoiron/sqlx",
     "github.com/karlmutch/envflag",
