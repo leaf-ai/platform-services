@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash -xe
 go get -u github.com/golang/dep/cmd/dep
 go install github.com/golang/dep/cmd/dep
 go get github.com/karlmutch/duat
@@ -12,13 +12,15 @@ for dir in cmd/*/ ; do
         continue
     fi
     $dir/build.sh gen
-    if [ $? -ne 0 ]; then
+    exit_code=$?
+    if [ $exit_code -ne 0 ]; then
         echo "$base code generator failed"
-        exit $?
+        exit $exit_code
     fi
     $dir/build.sh
-    if [ $? -ne 0 ]; then
+    exit_code=$?
+    if [ $exit_code -ne 0 ]; then
         echo "$base code compilation failed"
-        exit $?
+        exit $exit_code
     fi
 done

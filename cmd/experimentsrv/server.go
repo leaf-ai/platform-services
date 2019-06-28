@@ -8,20 +8,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
-	"github.com/honeycombio/libhoney-go"
-	"github.com/honeycombio/opencensus-exporter/honeycomb"
-	"go.opencensus.io/trace"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/health/grpc_health_v1"
+	grpc_metadata "google.golang.org/grpc/metadata"
 
-	"github.com/go-stack/stack"
-	"github.com/karlmutch/errors"
+	"google.golang.org/grpc/reflection"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/reflection"
+	"github.com/davecgh/go-spew/spew"
+	"github.com/honeycombio/libhoney-go"
+
+	"github.com/go-stack/stack"
+	"github.com/karlmutch/errors"
 
 	model "github.com/leaf-ai/platform-services/internal/experiment"
 	experiment "github.com/leaf-ai/platform-services/internal/gen/experimentsrv"
@@ -87,11 +86,15 @@ func (es *ExperimentServer) Check(ctx context.Context, in *grpc_health_v1.Health
 	return grpcHealth(ctx, in)
 }
 
+func (es *ExperimentServer) Watch(in *grpc_health_v1.HealthCheckRequest, server grpc_health_v1.Health_WatchServer) (err error) {
+	return errors.New(grpc_health_v1.HealthCheckResponse_UNKNOWN.String())
+}
+
 func CreateEvent(ctx context.Context) (ev *libhoney.Event) {
 
 	ev = libhoney.NewEvent()
 
-	if md, ok := metadata.FromIncomingContext(ctx); ok { // check to see if this request is already part of a trace
+	if md, ok := grpc_metadata.FromIncomingContext(ctx); ok { // check to see if this request is already part of a trace
 		if tmp, ok := md["x-b3-traceid"]; ok {
 			if len(tmp) > 0 {
 				// it's from the gateway
@@ -131,8 +134,10 @@ func GetUnaryInterceptor() grpc.UnaryServerInterceptor {
 		}
 
 		ev.AddField("duration_ms", float64(time.Since(start))/float64(time.Millisecond))
+		logger.Debug(stack.Trace().TrimRuntime().String())
 		logger.Debug(spew.Sdump(ev))
 		logger.Debug(spew.Sdump(ctx))
+		logger.Debug(spew.Sdump(handlerCtx))
 		logger.Debug(spew.Sdump(req))
 
 		if errGo = ev.Send(); errGo != nil {
@@ -148,25 +153,28 @@ type stream struct {
 }
 
 func GetStreamInterceptor() grpc.StreamServerInterceptor {
-	return func(srv interface{}, strm grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	return func(srv interface{}, strm grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) (errGo error) {
 		ctx := strm.Context()
 		ev := CreateEvent(ctx)
 
 		start := time.Now()
 
+		// Debug here
+		logger.Debug(spew.Sdump(ctx))
+		logger.Debug(spew.Sdump(ev))
 		handlerCtx := context.Context(ctx)
 		for k, v := range ev.Fields() {
 			handlerCtx = context.WithValue(handlerCtx, k, v)
 		}
 		s := stream{strm, handlerCtx}
 
-		err := handler(srv, s)
 		ev.AddField("duration_ms", float64(time.Since(start))/float64(time.Millisecond))
-		if err != nil {
-			ev.AddField("grpc.error", err)
+
+		if errGo = handler(srv, s); errGo != nil {
+			ev.AddField("grpc.error", errGo)
 		}
 
-		return err
+		return errGo
 	}
 }
 
@@ -185,32 +193,20 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 	}
 
 	// Start the honeycomb API
-	//libhoney.Init(libhoney.Config{
-	//		WriteKey: *honeycombKey,
-	//		Dataset:  *honeycombData,
-	//	})
-	exporter := honeycomb.NewExporter(*honeycombKey, *honeycombData)
-	defer exporter.Close()
+	libhoney.Init(libhoney.Config{
+		WriteKey: *honeycombKey,
+		Dataset:  *honeycombData,
+	})
 
-	trace.RegisterExporter(exporter)
-
-	// To prevent the server starting before the network listeners report
-	// their states we inject a server module ID and set it to false then
-	// one the logic to begin listening to the network interfaces is done
-	// we set the server module ID is set to true (up) and this allows
-	// the health check to visit the network listeners for their states
-	//
-	modules := &Modules{}
-	serverModule := "serverInitDone"
-	modules.SetModule(serverModule, false)
-	defer modules.SetModule(serverModule, true)
-
+	streams := grpc_middleware.ChainStreamServer(
+		authStreamInterceptor,
+		GetStreamInterceptor())
+	unaries := grpc_middleware.ChainUnaryServer(
+		authUnaryInterceptor,
+		GetUnaryInterceptor())
 	server := grpc.NewServer(
-		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(GetStreamInterceptor())),
-		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
-			authInterceptor,
-			GetUnaryInterceptor()),
-		),
+		grpc.StreamInterceptor(streams),
+		grpc.UnaryInterceptor(unaries),
 	)
 
 	experimentSrv := &ExperimentServer{}

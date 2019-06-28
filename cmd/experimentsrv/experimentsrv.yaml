@@ -47,7 +47,6 @@ metadata:
 spec:
   targets:
   - name: istio-ingressgateway
-    namespace: istio-system
   peers:
   - mtls: {}
   origins:
@@ -56,6 +55,9 @@ spec:
       jwksUri: "https://cognizant-ai.auth0.com/.well-known/jwks.json"
       audiences:
         - "http://api.cognizant-ai.dev/experimentsrv"
+      triggerRules:
+      - excluded_paths:
+          - prefix: "/grpc.reflection.v1alpha.ServerReflection/"
   principalBinding: USE_ORIGIN
 ---
 apiVersion: rbac.istio.io/v1alpha1
@@ -65,8 +67,6 @@ metadata:
 spec:
   rules:
   - services: ["*"]
-    paths: ["*"]
-    methods: ["*"]
 ---
 apiVersion: rbac.istio.io/v1alpha1
 kind: ServiceRoleBinding
@@ -157,6 +157,8 @@ spec:
         - containerPort: 30001
           name: grpc-exp
         env:
+        - name: "AUTH0_ENABLE"
+          value: "false"
         - name: "LOGXI_FORMAT"
           value: "happy,maxcol=1024"
         - name: "LOGXI"

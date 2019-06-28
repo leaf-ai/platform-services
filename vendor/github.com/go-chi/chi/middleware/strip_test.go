@@ -65,6 +65,9 @@ func TestStripSlashesInRoute(t *testing.T) {
 
 	r.Route("/accounts/{accountID}", func(r chi.Router) {
 		r.Use(StripSlashes)
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte("accounts index"))
+		})
 		r.Get("/query", func(w http.ResponseWriter, r *http.Request) {
 			accountID := chi.URLParam(r, "accountID")
 			w.Write([]byte(accountID))
@@ -78,6 +81,12 @@ func TestStripSlashesInRoute(t *testing.T) {
 		t.Fatalf(resp)
 	}
 	if _, resp := testRequest(t, ts, "GET", "/hi/", nil); resp != "nothing here" {
+		t.Fatalf(resp)
+	}
+	if _, resp := testRequest(t, ts, "GET", "/accounts/admin", nil); resp != "accounts index" {
+		t.Fatalf(resp)
+	}
+	if _, resp := testRequest(t, ts, "GET", "/accounts/admin/", nil); resp != "accounts index" {
 		t.Fatalf(resp)
 	}
 	if _, resp := testRequest(t, ts, "GET", "/accounts/admin/query", nil); resp != "admin" {
@@ -114,25 +123,48 @@ func TestRedirectSlashes(t *testing.T) {
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 
-	if req, resp := testRequest(t, ts, "GET", "/", nil); resp != "root" && req.StatusCode != 200 {
-		t.Fatalf(resp)
+	if resp, body := testRequest(t, ts, "GET", "/", nil); body != "root" && resp.StatusCode != 200 {
+		t.Fatalf(body)
 	}
 
 	// NOTE: the testRequest client will follow the redirection..
-	if req, resp := testRequest(t, ts, "GET", "//", nil); resp != "root" && req.StatusCode != 200 {
-		t.Fatalf(resp)
+	if resp, body := testRequest(t, ts, "GET", "//", nil); body != "root" && resp.StatusCode != 200 {
+		t.Fatalf(body)
 	}
 
-	if req, resp := testRequest(t, ts, "GET", "/accounts/admin", nil); resp != "admin" && req.StatusCode != 200 {
-		t.Fatalf(resp)
+	if resp, body := testRequest(t, ts, "GET", "/accounts/admin", nil); body != "admin" && resp.StatusCode != 200 {
+		t.Fatalf(body)
 	}
 
 	// NOTE: the testRequest client will follow the redirection..
-	if req, resp := testRequest(t, ts, "GET", "/accounts/admin/", nil); resp != "admin" && req.StatusCode != 200 {
-		t.Fatalf(resp)
+	if resp, body := testRequest(t, ts, "GET", "/accounts/admin/", nil); body != "admin" && resp.StatusCode != 200 {
+		t.Fatalf(body)
 	}
 
-	if req, resp := testRequest(t, ts, "GET", "/nothing-here", nil); resp != "nothing here" && req.StatusCode != 200 {
-		t.Fatalf(resp)
+	if resp, body := testRequest(t, ts, "GET", "/nothing-here", nil); body != "nothing here" && resp.StatusCode != 200 {
+		t.Fatalf(body)
+	}
+
+	// Ensure redirect Location url is correct
+	{
+		resp, body := testRequestNoRedirect(t, ts, "GET", "/accounts/someuser/", nil)
+		if resp.StatusCode != 301 {
+			t.Fatalf(body)
+		}
+		if resp.Header.Get("Location") != "/accounts/someuser" {
+			t.Fatalf("invalid redirection, should be /accounts/someuser")
+		}
+	}
+
+	// Ensure query params are kept in tact upon redirecting a slash
+	{
+		resp, body := testRequestNoRedirect(t, ts, "GET", "/accounts/someuser/?a=1&b=2", nil)
+		if resp.StatusCode != 301 {
+			t.Fatalf(body)
+		}
+		if resp.Header.Get("Location") != "/accounts/someuser?a=1&b=2" {
+			t.Fatalf("invalid redirection, should be /accounts/someuser?a=1&b=2")
+		}
+
 	}
 }

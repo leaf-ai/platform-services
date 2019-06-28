@@ -8,14 +8,16 @@
 
 auth0 is a package helping to authenticate using the [Auth0](https://auth0.com) service.
 
-## Installation 
+## Installation
 
 ```
 go get github.com/auth0-community/go-auth0
 ```
 
 ## Client Credentials - HS256
+
 Using HS256, the validation key is the secret you retrieve in the dashboard.
+
 ```go
 // Creates a configuration with the Auth0 information
 secret, _ := base64.URLEncoding.DecodeString(os.Getenv("AUTH0_CLIENT_SECRET"))
@@ -23,7 +25,7 @@ secretProvider := auth0.NewKeyProvider(secret)
 audience := os.Getenv("AUTH0_CLIENT_ID")
 
 configuration := auth0.NewConfiguration(secretProvider, []string{audience}, "https://mydomain.eu.auth0.com/", jose.HS256)
-validator := auth0.NewValidator(configuration)
+validator := auth0.NewValidator(configuration, nil)
 
 token, err := validator.ValidateRequest(r)
 
@@ -33,11 +35,13 @@ if err != nil {
 ```
 
 ## Client Credentials - RS256
+
 Using RS256, the validation key is the certificate you find in advanced settings
 
 ```go
 // Extracted from https://github.com/square/go-jose/blob/master/utils.go
 // LoadPublicKey loads a public key from PEM/DER-encoded data.
+// You can download the Auth0 pem file from `applications -> your_app -> scroll down -> Advanced Settings -> certificates -> download`
 func LoadPublicKey(data []byte) (interface{}, error) {
 	input := data
 
@@ -60,12 +64,19 @@ func LoadPublicKey(data []byte) (interface{}, error) {
 	return nil, fmt.Errorf("square/go-jose: parse error, got '%s' and '%s'", err0, err1)
 }
 // Create a configuration with the Auth0 information
-secret, _ := LoadPublicKey(sharedKey)
+pem, err := ioutil.ReadFile("path/to/your/cert.pem")
+if err != nil {
+	panic(err)
+}
+secret, err := LoadPublicKey(sharedKey)
+if err != nil {
+	panic(err)
+}
 secretProvider := auth0.NewKeyProvider(secret)
 audience := os.Getenv("AUTH0_CLIENT_ID")
 
 configuration := auth0.NewConfiguration(secretProvider, []string{audience}, "https://mydomain.eu.auth0.com/", jose.RS256)
-validator := auth0.NewValidator(configuration)
+validator := auth0.NewValidator(configuration, nil)
 
 token, err := validator.ValidateRequest(r)
 
@@ -73,14 +84,14 @@ if err != nil {
     fmt.Println("Token is not valid:", token)
 }
 ```
+
 ## API with JWK
 
 ```go
-   
-client := NewJWKClient(JWKClientOptions{URI: "https://mydomain.eu.auth0.com/.well-known/jwks.json"})
+client := NewJWKClient(JWKClientOptions{URI: "https://mydomain.eu.auth0.com/.well-known/jwks.json"}, nil)
 audience := os.Getenv("AUTH0_CLIENT_ID")
 configuration := NewConfiguration(client, []string{audience}, "https://mydomain.eu.auth0.com/", jose.RS256)
-validator := NewValidator(configuration)
+validator := NewValidator(configuration, nil)
 
 token, err := validator.ValidateRequest(r)
 
@@ -88,18 +99,34 @@ if err != nil {
     fmt.Println("Token is not valid:", token)
 }
 ```
+## Support interface for configurable key cacher
+
+```go
+opts := JWKClientOptions{URI: "https://mydomain.eu.auth0.com/.well-known/jwks.json"}
+// Creating key cacher with max age of 100sec and max size of 5 entries.
+// Defaults to persistent key cacher if not specified when creating a client.
+keyCacher := NewMemoryKeyCacher(time.Duration(100) * time.Second, 5)
+client := NewJWKClientWithCache(opts, nil, keyCacher)
+
+searchedKey, err := client.GetKey("KEY_ID")
+
+if err != nil {
+	fmt.Println("Cannot get key because of", err)
+}
+```
+
 ## Example
 
 ### Gin
 
-Using [Gin](https://github.com/gin-gonic/gin) and the [Auth0 Authorization Extension](https://auth0.com/docs/extensions/authorization-extension), you 
+Using [Gin](https://github.com/gin-gonic/gin) and the [Auth0 Authorization Extension](https://auth0.com/docs/extensions/authorization-extension), you
 may want to implement the authentication auth like the following:
 
 ```go
 var auth.AdminGroup string = "my_admin_group"
 
 // Access Control Helper function.
-func shouldAccess(wantedGroups []string, groups []interface{}) bool { 
+func shouldAccess(wantedGroups []string, groups []interface{}) bool {
  /* Fill depending on your needs */
 }
 

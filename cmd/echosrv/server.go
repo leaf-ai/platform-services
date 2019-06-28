@@ -37,6 +37,10 @@ func (es *echoServer) Check(ctx context.Context, in *grpc_health_v1.HealthCheckR
 	return es.health.Check(ctx, in)
 }
 
+func (*echoServer) Watch(in *grpc_health_v1.HealthCheckRequest, server grpc_health_v1.Health_WatchServer) (err error) {
+	return errors.New(grpc_health_v1.HealthCheckResponse_UNKNOWN.String())
+}
+
 func runServer(ctx context.Context, serviceName string, port int) (errC chan errors.Error) {
 
 	errC = make(chan errors.Error, 3)

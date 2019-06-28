@@ -16,6 +16,7 @@ package strfmt
 
 import (
 	"encoding"
+	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -28,17 +29,20 @@ import (
 // Default is the default formats registry
 var Default = NewSeededFormats(nil, nil)
 
-// Validator represents a validator for a string format
+// Validator represents a validator for a string format.
 type Validator func(string) bool
 
-// Format represents a string format
+// Format represents a string format.
+//
+// All implementations of Format provide a string representation and text
+// marshaling/unmarshaling interface to be used by encoders (e.g. encoding/json).
 type Format interface {
 	String() string
 	encoding.TextMarshaler
 	encoding.TextUnmarshaler
 }
 
-// Registry is a registry of string formats
+// Registry is a registry of string formats, with a validation method.
 type Registry interface {
 	Add(string, Format, Validator) bool
 	DelByName(string) bool
@@ -56,7 +60,7 @@ type knownFormat struct {
 	Validator Validator
 }
 
-// NameNormalizer is a function that normalizes a format name
+// NameNormalizer is a function that normalizes a format name.
 type NameNormalizer func(string) string
 
 // DefaultNameNormalizer removes all dashes
@@ -105,7 +109,11 @@ func (f *defaultFormats) MapStructureHookFunc() mapstructure.DecodeHookFunc {
 					}
 					return Date(d), nil
 				case "datetime":
-					return ParseDateTime(data.(string))
+					input := data.(string)
+					if len(input) == 0 {
+						return nil, fmt.Errorf("empty string is an invalid datetime format")
+					}
+					return ParseDateTime(input)
 				case "duration":
 					dur, err := ParseDuration(data.(string))
 					if err != nil {
@@ -130,6 +138,8 @@ func (f *defaultFormats) MapStructureHookFunc() mapstructure.DecodeHookFunc {
 					return IPv4(data.(string)), nil
 				case "ipv6":
 					return IPv6(data.(string)), nil
+				case "cidr":
+					return CIDR(data.(string)), nil
 				case "mac":
 					return MAC(data.(string)), nil
 				case "isbn":
@@ -152,7 +162,6 @@ func (f *defaultFormats) MapStructureHookFunc() mapstructure.DecodeHookFunc {
 					return Password(data.(string)), nil
 				default:
 					return nil, errors.InvalidTypeName(v.Name)
-
 				}
 			}
 		}
@@ -266,6 +275,10 @@ func (f *defaultFormats) ContainsFormat(strfmt Format) bool {
 	return false
 }
 
+// Validates passed data against format.
+//
+// Note that the format name is automatically normalized, e.g. one may
+// use "date-time" to use the "datetime" format validator.
 func (f *defaultFormats) Validates(name, data string) bool {
 	f.Lock()
 	defer f.Unlock()
@@ -278,6 +291,9 @@ func (f *defaultFormats) Validates(name, data string) bool {
 	return false
 }
 
+// Parse a string into the appropriate format representation type.
+//
+// E.g. parsing a string a "date" will return a Date type.
 func (f *defaultFormats) Parse(name, data string) (interface{}, error) {
 	f.Lock()
 	defer f.Unlock()

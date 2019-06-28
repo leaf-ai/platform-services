@@ -19,15 +19,17 @@
 package grpc
 
 import (
+	"fmt"
+	"math"
 	"reflect"
 	"testing"
 	"time"
 )
 
-func TestParseLoadBalancer(t *testing.T) {
+func (s) TestParseLoadBalancer(t *testing.T) {
 	testcases := []struct {
 		scjs    string
-		wantSC  ServiceConfig
+		wantSC  *ServiceConfig
 		wantErr bool
 	}{
 		{
@@ -45,7 +47,7 @@ func TestParseLoadBalancer(t *testing.T) {
         }
     ]
 }`,
-			ServiceConfig{
+			&ServiceConfig{
 				LB: newString("round_robin"),
 				Methods: map[string]MethodConfig{
 					"/foo/Bar": {
@@ -70,23 +72,23 @@ func TestParseLoadBalancer(t *testing.T) {
         }
     ]
 }`,
-			ServiceConfig{},
+			nil,
 			true,
 		},
 	}
 
 	for _, c := range testcases {
 		sc, err := parseServiceConfig(c.scjs)
-		if c.wantErr != (err != nil) || !reflect.DeepEqual(sc, c.wantSC) {
+		if c.wantErr != (err != nil) || !scCompareWithRawJSONSkipped(sc, c.wantSC) {
 			t.Fatalf("parseServiceConfig(%s) = %+v, %v, want %+v, %v", c.scjs, sc, err, c.wantSC, c.wantErr)
 		}
 	}
 }
 
-func TestParseWaitForReady(t *testing.T) {
+func (s) TestParseWaitForReady(t *testing.T) {
 	testcases := []struct {
 		scjs    string
-		wantSC  ServiceConfig
+		wantSC  *ServiceConfig
 		wantErr bool
 	}{
 		{
@@ -103,7 +105,7 @@ func TestParseWaitForReady(t *testing.T) {
         }
     ]
 }`,
-			ServiceConfig{
+			&ServiceConfig{
 				Methods: map[string]MethodConfig{
 					"/foo/Bar": {
 						WaitForReady: newBool(true),
@@ -126,7 +128,7 @@ func TestParseWaitForReady(t *testing.T) {
         }
     ]
 }`,
-			ServiceConfig{
+			&ServiceConfig{
 				Methods: map[string]MethodConfig{
 					"/foo/Bar": {
 						WaitForReady: newBool(false),
@@ -158,23 +160,23 @@ func TestParseWaitForReady(t *testing.T) {
         }
     ]
 }`,
-			ServiceConfig{},
+			nil,
 			true,
 		},
 	}
 
 	for _, c := range testcases {
 		sc, err := parseServiceConfig(c.scjs)
-		if c.wantErr != (err != nil) || !reflect.DeepEqual(sc, c.wantSC) {
+		if c.wantErr != (err != nil) || !scCompareWithRawJSONSkipped(sc, c.wantSC) {
 			t.Fatalf("parseServiceConfig(%s) = %+v, %v, want %+v, %v", c.scjs, sc, err, c.wantSC, c.wantErr)
 		}
 	}
 }
 
-func TestPraseTimeOut(t *testing.T) {
+func (s) TestPraseTimeOut(t *testing.T) {
 	testcases := []struct {
 		scjs    string
-		wantSC  ServiceConfig
+		wantSC  *ServiceConfig
 		wantErr bool
 	}{
 		{
@@ -191,7 +193,7 @@ func TestPraseTimeOut(t *testing.T) {
         }
     ]
 }`,
-			ServiceConfig{
+			&ServiceConfig{
 				Methods: map[string]MethodConfig{
 					"/foo/Bar": {
 						Timeout: newDuration(time.Second),
@@ -214,7 +216,7 @@ func TestPraseTimeOut(t *testing.T) {
         }
     ]
 }`,
-			ServiceConfig{},
+			nil,
 			true,
 		},
 		{
@@ -240,23 +242,23 @@ func TestPraseTimeOut(t *testing.T) {
         }
     ]
 }`,
-			ServiceConfig{},
+			nil,
 			true,
 		},
 	}
 
 	for _, c := range testcases {
 		sc, err := parseServiceConfig(c.scjs)
-		if c.wantErr != (err != nil) || !reflect.DeepEqual(sc, c.wantSC) {
+		if c.wantErr != (err != nil) || !scCompareWithRawJSONSkipped(sc, c.wantSC) {
 			t.Fatalf("parseServiceConfig(%s) = %+v, %v, want %+v, %v", c.scjs, sc, err, c.wantSC, c.wantErr)
 		}
 	}
 }
 
-func TestPraseMsgSize(t *testing.T) {
+func (s) TestPraseMsgSize(t *testing.T) {
 	testcases := []struct {
 		scjs    string
-		wantSC  ServiceConfig
+		wantSC  *ServiceConfig
 		wantErr bool
 	}{
 		{
@@ -274,7 +276,7 @@ func TestPraseMsgSize(t *testing.T) {
         }
     ]
 }`,
-			ServiceConfig{
+			&ServiceConfig{
 				Methods: map[string]MethodConfig{
 					"/foo/Bar": {
 						MaxReqSize:  newInt(1024),
@@ -309,15 +311,88 @@ func TestPraseMsgSize(t *testing.T) {
         }
     ]
 }`,
-			ServiceConfig{},
+			nil,
 			true,
 		},
 	}
 
 	for _, c := range testcases {
 		sc, err := parseServiceConfig(c.scjs)
-		if c.wantErr != (err != nil) || !reflect.DeepEqual(sc, c.wantSC) {
+		if c.wantErr != (err != nil) || !scCompareWithRawJSONSkipped(sc, c.wantSC) {
 			t.Fatalf("parseServiceConfig(%s) = %+v, %v, want %+v, %v", c.scjs, sc, err, c.wantSC, c.wantErr)
 		}
 	}
+}
+
+func (s) TestParseDuration(t *testing.T) {
+	testCases := []struct {
+		s    *string
+		want *time.Duration
+		err  bool
+	}{
+		{s: nil, want: nil},
+		{s: newString("1s"), want: newDuration(time.Second)},
+		{s: newString("-1s"), want: newDuration(-time.Second)},
+		{s: newString("1.1s"), want: newDuration(1100 * time.Millisecond)},
+		{s: newString("1.s"), want: newDuration(time.Second)},
+		{s: newString("1.0s"), want: newDuration(time.Second)},
+		{s: newString(".002s"), want: newDuration(2 * time.Millisecond)},
+		{s: newString(".002000s"), want: newDuration(2 * time.Millisecond)},
+		{s: newString("0.003s"), want: newDuration(3 * time.Millisecond)},
+		{s: newString("0.000004s"), want: newDuration(4 * time.Microsecond)},
+		{s: newString("5000.000000009s"), want: newDuration(5000*time.Second + 9*time.Nanosecond)},
+		{s: newString("4999.999999999s"), want: newDuration(5000*time.Second - time.Nanosecond)},
+		{s: newString("1"), err: true},
+		{s: newString("s"), err: true},
+		{s: newString(".s"), err: true},
+		{s: newString("1 s"), err: true},
+		{s: newString(" 1s"), err: true},
+		{s: newString("1ms"), err: true},
+		{s: newString("1.1.1s"), err: true},
+		{s: newString("Xs"), err: true},
+		{s: newString("as"), err: true},
+		{s: newString(".0000000001s"), err: true},
+		{s: newString(fmt.Sprint(math.MaxInt32) + "s"), want: newDuration(math.MaxInt32 * time.Second)},
+		{s: newString(fmt.Sprint(int64(math.MaxInt32)+1) + "s"), err: true},
+	}
+	for _, tc := range testCases {
+		got, err := parseDuration(tc.s)
+		if tc.err != (err != nil) ||
+			(got == nil) != (tc.want == nil) ||
+			(got != nil && *got != *tc.want) {
+			wantErr := "<nil>"
+			if tc.err {
+				wantErr = "<non-nil error>"
+			}
+			s := "<nil>"
+			if tc.s != nil {
+				s = `&"` + *tc.s + `"`
+			}
+			t.Errorf("parseDuration(%v) = %v, %v; want %v, %v", s, got, err, tc.want, wantErr)
+		}
+	}
+}
+
+func newBool(b bool) *bool {
+	return &b
+}
+
+func newDuration(b time.Duration) *time.Duration {
+	return &b
+}
+
+func newString(b string) *string {
+	return &b
+}
+
+func scCompareWithRawJSONSkipped(s1, s2 *ServiceConfig) bool {
+	if s1 == nil && s2 == nil {
+		return true
+	}
+	if (s1 == nil) != (s2 == nil) {
+		return false
+	}
+	s1.rawJSONString = ""
+	s2.rawJSONString = ""
+	return reflect.DeepEqual(s1, s2)
 }

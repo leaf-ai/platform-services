@@ -15,8 +15,13 @@
 package client
 
 import (
+	"context"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"mime"
@@ -26,9 +31,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
-	"golang.org/x/net/context/ctxhttp"
-
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/logger"
 	"github.com/go-openapi/runtime/middleware"
@@ -37,12 +39,44 @@ import (
 
 // TLSClientOptions to configure client authentication with mutual TLS
 type TLSClientOptions struct {
-	Certificate        string
-	Key                string
-	CA                 string
-	ServerName         string
+	// Certificate is the path to a PEM-encoded certificate to be used for
+	// client authentication. If set then Key must also be set.
+	Certificate string
+
+	// LoadedCertificate is the certificate to be used for client authentication.
+	// This field is ignored if Certificate is set. If this field is set, LoadedKey
+	// is also required.
+	LoadedCertificate *x509.Certificate
+
+	// Key is the path to an unencrypted PEM-encoded private key for client
+	// authentication. This field is required if Certificate is set.
+	Key string
+
+	// LoadedKey is the key for client authentication. This field is required if
+	// LoadedCertificate is set.
+	LoadedKey crypto.PrivateKey
+
+	// CA is a path to a PEM-encoded certificate that specifies the root certificate
+	// to use when validating the TLS certificate presented by the server. If this field
+	// (and LoadedCA) is not set, the system certificate pool is used. This field is ignored if LoadedCA
+	// is set.
+	CA string
+
+	// LoadedCA specifies the root certificate to use when validating the server's TLS certificate.
+	// If this field (and CA) is not set, the system certificate pool is used.
+	LoadedCA *x509.Certificate
+
+	// ServerName specifies the hostname to use when verifying the server certificate.
+	// If this field is set then InsecureSkipVerify will be ignored and treated as
+	// false.
+	ServerName string
+
+	// InsecureSkipVerify controls whether the certificate chain and hostname presented
+	// by the server are validated. If false, any certificate is accepted.
 	InsecureSkipVerify bool
-	_                  struct{}
+
+	// Prevents callers using unkeyed fields.
+	_ struct{}
 }
 
 // TLSClientAuth creates a tls.Config for mutual auth
@@ -57,6 +91,32 @@ func TLSClientAuth(opts TLSClientOptions) (*tls.Config, error) {
 			return nil, fmt.Errorf("tls client cert: %v", err)
 		}
 		cfg.Certificates = []tls.Certificate{cert}
+	} else if opts.LoadedCertificate != nil {
+		block := pem.Block{Type: "CERTIFICATE", Bytes: opts.LoadedCertificate.Raw}
+		certPem := pem.EncodeToMemory(&block)
+
+		var keyBytes []byte
+		switch k := opts.LoadedKey.(type) {
+		case *rsa.PrivateKey:
+			keyBytes = x509.MarshalPKCS1PrivateKey(k)
+		case *ecdsa.PrivateKey:
+			var err error
+			keyBytes, err = x509.MarshalECPrivateKey(k)
+			if err != nil {
+				return nil, fmt.Errorf("tls client priv key: %v", err)
+			}
+		default:
+			return nil, fmt.Errorf("tls client priv key: unsupported key type")
+		}
+
+		block = pem.Block{Type: "PRIVATE KEY", Bytes: keyBytes}
+		keyPem := pem.EncodeToMemory(&block)
+
+		cert, err := tls.X509KeyPair(certPem, keyPem)
+		if err != nil {
+			return nil, fmt.Errorf("tls client cert: %v", err)
+		}
+		cfg.Certificates = []tls.Certificate{cert}
 	}
 
 	cfg.InsecureSkipVerify = opts.InsecureSkipVerify
@@ -64,7 +124,11 @@ func TLSClientAuth(opts TLSClientOptions) (*tls.Config, error) {
 	// When no CA certificate is provided, default to the system cert pool
 	// that way when a request is made to a server known by the system trust store,
 	// the name is still verified
-	if opts.CA != "" {
+	if opts.LoadedCA != nil {
+		caCertPool := x509.NewCertPool()
+		caCertPool.AddCert(opts.LoadedCA)
+		cfg.RootCAs = caCertPool
+	} else if opts.CA != "" {
 		// load ca cert
 		caCert, err := ioutil.ReadFile(opts.CA)
 		if err != nil {
@@ -130,7 +194,6 @@ type Runtime struct {
 	clientOnce *sync.Once
 	client     *http.Client
 	schemes    []string
-	do         func(ctx context.Context, client *http.Client, req *http.Request) (*http.Response, error)
 }
 
 // New creates a new default runtime for a swagger api runtime.Client
@@ -143,12 +206,16 @@ func New(host, basePath string, schemes []string) *Runtime {
 		runtime.JSONMime:    runtime.JSONConsumer(),
 		runtime.XMLMime:     runtime.XMLConsumer(),
 		runtime.TextMime:    runtime.TextConsumer(),
+		runtime.HTMLMime:    runtime.TextConsumer(),
+		runtime.CSVMime:     runtime.CSVConsumer(),
 		runtime.DefaultMime: runtime.ByteStreamConsumer(),
 	}
 	rt.Producers = map[string]runtime.Producer{
 		runtime.JSONMime:    runtime.JSONProducer(),
 		runtime.XMLMime:     runtime.XMLProducer(),
 		runtime.TextMime:    runtime.TextProducer(),
+		runtime.HTMLMime:    runtime.TextProducer(),
+		runtime.CSVMime:     runtime.CSVProducer(),
 		runtime.DefaultMime: runtime.ByteStreamProducer(),
 	}
 	rt.Transport = http.DefaultTransport
@@ -167,7 +234,6 @@ func New(host, basePath string, schemes []string) *Runtime {
 	if len(schemes) > 0 {
 		rt.schemes = schemes
 	}
-	rt.do = ctxhttp.Do
 	return &rt
 }
 
@@ -210,6 +276,34 @@ func (r *Runtime) selectScheme(schemes []string) string {
 	}
 	return scheme
 }
+func transportOrDefault(left, right http.RoundTripper) http.RoundTripper {
+	if left == nil {
+		return right
+	}
+	return left
+}
+
+// EnableConnectionReuse drains the remaining body from a response
+// so that go will reuse the TCP connections.
+//
+// This is not enabled by default because there are servers where
+// the response never gets closed and that would make the code hang forever.
+// So instead it's provided as a http client middleware that can be used to override
+// any request.
+func (r *Runtime) EnableConnectionReuse() {
+	if r.client == nil {
+		r.Transport = KeepAliveTransport(
+			transportOrDefault(r.Transport, http.DefaultTransport),
+		)
+		return
+	}
+
+	r.client.Transport = KeepAliveTransport(
+		transportOrDefault(r.client.Transport,
+			transportOrDefault(r.Transport, http.DefaultTransport),
+		),
+	)
+}
 
 // Submit a request and when there is a body on success it will turn that into the result
 // all other things are turned into an api error for swagger which retains the status code
@@ -244,6 +338,10 @@ func (r *Runtime) Submit(operation *runtime.ClientOperation) (interface{}, error
 			cmt = mediaType
 			break
 		}
+	}
+
+	if _, ok := r.Producers[cmt]; !ok && cmt != runtime.MultipartFormMime && cmt != runtime.URLencodedFormMime {
+		return nil, fmt.Errorf("none of producers: %v registered. try %s", r.Producers, cmt)
 	}
 
 	req, err := request.buildHTTP(cmt, r.BasePath, r.Producers, r.Formats, auth)
@@ -291,10 +389,8 @@ func (r *Runtime) Submit(operation *runtime.ClientOperation) (interface{}, error
 	if client == nil {
 		client = r.client
 	}
-	if r.do == nil {
-		r.do = ctxhttp.Do
-	}
-	res, err := r.do(ctx, client, req) // make requests, by default follows 10 redirects before failing
+	req = req.WithContext(ctx)
+	res, err := client.Do(req) // make requests, by default follows 10 redirects before failing
 	if err != nil {
 		return nil, err
 	}
@@ -320,8 +416,10 @@ func (r *Runtime) Submit(operation *runtime.ClientOperation) (interface{}, error
 
 	cons, ok := r.Consumers[mt]
 	if !ok {
-		// scream about not knowing what to do
-		return nil, fmt.Errorf("no consumer: %q", ct)
+		if cons, ok = r.Consumers["*/*"]; !ok {
+			// scream about not knowing what to do
+			return nil, fmt.Errorf("no consumer: %q", ct)
+		}
 	}
 	return readResponse.ReadResponse(response{res}, cons)
 }
