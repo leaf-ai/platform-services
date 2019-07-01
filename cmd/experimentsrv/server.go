@@ -10,7 +10,6 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
-	grpc_metadata "google.golang.org/grpc/metadata"
 
 	"google.golang.org/grpc/reflection"
 
@@ -24,6 +23,7 @@ import (
 
 	model "github.com/leaf-ai/platform-services/internal/experiment"
 	experiment "github.com/leaf-ai/platform-services/internal/gen/experimentsrv"
+	"github.com/leaf-ai/platform-services/internal/platform"
 )
 
 var (
@@ -52,7 +52,7 @@ func (*ExperimentServer) Create(ctx context.Context, in *experiment.CreateReques
 		return nil, fmt.Errorf("request is missing a message to experiment")
 	}
 
-	exp, err := model.InsertExperiment(in.Experiment)
+	exp, err := model.InsertExperiment(ctx, in.Experiment)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (*ExperimentServer) Get(ctx context.Context, in *experiment.GetRequest) (re
 
 	resp = &experiment.GetResponse{}
 
-	resp.Experiment, err = model.SelectExperimentWide(in.Uid)
+	resp.Experiment, err = model.SelectExperimentWide(ctx, in.Uid)
 	if err != nil {
 		return nil, err
 	}
@@ -90,40 +90,23 @@ func (es *ExperimentServer) Watch(in *grpc_health_v1.HealthCheckRequest, server 
 	return errors.New(grpc_health_v1.HealthCheckResponse_UNKNOWN.String())
 }
 
-func CreateEvent(ctx context.Context) (ev *libhoney.Event) {
-
-	ev = libhoney.NewEvent()
-
-	if md, ok := grpc_metadata.FromIncomingContext(ctx); ok { // check to see if this request is already part of a trace
-		if tmp, ok := md["x-b3-traceid"]; ok {
-			if len(tmp) > 0 {
-				// it's from the gateway
-				ev.AddField("x-b3-traceid", tmp)
-			} else {
-				ev.AddField("x-b3-traceid", model.GetPseudoUUID())
-			}
-		}
-
-		if tmp, ok := md["x-b3-spanid"]; ok && len(tmp) > 0 {
-			// we've got a x-b3-spanid, so set that as the parent_id of this event
-			ev.AddField("x-b3-parentspanid", tmp)
-		}
-	} else {
-		ev.AddField("x-b3-traceid", model.GetPseudoUUID())
-	}
-
-	return ev
-}
-
-func GetUnaryInterceptor() grpc.UnaryServerInterceptor {
+func o11yUnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, errGo error) {
-		ev := CreateEvent(ctx)
+		ev := platform.CreateEvent(ctx, "experiment")
+
+		defer func() {
+			if errEv := ev.Send(); errEv != nil {
+				logger.Warn(fmt.Sprint(errors.Wrap(errEv).With("stack", stack.Trace().TrimRuntime())))
+			}
+		}()
 
 		start := time.Now()
 
 		// add fields to identify this event
-		ev.AddField("name", info.FullMethod)
-		ev.AddField("grpc.input", req)
+		ev.Add(map[string]interface{}{
+			"name":       info.FullMethod,
+			"grpc.input": req,
+		})
 
 		handlerCtx := context.Context(ctx)
 		for k, v := range ev.Fields() {
@@ -140,9 +123,6 @@ func GetUnaryInterceptor() grpc.UnaryServerInterceptor {
 		logger.Debug(spew.Sdump(handlerCtx))
 		logger.Debug(spew.Sdump(req))
 
-		if errGo = ev.Send(); errGo != nil {
-			logger.Warn(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
-		}
 		return resp, errGo
 	}
 }
@@ -152,23 +132,31 @@ type stream struct {
 	ctx context.Context
 }
 
-func GetStreamInterceptor() grpc.StreamServerInterceptor {
+func o11yStreamInterceptor() grpc.StreamServerInterceptor {
 	return func(srv interface{}, strm grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) (errGo error) {
 		ctx := strm.Context()
-		ev := CreateEvent(ctx)
+		ev := platform.CreateEvent(ctx, "experiment")
+		defer func() {
+			if errEv := ev.Send(); errEv != nil {
+				logger.Warn(fmt.Sprint(errors.Wrap(errEv).With("stack", stack.Trace().TrimRuntime())))
+			}
+		}()
 
 		start := time.Now()
 
 		// Debug here
-		logger.Debug(spew.Sdump(ctx))
-		logger.Debug(spew.Sdump(ev))
+		logger.Debug(spew.Sdump(ctx) + stack.Trace().TrimRuntime().String())
+		logger.Debug(spew.Sdump(ev) + stack.Trace().TrimRuntime().String())
 		handlerCtx := context.Context(ctx)
 		for k, v := range ev.Fields() {
 			handlerCtx = context.WithValue(handlerCtx, k, v)
 		}
 		s := stream{strm, handlerCtx}
 
-		ev.AddField("duration_ms", float64(time.Since(start))/float64(time.Millisecond))
+		ev.Add(map[string]interface{}{
+			"name":        info.FullMethod,
+			"duration_ms": float64(time.Since(start)) / float64(time.Millisecond),
+		})
 
 		if errGo = handler(srv, s); errGo != nil {
 			ev.AddField("grpc.error", errGo)
@@ -200,10 +188,11 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 
 	streams := grpc_middleware.ChainStreamServer(
 		authStreamInterceptor,
-		GetStreamInterceptor())
+		o11yStreamInterceptor())
 	unaries := grpc_middleware.ChainUnaryServer(
 		authUnaryInterceptor,
-		GetUnaryInterceptor())
+		o11yUnaryInterceptor())
+
 	server := grpc.NewServer(
 		grpc.StreamInterceptor(streams),
 		grpc.UnaryInterceptor(unaries),

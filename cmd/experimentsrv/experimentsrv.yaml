@@ -60,6 +60,21 @@ spec:
           - prefix: "/grpc.reflection.v1alpha.ServerReflection/"
   principalBinding: USE_ORIGIN
 ---
+apiVersion: config.istio.io/v1alpha2
+kind: rule
+metadata:
+  name: experiment-add-auth-headers
+  namespace: istio-system
+spec:
+  match: source.labels["istio"] == "ingressgateway"
+  actions:
+  - handler: keyval.istio-system
+    instances: [ keyval ]
+  request_header_operations:
+  - name: X-company-userId
+    values:
+    - request.auth.claims["sub"]
+---
 apiVersion: rbac.istio.io/v1alpha1
 kind: ServiceRole
 metadata:

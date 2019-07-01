@@ -22,6 +22,7 @@ package experiment
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -603,7 +604,7 @@ type experimentWide struct {
 //
 // For a single experiment this function will return one row for every layer that was found.
 //
-func SelectExperimentWide(uid string) (result *grpc.Experiment, err errors.Error) {
+func SelectExperimentWide(ctx context.Context, uid string) (result *grpc.Experiment, err errors.Error) {
 
 	if err := dbDownErr.get(); err != nil {
 		return nil, err
@@ -700,7 +701,7 @@ func SelectExperimentWide(uid string) (result *grpc.Experiment, err errors.Error
 // result of assumptions made by the caller.
 //
 //
-func InsertExperiment(data *grpc.Experiment) (result *grpc.Experiment, err errors.Error) {
+func InsertExperiment(ctx context.Context, data *grpc.Experiment) (result *grpc.Experiment, err errors.Error) {
 
 	if err := dbDownErr.get(); err != nil {
 		return nil, err
@@ -771,7 +772,7 @@ func InsertExperiment(data *grpc.Experiment) (result *grpc.Experiment, err error
 // DeactivateExperiment is used to conceal experiments from future operations unless special flags are set.
 // It is used where otherwise the experiment would be delete but we need to retain a record of it having existed.
 //
-func DeactivateExperiment(uid string) (err errors.Error) {
+func DeactivateExperiment(ctx context.Context, uid string) (err errors.Error) {
 
 	if err = dbDownErr.get(); err != nil {
 		return err

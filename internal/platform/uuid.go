@@ -1,4 +1,4 @@
-package experiment
+package platform
 
 // This file contains an interim implementation for UUID V4 until such time
 // as the google golang implementation arrives at 1.0 from https://github.com/google/uuid
