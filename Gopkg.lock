@@ -272,6 +272,14 @@
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:85f8f8d390a03287a563e215ea6bd0610c858042731a8b42062435a0dcbc485f"
+  name = "github.com/hashicorp/golang-lru"
+  packages = ["simplelru"]
+  pruneopts = ""
+  revision = "7087cb70de9f7a8bc0a10c375cb0d2280a8edf9c"
+  version = "v0.5.1"
+
+[[projects]]
   digest = "1:ca7b5bad33bfc270ddaa11bb678a5448b74704204faee3c86c8678161e12132a"
   name = "github.com/honeycombio/libhoney-go"
   packages = [
@@ -281,6 +289,14 @@
   pruneopts = ""
   revision = "05d1382bc21ae054131360ef0fd95b70f473009a"
   version = "v1.10.0"
+
+[[projects]]
+  digest = "1:e53a93c2de002275698516c7d55c0194645a6012f53da0fb70781dffd66015b2"
+  name = "github.com/honeycombio/opencensus-exporter"
+  packages = ["honeycomb"]
+  pruneopts = ""
+  revision = "d62cdc18ca35a2f571e517d2a057e5d74b16e7a1"
+  version = "v1.0.1"
 
 [[projects]]
   digest = "1:ca5c90960520407749b98c49650f54f5f90a667796e85c5ee1597478f702fb91"
@@ -417,6 +433,20 @@
   pruneopts = ""
   revision = "3536a929edddb9a5b34bd6861dc4a9647cb459fe"
   version = "v1.1.2"
+
+[[projects]]
+  digest = "1:15322677d41c39ba767c0bcfe258fe2ffeeb1c355069674788418bf9c507e811"
+  name = "go.opencensus.io"
+  packages = [
+    ".",
+    "internal",
+    "trace",
+    "trace/internal",
+    "trace/tracestate",
+  ]
+  pruneopts = ""
+  revision = "9c377598961b706d1542bd2d84d538b5094d596e"
+  version = "v0.22.0"
 
 [[projects]]
   branch = "master"
@@ -594,12 +624,14 @@
     "github.com/golang/protobuf/ptypes/timestamp",
     "github.com/grpc-ecosystem/go-grpc-middleware",
     "github.com/honeycombio/libhoney-go",
+    "github.com/honeycombio/opencensus-exporter/honeycomb",
     "github.com/jessevdk/go-flags",
     "github.com/jmoiron/sqlx",
     "github.com/karlmutch/envflag",
     "github.com/karlmutch/errors",
     "github.com/lib/pq",
     "github.com/mgutz/logxi",
+    "go.opencensus.io/trace",
     "golang.org/x/net/context",
     "golang.org/x/net/netutil",
     "google.golang.org/grpc",

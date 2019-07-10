@@ -43,6 +43,7 @@ import (
 	sq "github.com/Masterminds/squirrel"
 
 	grpc "github.com/leaf-ai/platform-services/internal/gen/experimentsrv"
+	"github.com/leaf-ai/platform-services/internal/platform"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
@@ -534,7 +535,22 @@ func CheckIfFatal(inErr error) (err error) {
 //
 // This function will NOT return layer information.
 //
-func SelectExperiment(rowId uint64, uid string) (result *grpc.Experiment, err errors.Error) {
+func SelectExperiment(ctx context.Context, rowId uint64, uid string) (result *grpc.Experiment, err errors.Error) {
+
+	ev := platform.CreateEvent(ctx, "experiment", "SelectExperiment")
+
+	defer func() {
+		// add fields to identify this event
+		ev.Add(map[string]interface{}{
+			"duration_ms": float64(time.Since(ev.Timestamp)) / float64(time.Millisecond),
+		})
+		if err != nil {
+			ev.AddField("error", err)
+		}
+		if errEv := ev.Send(); errEv != nil {
+			fmt.Println(errors.Wrap(errEv).With("stack", stack.Trace().TrimRuntime()))
+		}
+	}()
 
 	if err = dbDownErr.get(); err != nil {
 		return nil, err
@@ -605,6 +621,21 @@ type experimentWide struct {
 // For a single experiment this function will return one row for every layer that was found.
 //
 func SelectExperimentWide(ctx context.Context, uid string) (result *grpc.Experiment, err errors.Error) {
+
+	ev := platform.CreateEvent(ctx, "experiment", "SelectExperimentWide")
+
+	defer func() {
+		// add fields to identify this event
+		ev.Add(map[string]interface{}{
+			"duration_ms": float64(time.Since(ev.Timestamp)) / float64(time.Millisecond),
+		})
+		if err != nil {
+			ev.AddField("error", err)
+		}
+		if errEv := ev.Send(); errEv != nil {
+			fmt.Println(errors.Wrap(errEv).With("stack", stack.Trace().TrimRuntime()))
+		}
+	}()
 
 	if err := dbDownErr.get(); err != nil {
 		return nil, err
@@ -682,7 +713,7 @@ func SelectExperimentWide(ctx context.Context, uid string) (result *grpc.Experim
 
 	// If there are no layers then the short version should be used
 	if rowCount == 0 {
-		return SelectExperiment(0, uid)
+		return SelectExperiment(ctx, 0, uid)
 	}
 
 	return result, nil
@@ -702,6 +733,20 @@ func SelectExperimentWide(ctx context.Context, uid string) (result *grpc.Experim
 //
 //
 func InsertExperiment(ctx context.Context, data *grpc.Experiment) (result *grpc.Experiment, err errors.Error) {
+	ev := platform.CreateEvent(ctx, "experiment", "InsertExperiment")
+
+	defer func() {
+		// add fields to identify this event
+		ev.Add(map[string]interface{}{
+			"duration_ms": float64(time.Since(ev.Timestamp)) / float64(time.Millisecond),
+		})
+		if err != nil {
+			ev.AddField("error", err)
+		}
+		if errEv := ev.Send(); errEv != nil {
+			fmt.Println(errors.Wrap(errEv).With("stack", stack.Trace().TrimRuntime()))
+		}
+	}()
 
 	if err := dbDownErr.get(); err != nil {
 		return nil, err
@@ -773,6 +818,21 @@ func InsertExperiment(ctx context.Context, data *grpc.Experiment) (result *grpc.
 // It is used where otherwise the experiment would be delete but we need to retain a record of it having existed.
 //
 func DeactivateExperiment(ctx context.Context, uid string) (err errors.Error) {
+
+	ev := platform.CreateEvent(ctx, "experiment", "DeactivateExperiment")
+
+	defer func() {
+		// add fields to identify this event
+		ev.Add(map[string]interface{}{
+			"duration_ms": float64(time.Since(ev.Timestamp)) / float64(time.Millisecond),
+		})
+		if err != nil {
+			ev.AddField("error", err)
+		}
+		if errEv := ev.Send(); errEv != nil {
+			fmt.Println(errors.Wrap(errEv).With("stack", stack.Trace().TrimRuntime()))
+		}
+	}()
 
 	if err = dbDownErr.get(); err != nil {
 		return err

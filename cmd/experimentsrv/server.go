@@ -27,8 +27,8 @@ import (
 )
 
 var (
-	honeycombKey  = flag.String("o11y-key", "24cbba447cc8198c9c215d77ec159ed3", "An API key used to activate, and for use with the honeycomb.io service")
-	honeycombData = flag.String("o11y-dataset", "platform-services", "The name for the dataset into which observability data is to be written")
+	honeycombKey  = flag.String("o11y-key", "", "An API key used to activate, and for use with the honeycomb.io service")
+	honeycombData = flag.String("o11y-dataset", "", "The name for the dataset into which observability data is to be written")
 )
 
 type ExperimentServer struct {
@@ -92,19 +92,17 @@ func (es *ExperimentServer) Watch(in *grpc_health_v1.HealthCheckRequest, server 
 
 func o11yUnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, errGo error) {
-		ev := platform.CreateEvent(ctx, "experiment")
+		ev := platform.CreateEvent(ctx, "experiment", info.FullMethod)
 
 		defer func() {
+			ev.AddField("duration_ms", float64(time.Since(ev.Timestamp))/float64(time.Millisecond))
 			if errEv := ev.Send(); errEv != nil {
 				logger.Warn(fmt.Sprint(errors.Wrap(errEv).With("stack", stack.Trace().TrimRuntime())))
 			}
 		}()
 
-		start := time.Now()
-
 		// add fields to identify this event
 		ev.Add(map[string]interface{}{
-			"name":       info.FullMethod,
 			"grpc.input": req,
 		})
 
@@ -112,16 +110,10 @@ func o11yUnaryInterceptor() grpc.UnaryServerInterceptor {
 		for k, v := range ev.Fields() {
 			handlerCtx = context.WithValue(handlerCtx, k, v)
 		}
+
 		if resp, errGo = handler(handlerCtx, req); errGo != nil {
 			ev.AddField("grpc.error", errGo)
 		}
-
-		ev.AddField("duration_ms", float64(time.Since(start))/float64(time.Millisecond))
-		logger.Debug(stack.Trace().TrimRuntime().String())
-		logger.Debug(spew.Sdump(ev))
-		logger.Debug(spew.Sdump(ctx))
-		logger.Debug(spew.Sdump(handlerCtx))
-		logger.Debug(spew.Sdump(req))
 
 		return resp, errGo
 	}
@@ -135,14 +127,14 @@ type stream struct {
 func o11yStreamInterceptor() grpc.StreamServerInterceptor {
 	return func(srv interface{}, strm grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) (errGo error) {
 		ctx := strm.Context()
-		ev := platform.CreateEvent(ctx, "experiment")
+		ev := platform.CreateEvent(ctx, "experiment", info.FullMethod)
 		defer func() {
+			ev.AddField("duration_ms", float64(time.Since(ev.Timestamp))/float64(time.Millisecond))
+
 			if errEv := ev.Send(); errEv != nil {
 				logger.Warn(fmt.Sprint(errors.Wrap(errEv).With("stack", stack.Trace().TrimRuntime())))
 			}
 		}()
-
-		start := time.Now()
 
 		// Debug here
 		logger.Debug(spew.Sdump(ctx) + stack.Trace().TrimRuntime().String())
@@ -152,11 +144,6 @@ func o11yStreamInterceptor() grpc.StreamServerInterceptor {
 			handlerCtx = context.WithValue(handlerCtx, k, v)
 		}
 		s := stream{strm, handlerCtx}
-
-		ev.Add(map[string]interface{}{
-			"name":        info.FullMethod,
-			"duration_ms": float64(time.Since(start)) / float64(time.Millisecond),
-		})
 
 		if errGo = handler(srv, s); errGo != nil {
 			ev.AddField("grpc.error", errGo)

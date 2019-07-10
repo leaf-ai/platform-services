@@ -54,6 +54,8 @@ A combined build script is provided 'platform-services/build.sh' to allow all st
 
 The k8s instructions in this section are for unmanaged solutions.  They are included as a baseline for AWS prior to the wide availability of EKS.  Once EKS is in wide distribution and managed offerings for k8s is available from the big three cloud vendors and k8s receeds into the cloud platform then the kops instructions could well become redundant and the cloud vendors tooling will take over this function.
 
+Thje following instructions make use of the stencil tool for templating configuration files.
+
 This major section describes two basic alternatives for deployment, AWS kops, and locally hosted microk8s.  Other Kubernetes distribution and deployment models will work but are not explicitly described here.
 
 ## Kubernetes (unmanaged)
@@ -175,9 +177,42 @@ Suggestions:
  * the admin user is specific to Debian. If not using Debian please use the appropriate user based on your OS.
  * read about installing addons at: https://github.com/kubernetes/kops/blob/master/docs/addons.md.
 
-</code></pre>
+<pre><code><b>
+while [ 1 ]; do
+    kops validate cluster > /dev/null && break || sleep 10
+done;
+</b></code></pre>
 
 The initial cluster spinup will take sometime, use kops commands such as 'kops validate cluster' to determine when the cluster is spun up ready for Istio and the platform services.
+
+## Configuration of secrets
+
+The experiment service supports the Honeycomb observability solution.  Configuring the service is done by creating a Kubernetes secret.  For now we can define the Honeycomb API key using an environment variable and when we deploy the secrets for the Postgres Database the secret for the API will be injected using the stencil tool.
+
+<pre><code><b>export O11Y_KEY a54d762df847474b22915
+</b></code></pre>
+
+The services also use a postgres Database instance to persist experiment data.  The following shows an example of what should be defined for Postgres support prior to running the stencil command:
+
+<pre><code><b>export PGRELEASE=`petname`
+export PGHOST=$PGRELEASE-postgresql.default.svc.cluster.local
+export PORT=5432
+export PGUSER=postgres
+export PGPASSWORD=p355w0rd
+export PGDATABASE=postgres
+</b></code></pre>
+
+<pre><code><b>
+stencil < cmd/experimentsrv/secret.yaml | kubectl apply -f -
+</b></code></pre>
+
+## Deploying the Observability proxy server
+
+This proxy server is used to forward tracing and metrics from your istio mesh based deployment to the Honeycomb service.
+
+<pre><code><b>
+stencil < honeycomb-opentracing-proxy.yaml | kubectl apply -f -
+</b></code></pre>
 
 ## Helm Kubernetes package manager
 
@@ -190,40 +225,6 @@ kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admi
 helm init --history-max 200 --service-account tiller --upgrade
 helm repo update
 </b></code></pre>
-
-## Istio 1.1.x
-
-Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, 
-https://archive.istio.io/v1.1/docs/setup/kubernetes/quick-start/#prerequisites. Helm will also be needed for installation of these more recent versions of Istio, please see the instructions for postgres.  We recommend using the mTLS installation for the k8s cluster deployment, for example
-
-<pre><code><b>cd ~
-curl -LO https://github.com/istio/istio/releases/download/1.1.9/istio-1.1.9-linux.tar.gz
-tar xzf istio-1.1.9-linux.tar.gz
-export ISTIO_DIR=`pwd`/istio-1.1.9
-export PATH=$ISTIO_DIR/bin:$PATH
-cd -
-helm install $ISTIO_DIR/install/kubernetes/helm/istio-init --name istio-init --namespace istio-system -f helm_custom.yaml
-helm install $ISTIO_DIR/install/kubernetes/helm/istio --name istio --namespace istio-system -f helm_custom.yaml
-</b></code></pre>
-
-## Istio 1.2.x
-
-Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, 
-https://archive.istio.io/v1.2/docs/setup/kubernetes/quick-start/#prerequisites. Helm will also be needed for installation of these more recent versions of Istio, please see the instructions for postgres.  We recommend using the mTLS installation for the k8s cluster deployment, for example
-
-<pre><code><b>cd ~
-curl -LO https://github.com/istio/istio/releases/download/1.2.0/istio-1.2.0-linux.tar.gz
-tar xzf istio-1.2.0-linux.tar.gz
-export ISTIO_DIR=`pwd`/istio-1.2.0
-export PATH=$ISTIO_DIR/bin:$PATH
-cd -
-kubectl apply -f $ISTIO_DIR/install/kubernetes/helm/helm-service-account.yaml
-
-helm install $ISTIO_DIR/install/kubernetes/helm/istio-init --name istio-init --namespace istio-system -f helm_custom.yaml
-helm install $ISTIO_DIR/install/kubernetes/helm/istio --name istio --namespace istio-system -f helm_custom.yaml
-</b></code></pre>
-
-## Deploying into the Istio mesh
 
 ### Postgres DB
 
@@ -243,14 +244,11 @@ sudo apt-get upgrade postgresql-client-11
 
 This section gives guidence on how to install an in-cluster database for use-cases where data persistence beyond a single deployment is not a concern.  These instructions are therefore limited to testing only scenarios.  For information concerning Kubernetes storage strategies you should consult other sources and read about stateful sets in Kubernetes.  In production using a single source of truth then cloud provider offerings such as AWS Aurora are recommended.
 
+A secrets file containing host information, passwords and other secrets is assumed to have already been applied using the instructions several sections above.  The secrets are needed to allows access to the postgres DB, and/or other external resources.  YAML files will be needed to populate secrets into the service mesh, individual services document the secrets they require within their README.md files found on github and provide examples, for example https://github.com/leaf-ai/platform-services/cmd/experimentsrv/README.md.
+
 In order to deploy Postgres this document describes a helm based approach.  The bitnami postgresql distribution can be installed using the following:
 
-<pre><code><b>export PGRELEASE=`petname`
-export PGHOST=$PGRELEASE-postgresql.default.svc.cluster.local
-export PORT=5432
-export PGUSER=postgres
-export PGPASSWORD=p355w0rd
-export PGDATABASE=postgres
+<pre><code><b>
 helm install --name $PGRELEASE \
   --set postgresqlPassword=$PGPASSWORD,postgresqlDatabase=$PGDATABASE\
   stable/postgresql
@@ -309,13 +307,32 @@ Setting up the proxy will be needed prior to running the SQL database provisioni
 
 <pre><code><b>
 kubectl port-forward --namespace default svc/$PGRELEASE-postgresql 5432:5432 &amp;
+PGHOST=127.0.0.1 PGDATABASE=platform psql -f sql/platform.sql -d postgres
 </b></code></pre>
 
 Further information about how to deployed the service specific database for the experiment service for example can be found in the cmd/experiment/README.md file.
 
-### Configuring the database secrets overview
+## Istio 1.2.x
 
-A secrets file containing host information, passwords and other secrets will be needed to allows access to the postgres DB, and/or other external resources.  YAML files will be needed to populate secrets into the service mesh, individual services document the secrets they require within their README.md files found on github and provide examples, for example https://github.com/leaf-ai/platform-services/cmd/experimentsrv/README.md.
+Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, 
+https://archive.istio.io/v1.2/docs/setup/kubernetes/quick-start/#prerequisites. Helm will also be needed for installation of these more recent versions of Istio, please see the instructions for postgres.  We recommend using the mTLS installation for the k8s cluster deployment, for example
+
+<pre><code><b>cd ~
+curl -LO https://github.com/istio/istio/releases/download/1.2.2/istio-1.2.2-linux.tar.gz
+tar xzf istio-1.2.2-linux.tar.gz
+export ISTIO_DIR=`pwd`/istio-1.2.2
+export PATH=$ISTIO_DIR/bin:$PATH
+cd -
+kubectl apply -f $ISTIO_DIR/install/kubernetes/helm/helm-service-account.yaml
+
+helm install $ISTIO_DIR/install/kubernetes/helm/istio-init --name istio-init --namespace istio-system -f helm_custom.yaml
+sleep 10
+helm install $ISTIO_DIR/install/kubernetes/helm/istio --name istio --namespace istio-system -f helm_custom.yaml
+sleep 10
+stencil < new_telemetry.yaml | kubectl apply -f -
+</b></code></pre>
+
+## Deploying into the Istio mesh
 
 ### Service deployment overview
 

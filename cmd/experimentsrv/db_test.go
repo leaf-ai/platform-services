@@ -102,7 +102,7 @@ func TestDBExperimentSimple(t *testing.T) {
 		return
 	}
 
-	selected, err := model.SelectExperiment(0, in.Uid)
+	selected, err := model.SelectExperiment(context.Context(context.Background()), 0, in.Uid)
 	if err != nil {
 		t.Error(err.With("uid", in.Uid).Error())
 		return
