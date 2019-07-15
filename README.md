@@ -1,7 +1,11 @@
 # platform-services
-A PoC with functioning service using simple Istio Mesh running on K8s
+A public PoC with functioning service using simple Istio Mesh running on K8s
 
 Version : <repo-version>0.7.0-feature-17-o11y-honeycomb-aaaagjwcjtn</repo-version>
+
+# Purpose
+
+This proof of concept implementation is intended as a means by which the LEAF team can experiment with features of PaaS and SaaS platforms provided by third parties.  This project serves as a way of exercising non cognizant services so that code can be openly shared while testing external services and technologies, and for support in relation to external open source offerings in a public support context.
 
 # Installation
 
