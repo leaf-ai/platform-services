@@ -5,7 +5,9 @@ Version : <repo-version>0.7.0-feature-17-o11y-honeycomb-aaaagjwcjtn</repo-versio
 
 # Purpose
 
-This proof of concept implementation is intended as a means by which the LEAF team can experiment with features of PaaS and SaaS platforms provided by third parties.  This project serves as a way of exercising non cognizant services so that code can be openly shared while testing external services and technologies, and for support in relation to external open source offerings in a public support context.
+This proof of concept (PoC) implementation is intended as a means by which the LEAF team can experiment with features of Service Mesh, PaaS, and SaaS platforms provided by third parties.  This project serves as a way of exercising non cognizant services so that code can be openly shared while testing external services and technologies, and for support in relation to external open source offerings in a public support context.
+
+In its current form the PoC is used to deploy two main services, an experiment service and a downstream service. These services are provisioned with a gRPC API and leverage an Authorizationm Athentication, and Accounting (AAA) capability and an Observability platform integration to services offered by thrid parties.
 
 # Installation
 
