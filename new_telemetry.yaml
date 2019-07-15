@@ -2,7 +2,7 @@
 apiVersion: "config.istio.io/v1alpha2"
 kind: instance
 metadata:
-  name: requestcount
+  name: rqstcount
   namespace: istio-system
 spec:
   compiledTemplate: metric
@@ -17,14 +17,14 @@ spec:
 apiVersion: "config.istio.io/v1alpha2"
 kind: handler
 metadata:
-  name: requestcounthandler
+  name: rqstcounthandler
   namespace: istio-system
 spec:
   compiledAdapter: prometheus
   params:
     metrics:
     - name: request_count # Prometheus metric name
-      instance_name: requestcount.metric.istio-system # Mixer instance name (fully-qualified)
+      instance_name: rqstcount.metric.istio-system # Mixer instance name (fully-qualified)
       kind: COUNTER
       label_names:
       - source
@@ -39,9 +39,9 @@ metadata:
   namespace: istio-system
 spec:
   actions:
-  - handler: requestcounthandler.prometheus
+  - handler: rqstcounthandler.prometheus
     instances:
-    - requestcount.metric
+    - rqstcount.metric
 ---
 # Configuration for logentry instances
 apiVersion: "config.istio.io/v1alpha2"

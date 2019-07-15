@@ -39,11 +39,11 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
+	"go.opencensus.io/trace"
 
 	sq "github.com/Masterminds/squirrel"
 
 	grpc "github.com/leaf-ai/platform-services/internal/gen/experimentsrv"
-	"github.com/leaf-ai/platform-services/internal/platform"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
@@ -222,7 +222,7 @@ type DBErrorMsg struct {
 // database, which contains state information for components of the platform
 // ecosystem
 //
-func StartDB(quitC <-chan struct{}) (msgC chan string, errorC chan *DBErrorMsg, err errors.Error) {
+func StartDB(ctx context.Context) (msgC chan string, errorC chan *DBErrorMsg, err errors.Error) {
 
 	msgC = make(chan string)
 	errorC = make(chan *DBErrorMsg)
@@ -256,6 +256,8 @@ func StartDB(quitC <-chan struct{}) (msgC chan string, errorC chan *DBErrorMsg, 
 		// is live.
 		//
 		dbCheckTimer := time.Duration(time.Microsecond)
+
+		lastCncts := 0
 
 		for {
 			select {
@@ -315,14 +317,16 @@ func StartDB(quitC <-chan struct{}) (msgC chan string, errorC chan *DBErrorMsg, 
 					}
 				}
 
-				msg := fmt.Sprint("database has ", dBase.Stats().OpenConnections, " connections ",
-					" ", *databaseHostPort, " name ", *databaseName, " dbConnectionCount ", dBase.Stats().OpenConnections)
-				select {
-				case msgC <- msg:
-				default:
+				if lastCncts != dBase.Stats().OpenConnections {
+					lastCncts = dBase.Stats().OpenConnections
+					msg := fmt.Sprint("database has ", lastCncts, " connections ",
+						" ", *databaseHostPort, " name ", *databaseName, " dbConnectionCount ", lastCncts)
+					select {
+					case msgC <- msg:
+					default:
+					}
 				}
-
-			case <-quitC:
+			case <-ctx.Done():
 				select {
 				case msgC <- "database monitor stopped":
 				default:
@@ -537,19 +541,15 @@ func CheckIfFatal(inErr error) (err error) {
 //
 func SelectExperiment(ctx context.Context, rowId uint64, uid string) (result *grpc.Experiment, err errors.Error) {
 
-	ev := platform.CreateEvent(ctx, "experiment", "SelectExperiment")
-
+	ctx, span := trace.StartSpan(ctx, "SelectExperiment", trace.WithSpanKind(trace.SpanKindServer))
 	defer func() {
-		// add fields to identify this event
-		ev.Add(map[string]interface{}{
-			"duration_ms": float64(time.Since(ev.Timestamp)) / float64(time.Millisecond),
-		})
 		if err != nil {
-			ev.AddField("error", err)
+			span.SetStatus(trace.Status{
+				Code:    trace.StatusCodeUnknown,
+				Message: err.Error(),
+			})
 		}
-		if errEv := ev.Send(); errEv != nil {
-			fmt.Println(errors.Wrap(errEv).With("stack", stack.Trace().TrimRuntime()))
-		}
+		span.End()
 	}()
 
 	if err = dbDownErr.get(); err != nil {
@@ -622,19 +622,15 @@ type experimentWide struct {
 //
 func SelectExperimentWide(ctx context.Context, uid string) (result *grpc.Experiment, err errors.Error) {
 
-	ev := platform.CreateEvent(ctx, "experiment", "SelectExperimentWide")
-
+	ctx, span := trace.StartSpan(ctx, "SelectExperimentWide", trace.WithSpanKind(trace.SpanKindServer))
 	defer func() {
-		// add fields to identify this event
-		ev.Add(map[string]interface{}{
-			"duration_ms": float64(time.Since(ev.Timestamp)) / float64(time.Millisecond),
-		})
 		if err != nil {
-			ev.AddField("error", err)
+			span.SetStatus(trace.Status{
+				Code:    trace.StatusCodeUnknown,
+				Message: err.Error(),
+			})
 		}
-		if errEv := ev.Send(); errEv != nil {
-			fmt.Println(errors.Wrap(errEv).With("stack", stack.Trace().TrimRuntime()))
-		}
+		span.End()
 	}()
 
 	if err := dbDownErr.get(); err != nil {
@@ -733,19 +729,15 @@ func SelectExperimentWide(ctx context.Context, uid string) (result *grpc.Experim
 //
 //
 func InsertExperiment(ctx context.Context, data *grpc.Experiment) (result *grpc.Experiment, err errors.Error) {
-	ev := platform.CreateEvent(ctx, "experiment", "InsertExperiment")
-
+	ctx, span := trace.StartSpan(ctx, "InsertExperiment", trace.WithSpanKind(trace.SpanKindServer))
 	defer func() {
-		// add fields to identify this event
-		ev.Add(map[string]interface{}{
-			"duration_ms": float64(time.Since(ev.Timestamp)) / float64(time.Millisecond),
-		})
 		if err != nil {
-			ev.AddField("error", err)
+			span.SetStatus(trace.Status{
+				Code:    trace.StatusCodeUnknown,
+				Message: err.Error(),
+			})
 		}
-		if errEv := ev.Send(); errEv != nil {
-			fmt.Println(errors.Wrap(errEv).With("stack", stack.Trace().TrimRuntime()))
-		}
+		span.End()
 	}()
 
 	if err := dbDownErr.get(); err != nil {
@@ -819,19 +811,15 @@ func InsertExperiment(ctx context.Context, data *grpc.Experiment) (result *grpc.
 //
 func DeactivateExperiment(ctx context.Context, uid string) (err errors.Error) {
 
-	ev := platform.CreateEvent(ctx, "experiment", "DeactivateExperiment")
-
+	ctx, span := trace.StartSpan(ctx, "DeactivateExperiment", trace.WithSpanKind(trace.SpanKindServer))
 	defer func() {
-		// add fields to identify this event
-		ev.Add(map[string]interface{}{
-			"duration_ms": float64(time.Since(ev.Timestamp)) / float64(time.Millisecond),
-		})
 		if err != nil {
-			ev.AddField("error", err)
+			span.SetStatus(trace.Status{
+				Code:    trace.StatusCodeUnknown,
+				Message: err.Error(),
+			})
 		}
-		if errEv := ev.Send(); errEv != nil {
-			fmt.Println(errors.Wrap(errEv).With("stack", stack.Trace().TrimRuntime()))
-		}
+		span.End()
 	}()
 
 	if err = dbDownErr.get(); err != nil {

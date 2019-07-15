@@ -57,7 +57,7 @@ type tokenCache struct {
 	sync.Mutex
 }
 
-func initJwksUpdate(quitC <-chan struct{}) {
+func initJwksUpdate(ctx context.Context) {
 
 	// Initialize a cache for our auth0 JWT authorizations
 	cache.Lock()
@@ -89,7 +89,7 @@ func initJwksUpdate(quitC <-chan struct{}) {
 				}
 				jwksCache.Unlock()
 				modules.SetModule("jwks", true)
-			case <-quitC:
+			case <-ctx.Done():
 				return
 			}
 		}

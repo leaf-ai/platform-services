@@ -205,6 +205,16 @@ spec:
             secretKeyRef:
               name: postgres
               key: password
+        - name: "O11Y_KEY"
+          valueFrom:
+            secretKeyRef:
+              name: honeycomb-writekey
+              key: apikey
+        - name: "O11Y_DATASET"
+          valueFrom:
+            secretKeyRef:
+              name: honeycomb-writekey
+              key: dataset
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: ServiceEntry

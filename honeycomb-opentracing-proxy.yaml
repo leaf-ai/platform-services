@@ -19,7 +19,7 @@ spec:
         - containerPort: 9411
         args:
           - -d
-          - traces
+          - "$(HONEYCOMB_DATASET)"
           - -k
           - "$(HONEYCOMB_WRITEKEY)"
           - --debug
@@ -33,6 +33,12 @@ spec:
             secretKeyRef:
               key: key
               name: honeycomb-writekey
+        - name: HONEYCOMB_DATASET
+          valueFrom:
+            secretKeyRef:
+              key: dataset
+              name: honeycomb-writekey
+
 
 ---
 apiVersion: v1

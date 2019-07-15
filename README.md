@@ -214,6 +214,8 @@ This proxy server is used to forward tracing and metrics from your istio mesh ba
 stencil < honeycomb-opentracing-proxy.yaml | kubectl apply -f -
 </b></code></pre>
 
+In order to instrument the base Kubernetes deployment for us with honeycomb you should follow the instructions found at https://docs.honeycomb.io/getting-data-in/integrations/kubernetes/.
+
 ## Helm Kubernetes package manager
 
 Helm is used by several packages that are deployed using Kubernetes.  Helm can be installed using instructions found at, https://helm.sh/docs/using\_helm/#installing-helm.  
@@ -250,7 +252,7 @@ In order to deploy Postgres this document describes a helm based approach.  The 
 
 <pre><code><b>
 helm install --name $PGRELEASE \
-  --set postgresqlPassword=$PGPASSWORD,postgresqlDatabase=$PGDATABASE\
+  --set postgresqlPassword=$PGPASSWORD,postgresqlDatabase=postgres\
   stable/postgresql
 </b></code></pre>
 
@@ -356,6 +358,35 @@ In order to locate the image repository the stencil tool will test for the prese
 Once the application is deployed you can discover the gateway points within the kubernetes cluster by using the kubectl commands as documented in the cmd/experimentsrv/README.md file.
 
 More information about deploying a real service and using the experimentsrv server can be found at, https://github.com/leaf-ai/platform-services/blob/master/cmd/experimentsrv/README.md.
+
+### Debugging
+
+There are several pages of debugging instructions that can be used for situations when grpc failures to occur without much context, this applies to unexplained GRPC errors that reference C++ files within envoy etc.  These pages can be found by using the search function on the Istio web site at, https://istio.io/search.html?q=debugging.
+
+You might find the following use cases useful for avoiding using hard coded pod names etc when debugging.
+
+The following example shows enabling debugging for http2 and rbac layers within the Ingress Envoy instance.
+
+<pre><code><b>
+kubectl exec $(kubectl get pods -l istio=ingressgateway -n istio-system -o jsonpath='{.items[0].metadata.name}') -c istio-proxy -n istio-system -- curl -X POST "localhost:15000/logging?rbac=debug" -s
+kubectl exec $(kubectl get pods -l istio=ingressgateway -n istio-system -o jsonpath='{.items[0].metadata.name}') -c istio-proxy -n istio-system -- curl -X POST "localhost:15000/logging?filter=debug" -s
+kubectl exec $(kubectl get pods -l istio=ingressgateway -n istio-system -o jsonpath='{.items[0].metadata.name}') -c istio-proxy -n istio-system -- curl -X POST "localhost:15000/logging?http2=debug" -s
+</b></code></pre>
+
+After making a test request the log can be retrieved using something like the following:
+
+<pre><code><b>
+kubectl logs $(kubectl get pods --namespace istio-system -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}') --namespace istio-system</b></code></pre>
+
+When debugging the istio proxy side cars for services you can do the following to enable all of the modules within the proxy:
+
+<pre><code><b>
+kubectl exec $(kubectl get pods -l app=experiment -o jsonpath='{.items[0].metadata.name}') -c istio-proxy -- curl -X POST "localhost:15000/logging?level=debug" -s</b></code></pre>
+
+And then the logs can be captured during the testing using the following:
+
+<pre><code><b>
+kubectl logs $(kubectl get pods -l app=experiment -o jsonpath='{.items[0].metadata.name}') -c istio-proxy</b></code></pre>
 
 # Logging and Observability
 

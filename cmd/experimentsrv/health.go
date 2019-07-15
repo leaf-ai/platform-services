@@ -7,8 +7,8 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
+	"github.com/go-stack/stack"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -25,12 +25,13 @@ var (
 )
 
 func grpcHealth(ctx context.Context, in *grpc_health_v1.HealthCheckRequest) (resp *grpc_health_v1.HealthCheckResponse, err error) {
+	fmt.Println(stack.Trace().TrimRuntime())
 	serverHealth.Lock()
 	defer serverHealth.Unlock()
 	return serverHealth.h.Check(ctx, in)
 }
 
-func initHealthTracker(serviceName string, quitC <-chan struct{}) {
+func initHealthTracker(ctx context.Context, serviceName string) {
 
 	serverHealth.Lock()
 	serverHealth.h.SetServingStatus(serviceName, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
@@ -52,11 +53,10 @@ func initHealthTracker(serviceName string, quitC <-chan struct{}) {
 		}()
 
 		running := false
+		lastKnown := running
 
 		for {
 			select {
-			case <-time.After(5 * time.Second):
-				logger.Info(fmt.Sprintf("server running state is %v", running))
 			case up := <-listenerC:
 				running = up
 				serverHealth.Lock()
@@ -66,7 +66,11 @@ func initHealthTracker(serviceName string, quitC <-chan struct{}) {
 					serverHealth.h.SetServingStatus(serviceName, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 				}
 				serverHealth.Unlock()
-			case <-quitC:
+				if lastKnown != running {
+					lastKnown = running
+					logger.Info(fmt.Sprintf("server running state is %v", running))
+				}
+			case <-ctx.Done():
 				return
 			}
 		}

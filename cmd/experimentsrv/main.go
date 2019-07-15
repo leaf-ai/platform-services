@@ -229,20 +229,20 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 
 	// The health tracker will listen for server up and down states that reflect
 	// it own internal dependencies and will inform the outside worl
-	initHealthTracker(serviceName, ctx.Done())
+	initHealthTracker(ctx, serviceName)
 
 	// In order to keep track internally of the depdencies within the server
 	// we make use of a module up/down state tracking component
-	initModuleTracking(ctx.Done())
+	initModuleTracking(ctx)
 
 	// Initiate authentication services that will be used by
 	// our server to validate the authentication claims of clients
-	initJwksUpdate(ctx.Done())
+	initJwksUpdate(ctx)
 
 	// Initiate database processing.  Without the DB at least entering a retry state the
 	// server will never run so immediately return if this cannot be started
 	//
-	dbMsgC, dbErrorC, err := experiment.StartDB(ctx.Done())
+	dbMsgC, dbErrorC, err := experiment.StartDB(ctx)
 	if err != nil {
 		errs = append(errs, err)
 	} else {
@@ -270,7 +270,7 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 
 	// Initiate a regular checker that looks to the example downstream gRPC service
 	// and validates that it is working
-	initiateDownstream(*downstreamHostPort, ctx.Done())
+	initiateDownstream(ctx, *downstreamHostPort)
 
 	// Now check for any fatal errors before allowing the system to continue.  This allows
 	// all errors that could have ocuured as a result of incorrect options to be flushed

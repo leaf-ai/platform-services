@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -15,15 +14,14 @@ import (
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 
-	"github.com/davecgh/go-spew/spew"
-	"github.com/honeycombio/libhoney-go"
-
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
 
 	model "github.com/leaf-ai/platform-services/internal/experiment"
 	experiment "github.com/leaf-ai/platform-services/internal/gen/experimentsrv"
 	"github.com/leaf-ai/platform-services/internal/platform"
+
+	"go.opencensus.io/trace"
 )
 
 var (
@@ -92,27 +90,14 @@ func (es *ExperimentServer) Watch(in *grpc_health_v1.HealthCheckRequest, server 
 
 func o11yUnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, errGo error) {
-		ev := platform.CreateEvent(ctx, "experiment", info.FullMethod)
+		ctx, span := trace.StartSpan(ctx, info.FullMethod, trace.WithSpanKind(trace.SpanKindServer))
+		defer span.End()
 
-		defer func() {
-			ev.AddField("duration_ms", float64(time.Since(ev.Timestamp))/float64(time.Millisecond))
-			if errEv := ev.Send(); errEv != nil {
-				logger.Warn(fmt.Sprint(errors.Wrap(errEv).With("stack", stack.Trace().TrimRuntime())))
-			}
-		}()
-
-		// add fields to identify this event
-		ev.Add(map[string]interface{}{
-			"grpc.input": req,
-		})
-
-		handlerCtx := context.Context(ctx)
-		for k, v := range ev.Fields() {
-			handlerCtx = context.WithValue(handlerCtx, k, v)
-		}
-
-		if resp, errGo = handler(handlerCtx, req); errGo != nil {
-			ev.AddField("grpc.error", errGo)
+		if resp, errGo = handler(ctx, req); errGo != nil {
+			span.SetStatus(trace.Status{
+				Code:    trace.StatusCodeUnknown,
+				Message: errGo.Error(),
+			})
 		}
 
 		return resp, errGo
@@ -126,27 +111,16 @@ type stream struct {
 
 func o11yStreamInterceptor() grpc.StreamServerInterceptor {
 	return func(srv interface{}, strm grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) (errGo error) {
-		ctx := strm.Context()
-		ev := platform.CreateEvent(ctx, "experiment", info.FullMethod)
-		defer func() {
-			ev.AddField("duration_ms", float64(time.Since(ev.Timestamp))/float64(time.Millisecond))
+		ctx, span := trace.StartSpan(strm.Context(), info.FullMethod, trace.WithSpanKind(trace.SpanKindServer))
+		defer span.End()
 
-			if errEv := ev.Send(); errEv != nil {
-				logger.Warn(fmt.Sprint(errors.Wrap(errEv).With("stack", stack.Trace().TrimRuntime())))
-			}
-		}()
-
-		// Debug here
-		logger.Debug(spew.Sdump(ctx) + stack.Trace().TrimRuntime().String())
-		logger.Debug(spew.Sdump(ev) + stack.Trace().TrimRuntime().String())
-		handlerCtx := context.Context(ctx)
-		for k, v := range ev.Fields() {
-			handlerCtx = context.WithValue(handlerCtx, k, v)
-		}
-		s := stream{strm, handlerCtx}
+		s := stream{strm, ctx}
 
 		if errGo = handler(srv, s); errGo != nil {
-			ev.AddField("grpc.error", errGo)
+			span.SetStatus(trace.Status{
+				Code:    trace.StatusCodeUnknown,
+				Message: errGo.Error(),
+			})
 		}
 
 		return errGo
@@ -167,11 +141,8 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 		}
 	}
 
-	// Start the honeycomb API
-	libhoney.Init(libhoney.Config{
-		WriteKey: *honeycombKey,
-		Dataset:  *honeycombData,
-	})
+	// Start the honeycomb OpenCensus exporter
+	platform.StartOpenCensus(ctx, *honeycombKey, *honeycombData)
 
 	streams := grpc_middleware.ChainStreamServer(
 		authStreamInterceptor,

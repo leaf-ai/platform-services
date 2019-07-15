@@ -50,7 +50,7 @@ func checkDownstream(addr string) (err errors.Error) {
 	return nil
 }
 
-func initiateDownstream(hostAndPort string, quitC <-chan struct{}) (err errors.Error) {
+func initiateDownstream(ctx context.Context, hostAndPort string) (err errors.Error) {
 	go func() {
 		internalCheck := time.Duration(10 * time.Second)
 		for {
@@ -63,7 +63,7 @@ func initiateDownstream(hostAndPort string, quitC <-chan struct{}) (err errors.E
 				seen.Lock()
 				seen.when = time.Now()
 				seen.Unlock()
-			case <-quitC:
+			case <-ctx.Done():
 				return
 			}
 		}
