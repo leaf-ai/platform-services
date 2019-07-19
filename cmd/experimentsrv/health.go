@@ -25,7 +25,6 @@ var (
 )
 
 func grpcHealth(ctx context.Context, in *grpc_health_v1.HealthCheckRequest) (resp *grpc_health_v1.HealthCheckResponse, err error) {
-	fmt.Println(stack.Trace().TrimRuntime())
 	serverHealth.Lock()
 	defer serverHealth.Unlock()
 	return serverHealth.h.Check(ctx, in)
