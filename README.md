@@ -186,7 +186,7 @@ Suggestions:
  * the admin user is specific to Debian. If not using Debian please use the appropriate user based on your OS.
  * read about installing addons at: https://github.com/kubernetes/kops/blob/master/docs/addons.md.
 
-<pre><code><b>
+<b>
 while [ 1 ]; do
     kops validate cluster > /dev/null && break || sleep 10
 done;
