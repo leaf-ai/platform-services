@@ -62,6 +62,18 @@ func (t *trw) GetPath() string { return "" }
 
 func (t *trw) GetBody() []byte { return nil }
 
+func (t *trw) GetBodyParam() interface{} {
+	return t.Body
+}
+
+func (t *trw) GetFileParam() map[string][]NamedReadCloser {
+	return nil
+}
+
+func (t *trw) GetHeaderParams() http.Header {
+	return t.Headers
+}
+
 func TestRequestWriterFunc(t *testing.T) {
 
 	hand := ClientRequestWriterFunc(func(r ClientRequest, reg strfmt.Registry) error {

@@ -1,7 +1,13 @@
 # platform-services
-A PoC with functioning service using simple Istio Mesh running on K8s
+A public PoC with functioning service using simple Istio Mesh running on K8s
 
-Version : <repo-version>0.6.1</repo-version>
+Version : <repo-version>0.7.0-feature-17-o11y-honeycomb-aaaagjwcjtn</repo-version>
+
+# Purpose
+
+This proof of concept (PoC) implementation is intended as a means by which the LEAF team can experiment with features of Service Mesh, PaaS, and SaaS platforms provided by third parties.  This project serves as a way of exercising non cognizant services so that code can be openly shared while testing external services and technologies, and for support in relation to external open source offerings in a public support context.
+
+In its current form the PoC is used to deploy two main services, an experiment service and a downstream service. These services are provisioned with a gRPC API and leverage an Authorizationm Athentication, and Accounting (AAA) capability and an Observability platform integration to services offered by thrid parties.
 
 This project is intended as a sand-box for experimenting with Istio and some of the services we use in our Evolutionary AI services.  It also provides a good way of exposing and testing out non-proprietary platform functions with other parties such as vendors and customers.
 
@@ -55,6 +61,8 @@ A combined build script is provided 'platform-services/build.sh' to allow all st
 # Deploying the Istio Service platform on AWS with Kubernetes
 
 The k8s instructions in this section are for unmanaged solutions.  They are included as a baseline for AWS prior to the wide availability of EKS.  Once EKS is in wide distribution and managed offerings for k8s is available from the big three cloud vendors and k8s receeds into the cloud platform then the kops instructions could well become redundant and the cloud vendors tooling will take over this function.
+
+Thje following instructions make use of the stencil tool for templating configuration files.
 
 This major section describes two basic alternatives for deployment, AWS kops, and locally hosted microk8s.  Other Kubernetes distribution and deployment models will work but are not explicitly described here.
 
@@ -177,9 +185,44 @@ Suggestions:
  * the admin user is specific to Debian. If not using Debian please use the appropriate user based on your OS.
  * read about installing addons at: https://github.com/kubernetes/kops/blob/master/docs/addons.md.
 
-</code></pre>
+<pre><code><b>
+while [ 1 ]; do
+    kops validate cluster > /dev/null && break || sleep 10
+done;
+</b></code></pre>
 
 The initial cluster spinup will take sometime, use kops commands such as 'kops validate cluster' to determine when the cluster is spun up ready for Istio and the platform services.
+
+## Configuration of secrets
+
+The experiment service supports the Honeycomb observability solution.  Configuring the service is done by creating a Kubernetes secret.  For now we can define the Honeycomb API key using an environment variable and when we deploy the secrets for the Postgres Database the secret for the API will be injected using the stencil tool.
+
+<pre><code><b>export O11Y_KEY a54d762df847474b22915
+</b></code></pre>
+
+The services also use a postgres Database instance to persist experiment data.  The following shows an example of what should be defined for Postgres support prior to running the stencil command:
+
+<pre><code><b>export PGRELEASE=`petname`
+export PGHOST=$PGRELEASE-postgresql.default.svc.cluster.local
+export PORT=5432
+export PGUSER=postgres
+export PGPASSWORD=p355w0rd
+export PGDATABASE=postgres
+</b></code></pre>
+
+<pre><code><b>
+stencil < cmd/experimentsrv/secret.yaml | kubectl apply -f -
+</b></code></pre>
+
+## Deploying the Observability proxy server
+
+This proxy server is used to forward tracing and metrics from your istio mesh based deployment to the Honeycomb service.
+
+<pre><code><b>
+stencil < honeycomb-opentracing-proxy.yaml | kubectl apply -f -
+</b></code></pre>
+
+In order to instrument the base Kubernetes deployment for us with honeycomb you should follow the instructions found at https://docs.honeycomb.io/getting-data-in/integrations/kubernetes/.
 
 ## Helm Kubernetes package manager
 
@@ -192,40 +235,6 @@ kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admi
 helm init --history-max 200 --service-account tiller --upgrade
 helm repo update
 </b></code></pre>
-
-## Istio 1.1.x
-
-Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, 
-https://archive.istio.io/v1.1/docs/setup/kubernetes/quick-start/#prerequisites. Helm will also be needed for installation of these more recent versions of Istio, please see the instructions for postgres.  We recommend using the mTLS installation for the k8s cluster deployment, for example
-
-<pre><code><b>cd ~
-curl -LO https://github.com/istio/istio/releases/download/1.1.9/istio-1.1.9-linux.tar.gz
-tar xzf istio-1.1.9-linux.tar.gz
-export ISTIO_DIR=`pwd`/istio-1.1.9
-export PATH=$ISTIO_DIR/bin:$PATH
-cd -
-helm install $ISTIO_DIR/install/kubernetes/helm/istio-init --name istio-init --namespace istio-system -f helm_custom.yaml
-helm install $ISTIO_DIR/install/kubernetes/helm/istio --name istio --namespace istio-system -f helm_custom.yaml
-</b></code></pre>
-
-## Istio 1.2.x
-
-Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, 
-https://archive.istio.io/v1.2/docs/setup/kubernetes/quick-start/#prerequisites. Helm will also be needed for installation of these more recent versions of Istio, please see the instructions for postgres.  We recommend using the mTLS installation for the k8s cluster deployment, for example
-
-<pre><code><b>cd ~
-curl -LO https://github.com/istio/istio/releases/download/1.2.0/istio-1.2.0-linux.tar.gz
-tar xzf istio-1.2.0-linux.tar.gz
-export ISTIO_DIR=`pwd`/istio-1.2.0
-export PATH=$ISTIO_DIR/bin:$PATH
-cd -
-kubectl apply -f $ISTIO_DIR/install/kubernetes/helm/helm-service-account.yaml
-
-helm install $ISTIO_DIR/install/kubernetes/helm/istio-init --name istio-init --namespace istio-system -f helm_custom.yaml
-helm install $ISTIO_DIR/install/kubernetes/helm/istio --name istio --namespace istio-system -f helm_custom.yaml
-</b></code></pre>
-
-## Deploying into the Istio mesh
 
 ### Postgres DB
 
@@ -245,16 +254,13 @@ sudo apt-get upgrade postgresql-client-11
 
 This section gives guidence on how to install an in-cluster database for use-cases where data persistence beyond a single deployment is not a concern.  These instructions are therefore limited to testing only scenarios.  For information concerning Kubernetes storage strategies you should consult other sources and read about stateful sets in Kubernetes.  In production using a single source of truth then cloud provider offerings such as AWS Aurora are recommended.
 
+A secrets file containing host information, passwords and other secrets is assumed to have already been applied using the instructions several sections above.  The secrets are needed to allows access to the postgres DB, and/or other external resources.  YAML files will be needed to populate secrets into the service mesh, individual services document the secrets they require within their README.md files found on github and provide examples, for example https://github.com/leaf-ai/platform-services/cmd/experimentsrv/README.md.
+
 In order to deploy Postgres this document describes a helm based approach.  The bitnami postgresql distribution can be installed using the following:
 
-<pre><code><b>export PGRELEASE=`petname`
-export PGHOST=$PGRELEASE-postgresql.default.svc.cluster.local
-export PORT=5432
-export PGUSER=postgres
-export PGPASSWORD=p355w0rd
-export PGDATABASE=postgres
+<pre><code><b>
 helm install --name $PGRELEASE \
-  --set postgresqlPassword=$PGPASSWORD,postgresqlDatabase=$PGDATABASE\
+  --set postgresqlPassword=$PGPASSWORD,postgresqlDatabase=postgres\
   stable/postgresql
 </b></code></pre>
 
@@ -311,13 +317,32 @@ Setting up the proxy will be needed prior to running the SQL database provisioni
 
 <pre><code><b>
 kubectl port-forward --namespace default svc/$PGRELEASE-postgresql 5432:5432 &amp;
+PGHOST=127.0.0.1 PGDATABASE=platform psql -f sql/platform.sql -d postgres
 </b></code></pre>
 
 Further information about how to deployed the service specific database for the experiment service for example can be found in the cmd/experiment/README.md file.
 
-### Configuring the database secrets overview
+## Istio 1.2.x
 
-A secrets file containing host information, passwords and other secrets will be needed to allows access to the postgres DB, and/or other external resources.  YAML files will be needed to populate secrets into the service mesh, individual services document the secrets they require within their README.md files found on github and provide examples, for example https://github.com/leaf-ai/platform-services/cmd/experimentsrv/README.md.
+Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, 
+https://archive.istio.io/v1.2/docs/setup/kubernetes/quick-start/#prerequisites. Helm will also be needed for installation of these more recent versions of Istio, please see the instructions for postgres.  We recommend using the mTLS installation for the k8s cluster deployment, for example
+
+<pre><code><b>cd ~
+curl -LO https://github.com/istio/istio/releases/download/1.2.2/istio-1.2.2-linux.tar.gz
+tar xzf istio-1.2.2-linux.tar.gz
+export ISTIO_DIR=`pwd`/istio-1.2.2
+export PATH=$ISTIO_DIR/bin:$PATH
+cd -
+kubectl apply -f $ISTIO_DIR/install/kubernetes/helm/helm-service-account.yaml
+
+helm install $ISTIO_DIR/install/kubernetes/helm/istio-init --name istio-init --namespace istio-system -f helm_custom.yaml
+sleep 10
+helm install $ISTIO_DIR/install/kubernetes/helm/istio --name istio --namespace istio-system -f helm_custom.yaml
+sleep 10
+stencil < new_telemetry.yaml | kubectl apply -f -
+</b></code></pre>
+
+## Deploying into the Istio mesh
 
 ### Service deployment overview
 
@@ -341,6 +366,35 @@ In order to locate the image repository the stencil tool will test for the prese
 Once the application is deployed you can discover the gateway points within the kubernetes cluster by using the kubectl commands as documented in the cmd/experimentsrv/README.md file.
 
 More information about deploying a real service and using the experimentsrv server can be found at, https://github.com/leaf-ai/platform-services/blob/master/cmd/experimentsrv/README.md.
+
+### Debugging
+
+There are several pages of debugging instructions that can be used for situations when grpc failures to occur without much context, this applies to unexplained GRPC errors that reference C++ files within envoy etc.  These pages can be found by using the search function on the Istio web site at, https://istio.io/search.html?q=debugging.
+
+You might find the following use cases useful for avoiding using hard coded pod names etc when debugging.
+
+The following example shows enabling debugging for http2 and rbac layers within the Ingress Envoy instance.
+
+<pre><code><b>
+kubectl exec $(kubectl get pods -l istio=ingressgateway -n istio-system -o jsonpath='{.items[0].metadata.name}') -c istio-proxy -n istio-system -- curl -X POST "localhost:15000/logging?rbac=debug" -s
+kubectl exec $(kubectl get pods -l istio=ingressgateway -n istio-system -o jsonpath='{.items[0].metadata.name}') -c istio-proxy -n istio-system -- curl -X POST "localhost:15000/logging?filter=debug" -s
+kubectl exec $(kubectl get pods -l istio=ingressgateway -n istio-system -o jsonpath='{.items[0].metadata.name}') -c istio-proxy -n istio-system -- curl -X POST "localhost:15000/logging?http2=debug" -s
+</b></code></pre>
+
+After making a test request the log can be retrieved using something like the following:
+
+<pre><code><b>
+kubectl logs $(kubectl get pods --namespace istio-system -l istio=ingressgateway -o jsonpath='{.items[0].metadata.name}') --namespace istio-system</b></code></pre>
+
+When debugging the istio proxy side cars for services you can do the following to enable all of the modules within the proxy:
+
+<pre><code><b>
+kubectl exec $(kubectl get pods -l app=experiment -o jsonpath='{.items[0].metadata.name}') -c istio-proxy -- curl -X POST "localhost:15000/logging?level=debug" -s</b></code></pre>
+
+And then the logs can be captured during the testing using the following:
+
+<pre><code><b>
+kubectl logs $(kubectl get pods -l app=experiment -o jsonpath='{.items[0].metadata.name}') -c istio-proxy</b></code></pre>
 
 # Logging and Observability
 

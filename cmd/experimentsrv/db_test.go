@@ -4,6 +4,7 @@ package main
 // the DB flags must be set appropriately
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -15,6 +16,7 @@ import (
 
 	model "github.com/leaf-ai/platform-services/internal/experiment"
 	grpc "github.com/leaf-ai/platform-services/internal/gen/experimentsrv"
+	"github.com/leaf-ai/platform-services/internal/platform"
 
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
@@ -68,9 +70,9 @@ func diffExp(l *grpc.Experiment, r *grpc.Experiment) (diffs []string) {
 
 func newTestExperiment() (out *grpc.Experiment) {
 	return &grpc.Experiment{
-		Uid:          "test-only-" + model.GetPseudoUUID(),
-		Name:         "test-only-" + model.GetPseudoUUID(),
-		Description:  "test-only-" + model.GetPseudoUUID(),
+		Uid:          "test-only-" + platform.GetPseudoUUID(),
+		Name:         "test-only-" + platform.GetPseudoUUID(),
+		Description:  "test-only-" + platform.GetPseudoUUID(),
 		InputLayers:  map[uint32]*grpc.InputLayer{},
 		OutputLayers: map[uint32]*grpc.OutputLayer{},
 	}
@@ -85,7 +87,7 @@ func TestDBExperimentSimple(t *testing.T) {
 
 	in := newTestExperiment()
 
-	exp, err := model.InsertExperiment(in)
+	exp, err := model.InsertExperiment(context.Context(context.Background()), in)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -100,7 +102,7 @@ func TestDBExperimentSimple(t *testing.T) {
 		return
 	}
 
-	selected, err := model.SelectExperiment(0, in.Uid)
+	selected, err := model.SelectExperiment(context.Context(context.Background()), 0, in.Uid)
 	if err != nil {
 		t.Error(err.With("uid", in.Uid).Error())
 		return
@@ -115,7 +117,7 @@ func TestDBExperimentSimple(t *testing.T) {
 	}
 
 	// Now do a wide select even though we have no layers to test the simple case
-	wide, err := model.SelectExperimentWide(in.Uid)
+	wide, err := model.SelectExperimentWide(context.Context(context.Background()), in.Uid)
 	if err != nil {
 		t.Error(err.With("uid", in.Uid).Error())
 		return
@@ -129,13 +131,13 @@ func TestDBExperimentSimple(t *testing.T) {
 		return
 	}
 
-	if err = model.DeactivateExperiment(in.Uid); err != nil {
+	if err = model.DeactivateExperiment(context.Context(context.Background()), in.Uid); err != nil {
 		t.Error(err.With("uid", in.Uid).Error())
 		return
 	}
 
 	// Try reinserting and make sure it fails
-	if _, err = model.InsertExperiment(in); err == nil {
+	if _, err = model.InsertExperiment(context.Context(context.Background()), in); err == nil {
 		t.Error("failed tests due to reinsertion of a duplicate experiment working")
 		return
 	}
@@ -151,27 +153,27 @@ func TestDBExperimentWide(t *testing.T) {
 	in := newTestExperiment()
 
 	in.InputLayers[1] = &grpc.InputLayer{
-		Name:   model.GetPseudoUUID(),
+		Name:   platform.GetPseudoUUID(),
 		Type:   grpc.InputLayer_Enumeration,
 		Values: []string{},
 	}
 	in.OutputLayers[0] = &grpc.OutputLayer{
-		Name:   model.GetPseudoUUID(),
+		Name:   platform.GetPseudoUUID(),
 		Type:   grpc.OutputLayer_Enumeration,
 		Values: []string{},
 	}
 	in.OutputLayers[1] = &grpc.OutputLayer{
-		Name:   model.GetPseudoUUID(),
+		Name:   platform.GetPseudoUUID(),
 		Type:   grpc.OutputLayer_Probability,
-		Values: []string{model.GetPseudoUUID()},
+		Values: []string{platform.GetPseudoUUID()},
 	}
 	in.OutputLayers[3] = &grpc.OutputLayer{
-		Name:   model.GetPseudoUUID(),
+		Name:   platform.GetPseudoUUID(),
 		Type:   grpc.OutputLayer_Raw,
-		Values: []string{model.GetPseudoUUID(), model.GetPseudoUUID()},
+		Values: []string{platform.GetPseudoUUID(), platform.GetPseudoUUID()},
 	}
 
-	exp, err := model.InsertExperiment(in)
+	exp, err := model.InsertExperiment(context.Context(context.Background()), in)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -186,7 +188,7 @@ func TestDBExperimentWide(t *testing.T) {
 	}
 
 	// Now do a wide select to include our layers
-	wide, err := model.SelectExperimentWide(in.Uid)
+	wide, err := model.SelectExperimentWide(context.Context(context.Background()), in.Uid)
 	if err != nil {
 		t.Error(err.With("uid", in.Uid).Error())
 		return
@@ -200,7 +202,7 @@ func TestDBExperimentWide(t *testing.T) {
 		return
 	}
 
-	if err = model.DeactivateExperiment(in.Uid); err != nil {
+	if err = model.DeactivateExperiment(context.Context(context.Background()), in.Uid); err != nil {
 		t.Error(err.With("uid", in.Uid).Error())
 		return
 	}

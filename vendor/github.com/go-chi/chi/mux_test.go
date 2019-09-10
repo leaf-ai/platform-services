@@ -277,31 +277,9 @@ func TestMuxEmptyRoutes(t *testing.T) {
 		t.Fatalf(body)
 	}
 
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				if r != `chi: attempting to route to a mux with no handlers.` {
-					t.Fatalf("expecting empty route panic")
-				}
-			}
-		}()
-
-		_, body := testHandler(t, mux, "GET", "/api", nil)
-		t.Fatalf("oops, we are expecting a panic instead of getting resp: %s", body)
-	}()
-
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				if r != `chi: attempting to route to a mux with no handlers.` {
-					t.Fatalf("expecting empty route panic")
-				}
-			}
-		}()
-
-		_, body := testHandler(t, mux, "GET", "/api/abc", nil)
-		t.Fatalf("oops, we are expecting a panic instead of getting resp: %s", body)
-	}()
+	if _, body := testHandler(t, apiRouter, "GET", "/", nil); body != "404 page not found\n" {
+		t.Fatalf(body)
+	}
 }
 
 // Test a mux that routes a trailing slash, see also middleware/strip_test.go
@@ -492,11 +470,14 @@ func TestMuxComplicatedNotFound(t *testing.T) {
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 
-	// check that we didn't broke correct routes
+	// check that we didn't break correct routes
 	if _, body := testRequest(t, ts, "GET", "/auth", nil); body != "auth get" {
 		t.Fatalf(body)
 	}
 	if _, body := testRequest(t, ts, "GET", "/public", nil); body != "public get" {
+		t.Fatalf(body)
+	}
+	if _, body := testRequest(t, ts, "GET", "/public/", nil); body != "public get" {
 		t.Fatalf(body)
 	}
 	if _, body := testRequest(t, ts, "GET", "/private/resource", nil); body != "private get" {
@@ -517,15 +498,6 @@ func TestMuxComplicatedNotFound(t *testing.T) {
 	}
 	// check custom not-found on trailing slash routes
 	if _, body := testRequest(t, ts, "GET", "/auth/", nil); body != "custom not-found" {
-		t.Fatalf(body)
-	}
-	if _, body := testRequest(t, ts, "GET", "/public/", nil); body != "custom not-found" {
-		t.Fatalf(body)
-	}
-	if _, body := testRequest(t, ts, "GET", "/private/", nil); body != "custom not-found" {
-		t.Fatalf(body)
-	}
-	if _, body := testRequest(t, ts, "GET", "/private/resource/", nil); body != "custom not-found" {
 		t.Fatalf(body)
 	}
 }
@@ -806,7 +778,9 @@ func TestMuxBig(t *testing.T) {
 }
 
 func bigMux() Router {
-	var r, sr1, sr2, sr3, sr4, sr5, sr6 *Mux
+	var r *Mux
+	var sr3 *Mux
+	// var sr1, sr2, sr3, sr4, sr5, sr6 *Mux
 	r = NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -872,9 +846,9 @@ func bigMux() Router {
 		})
 
 		r.Route("/hubs", func(r Router) {
-			sr1 = r.(*Mux)
+			_ = r.(*Mux) // sr1
 			r.Route("/{hubID}", func(r Router) {
-				sr2 = r.(*Mux)
+				_ = r.(*Mux) // sr2
 				r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 					ctx := r.Context()
 					s := fmt.Sprintf("/hubs/%s reqid:%s session:%s",
@@ -896,7 +870,7 @@ func bigMux() Router {
 					w.Write([]byte(s))
 				})
 				sr3.Route("/{webhookID}", func(r Router) {
-					sr4 = r.(*Mux)
+					_ = r.(*Mux) // sr4
 					r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 						ctx := r.Context()
 						s := fmt.Sprintf("/hubs/%s/webhooks/%s reqid:%s session:%s", URLParam(r, "hubID"),
@@ -912,7 +886,7 @@ func bigMux() Router {
 				}).Handler(sr3))
 
 				r.Route("/posts", func(r Router) {
-					sr5 = r.(*Mux)
+					_ = r.(*Mux) // sr5
 					r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 						ctx := r.Context()
 						s := fmt.Sprintf("/hubs/%s/posts reqid:%s session:%s", URLParam(r, "hubID"),
@@ -924,7 +898,7 @@ func bigMux() Router {
 		})
 
 		r.Route("/folders/", func(r Router) {
-			sr6 = r.(*Mux)
+			_ = r.(*Mux) // sr6
 			r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 				ctx := r.Context()
 				s := fmt.Sprintf("/folders/ reqid:%s session:%s",
@@ -961,14 +935,14 @@ func TestMuxSubroutesBasic(t *testing.T) {
 	})
 
 	r := NewRouter()
-	var rr1, rr2 *Mux
+	// var rr1, rr2 *Mux
 	r.Get("/", hIndex)
 	r.Route("/articles", func(r Router) {
-		rr1 = r.(*Mux)
+		// rr1 = r.(*Mux)
 		r.Get("/", hArticlesList)
 		r.Get("/search", hSearchArticles)
 		r.Route("/{id}", func(r Router) {
-			rr2 = r.(*Mux)
+			// rr2 = r.(*Mux)
 			r.Get("/", hGetArticle)
 			r.Get("/sync", hSyncArticle)
 		})
@@ -1048,14 +1022,17 @@ func TestMuxSubroutes(t *testing.T) {
 	sr := NewRouter()
 	sr.Get("/", hHubView3)
 	r.Mount("/hubs/{hubID}/users", sr)
+	r.Get("/hubs/{hubID}/users/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hub3 override"))
+	})
 
 	sr3 := NewRouter()
 	sr3.Get("/", hAccountView1)
 	sr3.Get("/hi", hAccountView2)
 
-	var sr2 *Mux
+	// var sr2 *Mux
 	r.Route("/accounts/{accountID}", func(r Router) {
-		sr2 = r.(*Mux)
+		_ = r.(*Mux) // sr2
 		// r.Get("/", hAccountView1)
 		r.Mount("/", sr3)
 	})
@@ -1069,7 +1046,6 @@ func TestMuxSubroutes(t *testing.T) {
 	defer ts.Close()
 
 	var body, expected string
-	var resp *http.Response
 
 	_, body = testRequest(t, ts, "GET", "/hubs/123/view", nil)
 	expected = "hub1"
@@ -1086,9 +1062,9 @@ func TestMuxSubroutes(t *testing.T) {
 	if body != expected {
 		t.Fatalf("expected:%s got:%s", expected, body)
 	}
-	resp, body = testRequest(t, ts, "GET", "/hubs/123/users/", nil)
-	expected = "404 page not found\n"
-	if resp.StatusCode != 404 || body != expected {
+	_, body = testRequest(t, ts, "GET", "/hubs/123/users/", nil)
+	expected = "hub3 override"
+	if body != expected {
 		t.Fatalf("expected:%s got:%s", expected, body)
 	}
 	_, body = testRequest(t, ts, "GET", "/accounts/44", nil)
@@ -1397,6 +1373,32 @@ func TestMuxMissingParams(t *testing.T) {
 	if _, body := testRequest(t, ts, "GET", "/user/", nil); body != "nothing here" {
 		t.Fatalf(body)
 	}
+}
+
+func TestMuxWildcardRoute(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {}
+
+	defer func() {
+		if recover() == nil {
+			t.Error("expected panic()")
+		}
+	}()
+
+	r := NewRouter()
+	r.Get("/*/wildcard/must/be/at/end", handler)
+}
+
+func TestMuxWildcardRouteCheckTwo(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {}
+
+	defer func() {
+		if recover() == nil {
+			t.Error("expected panic()")
+		}
+	}()
+
+	r := NewRouter()
+	r.Get("/*/wildcard/{must}/be/at/end", handler)
 }
 
 func TestMuxContextIsThreadSafe(t *testing.T) {

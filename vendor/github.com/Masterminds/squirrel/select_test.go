@@ -78,6 +78,9 @@ func TestSelectBuilderPlaceholders(t *testing.T) {
 
 	sql, _, _ = b.PlaceholderFormat(Dollar).ToSql()
 	assert.Equal(t, "SELECT test WHERE x = $1 AND y = $2", sql)
+
+	sql, _, _ = b.PlaceholderFormat(Colon).ToSql()
+	assert.Equal(t, "SELECT test WHERE x = :1 AND y = :2", sql)
 }
 
 func TestSelectBuilderRunners(t *testing.T) {
@@ -161,4 +164,51 @@ func TestSelectWithOptions(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "SELECT DISTINCT SQL_NO_CACHE * FROM foo", sql)
+}
+
+func TestSelectWithRemoveLimit(t *testing.T) {
+	sql, _, err := Select("*").From("foo").Limit(10).RemoveLimit().ToSql()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "SELECT * FROM foo", sql)
+}
+
+func TestSelectBuilderNestedSelectDollar(t *testing.T) {
+	nestedBuilder := StatementBuilder.PlaceholderFormat(Dollar).Select("*").Prefix("NOT EXISTS (").
+		From("bar").Where("y = ?", 42).Suffix(")")
+	outerSql, _, err := StatementBuilder.PlaceholderFormat(Dollar).Select("*").
+		From("foo").Where("x = ?").Where(nestedBuilder).ToSql()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "SELECT * FROM foo WHERE x = $1 AND NOT EXISTS ( SELECT * FROM bar WHERE y = $2 )", outerSql)
+}
+
+func TestMustSql(t *testing.T) {
+	func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("TestUserFail should have panicked!")
+			}
+		}()
+		// This function should cause a panic
+		Select().From("foo").MustSql()
+	}()
+}
+
+func TestSelectWithoutWhereClause(t *testing.T) {
+	sql, _, err := Select("*").From("users").ToSql()
+	assert.NoError(t, err)
+	assert.Equal(t, "SELECT * FROM users", sql)
+}
+
+func TestSelectWithNilWhereClause(t *testing.T) {
+	sql, _, err := Select("*").From("users").Where(nil).ToSql()
+	assert.NoError(t, err)
+	assert.Equal(t, "SELECT * FROM users", sql)
+}
+
+func TestSelectWithEmptyStringWhereClause(t *testing.T) {
+	sql, _, err := Select("*").From("users").Where("").ToSql()
+	assert.NoError(t, err)
+	assert.Equal(t, "SELECT * FROM users", sql)
 }

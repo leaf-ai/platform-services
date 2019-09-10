@@ -1,7 +1,7 @@
 # Docker multi stage build formatted file.  This is used to build then prepare
 # containers for the services that this repository uses
 #
-FROM golang:1.11.10
+FROM golang:1.11.12
 
 MAINTAINER karlmutch@gmail.com
 

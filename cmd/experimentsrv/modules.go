@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"golang.org/x/net/context"
 )
 
 type Modules struct{}
@@ -93,7 +95,7 @@ func (*Modules) doUpdate() {
 	}
 }
 
-func initModuleTracking(quitC <-chan struct{}) {
+func initModuleTracking(ctx context.Context) {
 	go func() {
 		internalCheck := time.Duration(5 * time.Second)
 		modules := &Modules{}
@@ -104,7 +106,7 @@ func initModuleTracking(quitC <-chan struct{}) {
 				modules.doUpdate()
 			case <-modulesUpdateC:
 				modules.doUpdate()
-			case <-quitC:
+			case <-ctx.Done():
 				return
 			}
 		}

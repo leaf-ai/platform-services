@@ -10,7 +10,6 @@ func TestFlatten(t *testing.T) {
 	tests := []struct {
 		v    []interface{}
 		want []interface{}
-		alt  []interface{}
 	}{
 		{
 			v: []interface{}{
@@ -18,89 +17,6 @@ func TestFlatten(t *testing.T) {
 			},
 			want: []interface{}{
 				"key1", "val1", "key2", 2,
-			},
-		},
-		{
-			v: []interface{}{
-				P("key1", "val1"),
-				P("key2", 2),
-			},
-			want: []interface{}{
-				"key1", "val1", "key2", 2,
-			},
-			alt: []interface{}{
-				"key2", 2, "key1", "val1",
-			},
-		},
-		{
-			v: []interface{}{
-				Map{
-					"key1": "val1",
-					"key2": 2,
-				},
-				P("key3", 3),
-			},
-			want: []interface{}{
-				"key1", "val1", "key2", 2, "key3", 3,
-			},
-			alt: []interface{}{
-				"key2", 2, "key1", "val1", "key3", 3,
-			},
-		},
-		{
-			v: []interface{}{
-				Map{
-					"key1": "val1",
-				},
-				"key2", 2,
-				"key3", 3.0,
-				P("key4", 4),
-			},
-			want: []interface{}{
-				"key1", "val1", "key2", 2, "key3", 3.0, "key4", 4,
-			},
-		},
-		{
-			v: []interface{}{
-				List{
-					Map{
-						"key1": "val1",
-					},
-					"key2", 2,
-					"key3", 3.0,
-				},
-				"key4", "4",
-				List{
-					List{
-						P("key5", 5),
-					},
-				},
-			},
-			want: []interface{}{
-				"key1", "val1", "key2", 2, "key3", 3.0, "key4", "4", "key5", 5,
-			},
-		},
-		{
-			v: []interface{}{
-				"message text",
-				testKeyvalPairer{"k1", 1},
-				testKeyvalPairer{"k2", "2"},
-			},
-			want: []interface{}{
-				"msg", "message text", "k1", 1, "k2", "2",
-			},
-		},
-		{
-			v: []interface{}{
-				"message text",
-				Map{"k1": 1, "k2": "2"},
-				testKeyvalPairer{"k3", 3},
-			},
-			want: []interface{}{
-				"msg", "message text", "k1", 1, "k2", "2", "k3", 3,
-			},
-			alt: []interface{}{
-				"msg", "message text", "k2", "2", "k1", 1, "k3", 3,
 			},
 		},
 		{
@@ -151,13 +67,26 @@ func TestFlatten(t *testing.T) {
 			v:    []interface{}{"installing", "level", "id"},
 			want: []interface{}{"msg", "installing", "level", "id"},
 		},
+		{
+			v:    []interface{}{List{"a", 1, "b", 2}},
+			want: []interface{}{"a", 1, "b", 2},
+		},
+		{
+			v:    []interface{}{testKeyvalser{}, "5", 6},
+			want: []interface{}{"1", "2", "3", "4", "5", 6},
+		},
 	}
 
 	for i, tt := range tests {
-		got := Flatten(tt.v)
-		if !reflect.DeepEqual(got, tt.want) &&
-			!reflect.DeepEqual(got, tt.alt) {
+		got := flattenFix(tt.v)
+		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%d: want %v, got %v", i, tt.want, got)
 		}
 	}
+}
+
+type testKeyvalser struct{}
+
+func (tkv testKeyvalser) Keyvals() []interface{} {
+	return []interface{}{"1", "2", "3", "4"}
 }

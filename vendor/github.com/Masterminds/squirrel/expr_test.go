@@ -19,6 +19,15 @@ func TestEqToSql(t *testing.T) {
 	assert.Equal(t, expectedArgs, args)
 }
 
+func TestEqEmptyToSql(t *testing.T) {
+	sql, args, err := Eq{}.ToSql()
+	assert.NoError(t, err)
+	
+	expectedSql := "(1=1)"
+	assert.Equal(t, expectedSql, sql)
+	assert.Empty(t, args)
+}
+
 func TestEqInToSql(t *testing.T) {
 	b := Eq{"id": []int{1, 2, 3}}
 	sql, args, err := b.ToSql()
@@ -195,4 +204,164 @@ func TestNullTypeInt64(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []interface{}{int64(10)}, args)
 	assert.Equal(t, "user_id = ?", sql)
+}
+
+func TestNilPointer(t *testing.T) {
+	var name *string = nil
+	eq := Eq{"name": name}
+	sql, args, err := eq.ToSql()
+
+	assert.NoError(t, err)
+	assert.Empty(t, args)
+	assert.Equal(t, "name IS NULL", sql)
+
+	neq := NotEq{"name": name}
+	sql, args, err = neq.ToSql()
+
+	assert.NoError(t, err)
+	assert.Empty(t, args)
+	assert.Equal(t, "name IS NOT NULL", sql)
+
+	var ids *[]int = nil
+	eq = Eq{"id": ids}
+	sql, args, err = eq.ToSql()
+	assert.NoError(t, err)
+	assert.Empty(t, args)
+	assert.Equal(t, "id IS NULL", sql)
+
+	neq = NotEq{"id": ids}
+	sql, args, err = neq.ToSql()
+	assert.NoError(t, err)
+	assert.Empty(t, args)
+	assert.Equal(t, "id IS NOT NULL", sql)
+
+	var ida *[3]int = nil
+	eq = Eq{"id": ida}
+	sql, args, err = eq.ToSql()
+	assert.NoError(t, err)
+	assert.Empty(t, args)
+	assert.Equal(t, "id IS NULL", sql)
+
+	neq = NotEq{"id": ida}
+	sql, args, err = neq.ToSql()
+	assert.NoError(t, err)
+	assert.Empty(t, args)
+	assert.Equal(t, "id IS NOT NULL", sql)
+
+}
+
+func TestNotNilPointer(t *testing.T) {
+	c := "Name"
+	name := &c
+	eq := Eq{"name": name}
+	sql, args, err := eq.ToSql()
+
+	assert.NoError(t, err)
+	assert.Equal(t, []interface{}{"Name"}, args)
+	assert.Equal(t, "name = ?", sql)
+
+	neq := NotEq{"name": name}
+	sql, args, err = neq.ToSql()
+
+	assert.NoError(t, err)
+	assert.Equal(t, []interface{}{"Name"}, args)
+	assert.Equal(t, "name <> ?", sql)
+
+	s := []int{1, 2, 3}
+	ids := &s
+	eq = Eq{"id": ids}
+	sql, args, err = eq.ToSql()
+	assert.NoError(t, err)
+	assert.Equal(t, []interface{}{1, 2, 3}, args)
+	assert.Equal(t, "id IN (?,?,?)", sql)
+
+	neq = NotEq{"id": ids}
+	sql, args, err = neq.ToSql()
+	assert.NoError(t, err)
+	assert.Equal(t, []interface{}{1, 2, 3}, args)
+	assert.Equal(t, "id NOT IN (?,?,?)", sql)
+
+	a := [3]int{1, 2, 3}
+	ida := &a
+	eq = Eq{"id": ida}
+	sql, args, err = eq.ToSql()
+	assert.NoError(t, err)
+	assert.Equal(t, []interface{}{1, 2, 3}, args)
+	assert.Equal(t, "id IN (?,?,?)", sql)
+
+	neq = NotEq{"id": ida}
+	sql, args, err = neq.ToSql()
+	assert.NoError(t, err)
+	assert.Equal(t, []interface{}{1, 2, 3}, args)
+	assert.Equal(t, "id NOT IN (?,?,?)", sql)
+}
+
+func TestEmptyAndToSql(t *testing.T) {
+	sql, args, err := And{}.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "(1=1)"
+	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{}
+	assert.Equal(t, expectedArgs, args)
+}
+
+func TestEmptyOrToSql(t *testing.T) {
+	sql, args, err := Or{}.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "(1=0)"
+	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{}
+	assert.Equal(t, expectedArgs, args)
+}
+
+func TestLikeToSql(t *testing.T) {
+	b := Like{"name": "%irrel"}
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "name LIKE ?"
+	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{"%irrel"}
+	assert.Equal(t, expectedArgs, args)
+}
+
+func TestNotLikeToSql(t *testing.T) {
+	b := NotLike{"name": "%irrel"}
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "name NOT LIKE ?"
+	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{"%irrel"}
+	assert.Equal(t, expectedArgs, args)
+}
+
+func TestSqlEqOrder(t *testing.T) {
+	b := Eq{"a": 1, "b": 2, "c": 3}
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "a = ? AND b = ? AND c = ?"
+	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{1, 2, 3}
+	assert.Equal(t, expectedArgs, args)
+}
+
+func TestSqlLtOrder(t *testing.T) {
+	b := Lt{"a": 1, "b": 2, "c": 3}
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "a < ? AND b < ? AND c < ?"
+	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{1, 2, 3}
+	assert.Equal(t, expectedArgs, args)
 }

@@ -22,6 +22,7 @@ package experiment
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -38,6 +39,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
+	"go.opencensus.io/trace"
 
 	sq "github.com/Masterminds/squirrel"
 
@@ -220,7 +222,7 @@ type DBErrorMsg struct {
 // database, which contains state information for components of the platform
 // ecosystem
 //
-func StartDB(quitC <-chan struct{}) (msgC chan string, errorC chan *DBErrorMsg, err errors.Error) {
+func StartDB(ctx context.Context) (msgC chan string, errorC chan *DBErrorMsg, err errors.Error) {
 
 	msgC = make(chan string)
 	errorC = make(chan *DBErrorMsg)
@@ -254,6 +256,8 @@ func StartDB(quitC <-chan struct{}) (msgC chan string, errorC chan *DBErrorMsg, 
 		// is live.
 		//
 		dbCheckTimer := time.Duration(time.Microsecond)
+
+		lastCncts := 0
 
 		for {
 			select {
@@ -313,14 +317,16 @@ func StartDB(quitC <-chan struct{}) (msgC chan string, errorC chan *DBErrorMsg, 
 					}
 				}
 
-				msg := fmt.Sprint("database has ", dBase.Stats().OpenConnections, " connections ",
-					" ", *databaseHostPort, " name ", *databaseName, " dbConnectionCount ", dBase.Stats().OpenConnections)
-				select {
-				case msgC <- msg:
-				default:
+				if lastCncts != dBase.Stats().OpenConnections {
+					lastCncts = dBase.Stats().OpenConnections
+					msg := fmt.Sprint("database has ", lastCncts, " connections ",
+						" ", *databaseHostPort, " name ", *databaseName, " dbConnectionCount ", lastCncts)
+					select {
+					case msgC <- msg:
+					default:
+					}
 				}
-
-			case <-quitC:
+			case <-ctx.Done():
 				select {
 				case msgC <- "database monitor stopped":
 				default:
@@ -533,7 +539,18 @@ func CheckIfFatal(inErr error) (err error) {
 //
 // This function will NOT return layer information.
 //
-func SelectExperiment(rowId uint64, uid string) (result *grpc.Experiment, err errors.Error) {
+func SelectExperiment(ctx context.Context, rowId uint64, uid string) (result *grpc.Experiment, err errors.Error) {
+
+	ctx, span := trace.StartSpan(ctx, "SelectExperiment", trace.WithSpanKind(trace.SpanKindServer))
+	defer func() {
+		if err != nil {
+			span.SetStatus(trace.Status{
+				Code:    trace.StatusCodeUnknown,
+				Message: err.Error(),
+			})
+		}
+		span.End()
+	}()
 
 	if err = dbDownErr.get(); err != nil {
 		return nil, err
@@ -603,7 +620,18 @@ type experimentWide struct {
 //
 // For a single experiment this function will return one row for every layer that was found.
 //
-func SelectExperimentWide(uid string) (result *grpc.Experiment, err errors.Error) {
+func SelectExperimentWide(ctx context.Context, uid string) (result *grpc.Experiment, err errors.Error) {
+
+	ctx, span := trace.StartSpan(ctx, "SelectExperimentWide", trace.WithSpanKind(trace.SpanKindServer))
+	defer func() {
+		if err != nil {
+			span.SetStatus(trace.Status{
+				Code:    trace.StatusCodeUnknown,
+				Message: err.Error(),
+			})
+		}
+		span.End()
+	}()
 
 	if err := dbDownErr.get(); err != nil {
 		return nil, err
@@ -681,7 +709,7 @@ func SelectExperimentWide(uid string) (result *grpc.Experiment, err errors.Error
 
 	// If there are no layers then the short version should be used
 	if rowCount == 0 {
-		return SelectExperiment(0, uid)
+		return SelectExperiment(ctx, 0, uid)
 	}
 
 	return result, nil
@@ -700,7 +728,17 @@ func SelectExperimentWide(uid string) (result *grpc.Experiment, err errors.Error
 // result of assumptions made by the caller.
 //
 //
-func InsertExperiment(data *grpc.Experiment) (result *grpc.Experiment, err errors.Error) {
+func InsertExperiment(ctx context.Context, data *grpc.Experiment) (result *grpc.Experiment, err errors.Error) {
+	ctx, span := trace.StartSpan(ctx, "InsertExperiment", trace.WithSpanKind(trace.SpanKindServer))
+	defer func() {
+		if err != nil {
+			span.SetStatus(trace.Status{
+				Code:    trace.StatusCodeUnknown,
+				Message: err.Error(),
+			})
+		}
+		span.End()
+	}()
 
 	if err := dbDownErr.get(); err != nil {
 		return nil, err
@@ -771,7 +809,18 @@ func InsertExperiment(data *grpc.Experiment) (result *grpc.Experiment, err error
 // DeactivateExperiment is used to conceal experiments from future operations unless special flags are set.
 // It is used where otherwise the experiment would be delete but we need to retain a record of it having existed.
 //
-func DeactivateExperiment(uid string) (err errors.Error) {
+func DeactivateExperiment(ctx context.Context, uid string) (err errors.Error) {
+
+	ctx, span := trace.StartSpan(ctx, "DeactivateExperiment", trace.WithSpanKind(trace.SpanKindServer))
+	defer func() {
+		if err != nil {
+			span.SetStatus(trace.Status{
+				Code:    trace.StatusCodeUnknown,
+				Message: err.Error(),
+			})
+		}
+		span.End()
+	}()
 
 	if err = dbDownErr.get(); err != nil {
 		return err

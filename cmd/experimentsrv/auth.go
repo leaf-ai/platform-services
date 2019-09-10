@@ -13,6 +13,7 @@ import (
 
 	"net/http"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
 
@@ -30,6 +31,7 @@ import (
 )
 
 var (
+	auth0Enable   = flag.Bool("auth0-enable", true, "This can be used to enable auth checking when running in a mesh for example")
 	auth0Scope    = flag.String("auth0-scope", "all:experiments", "The scope that must be claimed in order to be permitted access to the service")
 	auth0Audience = flag.String("auth0-audience", "http://api.cognizant-ai.dev/experimentsrv", "The audience URL raw token string received from an invocation of {auth0-domain}/oauth/token}")
 	auth0Domain   = flag.String("auth0-domain", "cognizant-ai.auth0.com", "The domain assigned to the server API by Auth0")
@@ -55,7 +57,7 @@ type tokenCache struct {
 	sync.Mutex
 }
 
-func initJwksUpdate(quitC <-chan struct{}) {
+func initJwksUpdate(ctx context.Context) {
 
 	// Initialize a cache for our auth0 JWT authorizations
 	cache.Lock()
@@ -83,11 +85,11 @@ func initJwksUpdate(quitC <-chan struct{}) {
 				if jwksCache.client == nil {
 					jwksCache.client = auth0.NewJWKClient(auth0.JWKClientOptions{
 						URI: "https://" + *auth0Domain + "/.well-known/jwks.json",
-					})
+					}, nil)
 				}
 				jwksCache.Unlock()
 				modules.SetModule("jwks", true)
-			case <-quitC:
+			case <-ctx.Done():
 				return
 			}
 		}
@@ -123,7 +125,7 @@ func validateToken(token string, audience []string, claimCheck string) (err erro
 	configuration := auth0.NewConfiguration(jwksCache.client, audience, "https://"+*auth0Domain+"/", jose.RS256)
 	jwksCache.Unlock()
 
-	validator := auth0.NewValidator(configuration)
+	validator := auth0.NewValidator(configuration, nil)
 
 	headerTokenRequest, errGo := http.NewRequest("", audience[0], nil)
 	if errGo != nil {
@@ -170,22 +172,55 @@ func validateToken(token string, audience []string, claimCheck string) (err erro
 	return nil
 }
 
-func authInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	meta, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, grpc.Errorf(codes.Unauthenticated, "missing context metadata")
-	}
+func authUnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	if *auth0Enable {
+		meta, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			return nil, grpc.Errorf(codes.Unauthenticated, "missing context metadata "+stack.Trace().TrimRuntime().String())
+		}
 
-	if len(meta["authorization"]) != 1 {
-		return nil, grpc.Errorf(codes.Unauthenticated, "invalid security token")
-	}
-	if len(meta["authorization"][0]) == 0 {
-		return nil, grpc.Errorf(codes.Unauthenticated, "empty security token")
-	}
+		auth, isPresent := meta["authorization"]
+		if !isPresent {
+			return nil, grpc.Errorf(codes.Unauthenticated, "missing security token "+stack.Trace().TrimRuntime().String())
+		}
+		if len(auth) != 1 {
+			return nil, grpc.Errorf(codes.Unauthenticated, fmt.Sprint("unexpected security token", auth, stack.Trace().TrimRuntime().String()))
+		}
+		if len(auth[0]) == 0 {
+			return nil, grpc.Errorf(codes.Unauthenticated, "empty security token "+stack.Trace().TrimRuntime().String())
+		}
 
-	if err := validateToken(meta["authorization"][0], []string{*auth0Audience}, *auth0Scope); err != nil {
-		return nil, grpc.Errorf(codes.Unauthenticated, err.Error())
+		if err := validateToken(auth[0], []string{*auth0Audience}, *auth0Scope); err != nil {
+			return nil, grpc.Errorf(codes.Unauthenticated, err.Error())
+		}
 	}
-
 	return handler(ctx, req)
+}
+
+func authStreamInterceptor(srv interface{}, strm grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) (errGo error) {
+	if *auth0Enable {
+		meta, ok := metadata.FromIncomingContext(strm.Context())
+		if !ok {
+			return grpc.Errorf(codes.Unauthenticated, "missing context metadata "+stack.Trace().TrimRuntime().String())
+		}
+
+		logger.Debug(stack.Trace().TrimRuntime().String())
+		logger.Debug(spew.Sdump(strm.Context()))
+		logger.Debug(spew.Sdump(srv))
+		auth, isPresent := meta["authorization"]
+		if !isPresent {
+			return grpc.Errorf(codes.Unauthenticated, "missing security token "+stack.Trace().TrimRuntime().String())
+		}
+		if len(auth) != 1 {
+			return grpc.Errorf(codes.Unauthenticated, fmt.Sprint("unexpected security token", auth, stack.Trace().TrimRuntime().String()))
+		}
+		if len(auth[0]) == 0 {
+			return grpc.Errorf(codes.Unauthenticated, "empty security token "+stack.Trace().TrimRuntime().String())
+		}
+
+		if err := validateToken(auth[0], []string{*auth0Audience}, *auth0Scope); err != nil {
+			return grpc.Errorf(codes.Unauthenticated, err.Error())
+		}
+	}
+	return handler(srv, strm)
 }

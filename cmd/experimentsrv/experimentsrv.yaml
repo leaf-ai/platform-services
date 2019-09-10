@@ -43,9 +43,10 @@ apiVersion: authentication.istio.io/v1alpha1
 kind: Policy
 metadata:
   name: experiment-auth-policy
+  namespace: istio-system
 spec:
   targets:
-  - name: ingress-gateway
+  - name: istio-ingressgateway
   peers:
   - mtls: {}
   origins:
@@ -54,7 +55,25 @@ spec:
       jwksUri: "https://cognizant-ai.auth0.com/.well-known/jwks.json"
       audiences:
         - "http://api.cognizant-ai.dev/experimentsrv"
+      triggerRules:
+      - excluded_paths:
+          - prefix: "/grpc.reflection.v1alpha.ServerReflection/"
   principalBinding: USE_ORIGIN
+---
+apiVersion: config.istio.io/v1alpha2
+kind: rule
+metadata:
+  name: experiment-add-auth-headers
+  namespace: istio-system
+spec:
+  match: source.labels["istio"] == "ingressgateway"
+  actions:
+  - handler: keyval.istio-system
+    instances: [ keyval ]
+  request_header_operations:
+  - name: X-company-userId
+    values:
+    - request.auth.claims["sub"]
 ---
 apiVersion: rbac.istio.io/v1alpha1
 kind: ServiceRole
@@ -63,8 +82,6 @@ metadata:
 spec:
   rules:
   - services: ["*"]
-    paths: ["*"]
-    methods: ["*"]
 ---
 apiVersion: rbac.istio.io/v1alpha1
 kind: ServiceRoleBinding
@@ -155,6 +172,8 @@ spec:
         - containerPort: 30001
           name: grpc-exp
         env:
+        - name: "AUTH0_ENABLE"
+          value: "false"
         - name: "LOGXI_FORMAT"
           value: "happy,maxcol=1024"
         - name: "LOGXI"
@@ -186,6 +205,16 @@ spec:
             secretKeyRef:
               name: postgres
               key: password
+        - name: "O11Y_KEY"
+          valueFrom:
+            secretKeyRef:
+              name: honeycomb-writekey
+              key: apikey
+        - name: "O11Y_DATASET"
+          valueFrom:
+            secretKeyRef:
+              name: honeycomb-writekey
+              key: dataset
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: ServiceEntry
@@ -201,6 +230,20 @@ spec:
   - number: 80
     name: http
     protocol: HTTP
+  resolution: DNS
+  location: MESH_EXTERNAL
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: honeycomb-egress
+spec:
+  hosts:
+  - "api.honeycomb.io"
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
   resolution: DNS
   location: MESH_EXTERNAL
 ---

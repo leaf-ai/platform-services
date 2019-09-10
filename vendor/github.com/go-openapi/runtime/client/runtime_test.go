@@ -28,16 +28,17 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/net/context"
+	"crypto/x509"
+	"encoding/pem"
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // task This describes a task. Tasks require a content property to be set.
 type task struct {
-
 	// Completed
 	Completed bool `json:"completed" xml:"completed"`
 
@@ -61,6 +62,91 @@ func TestRuntime_TLSAuthConfig(t *testing.T) {
 			assert.Len(t, cfg.Certificates, 1)
 			assert.NotNil(t, cfg.RootCAs)
 			assert.Equal(t, "somewhere", cfg.ServerName)
+		}
+	}
+}
+
+func TestRuntime_TLSAuthConfigWithRSAKey(t *testing.T) {
+
+	keyPem, err := ioutil.ReadFile("../fixtures/certs/myclient.key")
+	require.NoError(t, err)
+
+	keyDer, _ := pem.Decode(keyPem)
+	require.NotNil(t, keyDer)
+
+	key, err := x509.ParsePKCS1PrivateKey(keyDer.Bytes)
+	require.NoError(t, err)
+
+	certPem, err := ioutil.ReadFile("../fixtures/certs/myclient.crt")
+	require.NoError(t, err)
+
+	certDer, _ := pem.Decode(certPem)
+	require.NotNil(t, certDer)
+
+	cert, err := x509.ParseCertificate(certDer.Bytes)
+
+	var opts TLSClientOptions
+	opts.LoadedKey = key
+	opts.LoadedCertificate = cert
+
+	cfg, err := TLSClientAuth(opts)
+	if assert.NoError(t, err) {
+		if assert.NotNil(t, cfg) {
+			assert.Len(t, cfg.Certificates, 1)
+		}
+	}
+}
+
+func TestRuntime_TLSAuthConfigWithECKey(t *testing.T) {
+
+	keyPem, err := ioutil.ReadFile("../fixtures/certs/myclient-ecc.key")
+	require.NoError(t, err)
+
+	_, remainder := pem.Decode(keyPem)
+	keyDer, _ := pem.Decode(remainder)
+	require.NotNil(t, keyDer)
+
+	key, err := x509.ParseECPrivateKey(keyDer.Bytes)
+	require.NoError(t, err)
+
+	certPem, err := ioutil.ReadFile("../fixtures/certs/myclient-ecc.crt")
+	require.NoError(t, err)
+
+	certDer, _ := pem.Decode(certPem)
+	require.NotNil(t, certDer)
+
+	cert, err := x509.ParseCertificate(certDer.Bytes)
+
+	var opts TLSClientOptions
+	opts.LoadedKey = key
+	opts.LoadedCertificate = cert
+
+	cfg, err := TLSClientAuth(opts)
+	if assert.NoError(t, err) {
+		if assert.NotNil(t, cfg) {
+			assert.Len(t, cfg.Certificates, 1)
+		}
+	}
+}
+
+func TestRuntime_TLSAuthConfigWithLoadedCA(t *testing.T) {
+
+	certPem, err := ioutil.ReadFile("../fixtures/certs/myCA.crt")
+	require.NoError(t, err)
+
+	block, _ := pem.Decode(certPem)
+	require.NotNil(t, block)
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+
+	var opts TLSClientOptions
+	opts.LoadedCA = cert
+
+	cfg, err := TLSClientAuth(opts)
+	if assert.NoError(t, err) {
+		if assert.NotNil(t, cfg) {
+			assert.NotNil(t, cfg.RootCAs)
 		}
 	}
 }
@@ -276,6 +362,50 @@ func TestRuntime_TextCanary(t *testing.T) {
 		assert.IsType(t, "", res)
 		actual := res.(string)
 		assert.EqualValues(t, result, actual)
+	}
+}
+
+func TestRuntime_CSVCanary(t *testing.T) {
+	// test that it can make a simple csv request
+	// and get the response for it.
+	result := `task,content,result
+1,task1,ok
+2,task2,fail
+`
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rw.Header().Add(runtime.HeaderContentType, runtime.CSVMime)
+		rw.WriteHeader(http.StatusOK)
+		_, _ = rw.Write([]byte(result))
+	}))
+	defer server.Close()
+
+	rwrtr := runtime.ClientRequestWriterFunc(func(req runtime.ClientRequest, _ strfmt.Registry) error {
+		return nil
+	})
+
+	hu, _ := url.Parse(server.URL)
+	rt := New(hu.Host, "/", []string{"http"})
+	res, err := rt.Submit(&runtime.ClientOperation{
+		ID:          "getTasks",
+		Method:      "GET",
+		PathPattern: "/",
+		Params:      rwrtr,
+		Reader: runtime.ClientResponseReaderFunc(func(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+			if response.Code() == 200 {
+				var result bytes.Buffer
+				if err := consumer.Consume(response.Body(), &result); err != nil {
+					return nil, err
+				}
+				return result, nil
+			}
+			return nil, errors.New("Generic error")
+		}),
+	})
+
+	if assert.NoError(t, err) {
+		assert.IsType(t, bytes.Buffer{}, res)
+		actual := res.(bytes.Buffer)
+		assert.EqualValues(t, result, actual.String())
 	}
 }
 
@@ -518,7 +648,6 @@ func TestRuntime_ContentTypeCanary(t *testing.T) {
 
 	hu, _ := url.Parse(server.URL)
 	rt := New(hu.Host, "/", []string{"http"})
-	rt.do = nil
 	res, err := rt.Submit(&runtime.ClientOperation{
 		ID:          "getTasks",
 		Method:      "GET",
@@ -641,6 +770,18 @@ func TestRuntime_OverrideClient(t *testing.T) {
 	assert.Equal(t, 0, i)
 }
 
+type overrideRoundTripper struct {
+	overriden bool
+}
+
+func (o *overrideRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	o.overriden = true
+	res := new(http.Response)
+	res.StatusCode = 200
+	res.Body = ioutil.NopCloser(bytes.NewBufferString("OK"))
+	return res, nil
+}
+
 func TestRuntime_OverrideClientOperation(t *testing.T) {
 	client := &http.Client{}
 	rt := NewWithClient("", "/", []string{"https"}, client)
@@ -649,17 +790,9 @@ func TestRuntime_OverrideClientOperation(t *testing.T) {
 	assert.Equal(t, client, rt.client)
 	assert.Equal(t, 0, i)
 
-	var seen *http.Client
-	rt.do = func(_ context.Context, cl *http.Client, _ *http.Request) (*http.Response, error) {
-		seen = cl
-		res := new(http.Response)
-		res.StatusCode = 200
-		res.Body = ioutil.NopCloser(bytes.NewBufferString("OK"))
-		return res, nil
-	}
-
 	client2 := new(http.Client)
-	client2.Timeout = 3 * time.Second
+	var transport = &overrideRoundTripper{}
+	client2.Transport = transport
 	if assert.NotEqual(t, client, client2) {
 		_, err := rt.Submit(&runtime.ClientOperation{
 			Client: client2,
@@ -671,8 +804,7 @@ func TestRuntime_OverrideClientOperation(t *testing.T) {
 			}),
 		})
 		if assert.NoError(t, err) {
-
-			assert.Equal(t, client2, seen)
+			assert.True(t, transport.overriden)
 		}
 	}
 }
@@ -718,4 +850,72 @@ func TestRuntime_PreserveTrailingSlash(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
+}
+
+func TestRuntime_FallbackConsumer(t *testing.T) {
+	result := `W3siY29tcGxldGVkIjpmYWxzZSwiY29udGVudCI6ImRHRnpheUF4SUdOdmJuUmxiblE9IiwiaWQiOjF9XQ==`
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rw.Header().Add(runtime.HeaderContentType, "application/x-task")
+		rw.WriteHeader(http.StatusOK)
+		_, _ = rw.Write([]byte(result))
+	}))
+	defer server.Close()
+
+	rwrtr := runtime.ClientRequestWriterFunc(func(req runtime.ClientRequest, _ strfmt.Registry) error {
+		return req.SetBodyParam(bytes.NewBufferString("hello"))
+	})
+
+	hu, _ := url.Parse(server.URL)
+	rt := New(hu.Host, "/", []string{"http"})
+
+	// without the fallback consumer
+	_, err := rt.Submit(&runtime.ClientOperation{
+		ID:                 "getTasks",
+		Method:             "POST",
+		PathPattern:        "/",
+		Schemes:            []string{"http"},
+		ConsumesMediaTypes: []string{"application/octet-stream"},
+		Params:             rwrtr,
+		Reader: runtime.ClientResponseReaderFunc(func(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+			if response.Code() == 200 {
+				var result []byte
+				if err := consumer.Consume(response.Body(), &result); err != nil {
+					return nil, err
+				}
+				return result, nil
+			}
+			return nil, errors.New("Generic error")
+		}),
+	})
+
+	if assert.Error(t, err) {
+		assert.Equal(t, `no consumer: "application/x-task"`, err.Error())
+	}
+
+	// add the fallback consumer
+	rt.Consumers["*/*"] = rt.Consumers[runtime.DefaultMime]
+	res, err := rt.Submit(&runtime.ClientOperation{
+		ID:                 "getTasks",
+		Method:             "POST",
+		PathPattern:        "/",
+		Schemes:            []string{"http"},
+		ConsumesMediaTypes: []string{"application/octet-stream"},
+		Params:             rwrtr,
+		Reader: runtime.ClientResponseReaderFunc(func(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+			if response.Code() == 200 {
+				var result []byte
+				if err := consumer.Consume(response.Body(), &result); err != nil {
+					return nil, err
+				}
+				return result, nil
+			}
+			return nil, errors.New("Generic error")
+		}),
+	})
+
+	if assert.NoError(t, err) {
+		assert.IsType(t, []byte{}, res)
+		actual := res.([]byte)
+		assert.EqualValues(t, result, actual)
+	}
 }

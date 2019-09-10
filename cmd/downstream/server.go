@@ -37,6 +37,10 @@ func (*DownstreamServer) Check(ctx context.Context, in *grpc_health_v1.HealthChe
 	return grpcHealth(ctx, in)
 }
 
+func (*DownstreamServer) Watch(in *grpc_health_v1.HealthCheckRequest, server grpc_health_v1.Health_WatchServer) (err error) {
+	return errors.New(grpc_health_v1.HealthCheckResponse_UNKNOWN.String())
+}
+
 func runServer(ctx context.Context, serviceName string, ipPort string) (errC chan errors.Error) {
 
 	{

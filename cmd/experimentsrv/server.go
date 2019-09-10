@@ -2,19 +2,31 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net"
 	"strings"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/health/grpc_health_v1"
+
+	"google.golang.org/grpc/reflection"
+
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/reflection"
-
 	model "github.com/leaf-ai/platform-services/internal/experiment"
 	experiment "github.com/leaf-ai/platform-services/internal/gen/experimentsrv"
+	"github.com/leaf-ai/platform-services/internal/platform"
+
+	"go.opencensus.io/trace"
+)
+
+var (
+	honeycombKey  = flag.String("o11y-key", "", "An API key used to activate, and for use with the honeycomb.io service")
+	honeycombData = flag.String("o11y-dataset", "", "The name for the dataset into which observability data is to be written")
 )
 
 type ExperimentServer struct {
@@ -38,7 +50,7 @@ func (*ExperimentServer) Create(ctx context.Context, in *experiment.CreateReques
 		return nil, fmt.Errorf("request is missing a message to experiment")
 	}
 
-	exp, err := model.InsertExperiment(in.Experiment)
+	exp, err := model.InsertExperiment(ctx, in.Experiment)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +69,7 @@ func (*ExperimentServer) Get(ctx context.Context, in *experiment.GetRequest) (re
 
 	resp = &experiment.GetResponse{}
 
-	resp.Experiment, err = model.SelectExperimentWide(in.Uid)
+	resp.Experiment, err = model.SelectExperimentWide(ctx, in.Uid)
 	if err != nil {
 		return nil, err
 	}
@@ -72,11 +84,56 @@ func (es *ExperimentServer) Check(ctx context.Context, in *grpc_health_v1.Health
 	return grpcHealth(ctx, in)
 }
 
+func (es *ExperimentServer) Watch(in *grpc_health_v1.HealthCheckRequest, server grpc_health_v1.Health_WatchServer) (err error) {
+	return errors.New(grpc_health_v1.HealthCheckResponse_UNKNOWN.String())
+}
+
+func o11yUnaryInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, errGo error) {
+		ctx, span := trace.StartSpan(ctx, info.FullMethod, trace.WithSpanKind(trace.SpanKindServer))
+		defer span.End()
+
+		if resp, errGo = handler(ctx, req); errGo != nil {
+			span.SetStatus(trace.Status{
+				Code:    trace.StatusCodeUnknown,
+				Message: errGo.Error(),
+			})
+		}
+
+		return resp, errGo
+	}
+}
+
+type stream struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func o11yStreamInterceptor() grpc.StreamServerInterceptor {
+	return func(srv interface{}, strm grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) (errGo error) {
+		ctx, span := trace.StartSpan(strm.Context(), info.FullMethod, trace.WithSpanKind(trace.SpanKindServer))
+		defer span.End()
+
+		s := stream{strm, ctx}
+
+		if errGo = handler(srv, s); errGo != nil {
+			span.SetStatus(trace.Status{
+				Code:    trace.StatusCodeUnknown,
+				Message: errGo.Error(),
+			})
+		}
+
+		return errGo
+	}
+}
+
 func runServer(ctx context.Context, serviceName string, ipPort string) (errC chan errors.Error) {
 
+	errC = make(chan errors.Error, 3)
+
 	{
-		if addrs, err := net.InterfaceAddrs(); err != nil {
-			logger.Warn(fmt.Sprint(errors.Wrap(err).With("stack", stack.Trace().TrimRuntime())))
+		if addrs, errGo := net.InterfaceAddrs(); errGo != nil {
+			logger.Warn(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
 		} else {
 			for _, addr := range addrs {
 				logger.Debug("", "network", addr.Network(), "addr", addr.String())
@@ -84,20 +141,21 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 		}
 	}
 
-	// To prevent the server starting before the network listeners report
-	// their states we inject a server module ID and set it to false then
-	// one the logic to begin listening to the network interfaces is done
-	// we set the server module ID is set to true (up) and this allows
-	// the health check to visit the network listeners for their states
-	//
-	modules := &Modules{}
-	serverModule := "serverInitDone"
-	modules.SetModule(serverModule, false)
-	defer modules.SetModule(serverModule, true)
+	// Start the honeycomb OpenCensus exporter
+	platform.StartOpenCensus(ctx, *honeycombKey, *honeycombData)
 
-	errC = make(chan errors.Error, 3)
+	streams := grpc_middleware.ChainStreamServer(
+		authStreamInterceptor,
+		o11yStreamInterceptor())
+	unaries := grpc_middleware.ChainUnaryServer(
+		authUnaryInterceptor,
+		o11yUnaryInterceptor())
 
-	server := grpc.NewServer(grpc.UnaryInterceptor(authInterceptor))
+	server := grpc.NewServer(
+		grpc.StreamInterceptor(streams),
+		grpc.UnaryInterceptor(unaries),
+	)
+
 	experimentSrv := &ExperimentServer{}
 
 	experiment.RegisterServiceServer(server, experimentSrv)

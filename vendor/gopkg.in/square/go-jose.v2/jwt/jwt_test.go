@@ -18,14 +18,17 @@
 package jwt
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	jose "gopkg.in/square/go-jose.v2"
 )
 
 var (
 	hmacSignedToken                = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdWJqZWN0IiwiaXNzIjoiaXNzdWVyIiwic2NvcGVzIjpbInMxIiwiczIiXX0.Y6_PfQHrzRJ_Vlxij5VI07-pgDIuJNN3Z_g5sSaGQ0c`
 	rsaSignedToken                 = `eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJpc3N1ZXIiLCJzY29wZXMiOlsiczEiLCJzMiJdLCJzdWIiOiJzdWJqZWN0In0.UDDtyK9gC9kyHltcP7E_XODsnqcJWZIiXeGmSAH7SE9YKy3N0KSfFIN85dCNjTfs6zvy4rkrCHzLB7uKAtzMearh3q7jL4nxbhUMhlUcs_9QDVoN4q_j58XmRqBqRnBk-RmDu9TgcV8RbErP4awpIhwWb5UU-hR__4_iNbHdKqwSUPDKYGlf5eicuiYrPxH8mxivk4LRD-vyRdBZZKBt0XIDnEU4TdcNCzAXojkftqcFWYsczwS8R4JHd1qYsMyiaWl4trdHZkO4QkeLe34z4ZAaPMt3wE-gcU-VoqYTGxz-K3Le2VaZ0r3j_z6bOInsv0yngC_cD1dCXMyQJWnWjQ`
+	rsaSignedTokenWithKid          = `eyJhbGciOiJSUzI1NiIsImtpZCI6ImZvb2JhciJ9.eyJpc3MiOiJpc3N1ZXIiLCJzY29wZXMiOlsiczEiLCJzMiJdLCJzdWIiOiJzdWJqZWN0In0.RxZhTRfPDb6UJ58FwvC89GgJGC8lAO04tz5iLlBpIJsyPZB0X_UgXSj0SGVFm2jbP_i-ZVH4HFC2fMB1n-so9CnCOpunWwhYNdgF6ewQJ0ADTWwfDGsK12UOmyT2naaZN8ZUBF8cgPtOgdWqQjk2Ng9QFRJxlUuKYczBp7vjWvgX8WMwQcaA-eK7HtguR4e9c4FMbeFK8Soc4jCsVTjIKdSn9SErc42gFu65NI1hZ3OPe_T7AZqdDjCkJpoiJ65GdD_qvGkVndJSEcMp3riXQpAy0JbctVkYecdFaGidbxHRrdcQYHtKn-XGMCh2uoBKleUr1fTMiyCGPQQesy3xHw`
 	invalidPayloadSignedToken      = `eyJhbGciOiJIUzI1NiJ9.aW52YWxpZC1wYXlsb2Fk.ScBKKm18jcaMLGYDNRUqB5gVMRZl4DM6dh3ShcxeNgY`
 	invalidPartsSignedToken        = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdWJqZWN0IiwiaXNzIjoiaXNzdWVyIiwic2NvcGVzIjpbInMxIiwiczIiXX0`
 	hmacEncryptedToken             = `eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4R0NNIn0..NZrU98U4QNO0y-u6.HSq5CvlmkUT1BPqLGZ4.1-zuiZ4RbHrTTUoA8Dvfhg`
@@ -38,6 +41,54 @@ var (
 
 type customClaims struct {
 	Scopes []string `json:"scopes,omitempty"`
+}
+
+func TestGetClaimsWithoutVerification(t *testing.T) {
+	tok, err := ParseSigned(hmacSignedToken)
+	if assert.NoError(t, err, "Error parsing signed token.") {
+		c := &Claims{}
+		c2 := &customClaims{}
+
+		err := tok.UnsafeClaimsWithoutVerification(c, c2)
+		if err != nil {
+			t.Errorf("Error not expected: %s", err)
+		}
+		assert.Equal(t, "subject", c.Subject)
+		assert.Equal(t, "issuer", c.Issuer)
+		assert.Equal(t, []string{"s1", "s2"}, c2.Scopes)
+
+	}
+	tok, err = ParseEncrypted(hmacEncryptedToken)
+	if assert.NoError(t, err, "Error parsing encrypted token.") {
+		c := Claims{}
+		err := tok.UnsafeClaimsWithoutVerification(c)
+		if err == nil {
+			t.Errorf("Error expected")
+		}
+	}
+}
+
+func TestDecodeTokenWithJWKS(t *testing.T) {
+	jwks := &jose.JSONWebKeySet{
+		Keys: []jose.JSONWebKey{
+			{
+				KeyID: "foobar",
+				Key:   &testPrivRSAKey1.PublicKey,
+			},
+		},
+	}
+
+	tok, err := ParseSigned(rsaSignedTokenWithKid)
+	if assert.NoError(t, err, "Error parsing signed token.") {
+		cl := make(map[string]interface{})
+		if assert.NoError(t, tok.Claims(jwks, &cl)) {
+			assert.Equal(t, map[string]interface{}{
+				"sub":    "subject",
+				"iss":    "issuer",
+				"scopes": []interface{}{"s1", "s2"},
+			}, cl)
+		}
+	}
 }
 
 func TestDecodeToken(t *testing.T) {
@@ -122,6 +173,35 @@ func TestDecodeToken(t *testing.T) {
 
 	_, err = ParseSignedAndEncrypted(invalidSignedAndEncryptedToken)
 	assert.EqualError(t, err, "square/go-jose/jwt: expected content type to be JWT (cty header)")
+}
+
+func TestTamperedJWT(t *testing.T) {
+	key := []byte("1234567890123456")
+
+	sig, _ := jose.NewEncrypter(
+		jose.A128GCM,
+		jose.Recipient{Algorithm: jose.DIRECT, Key: key},
+		(&jose.EncrypterOptions{}).WithType("JWT"))
+
+	cl := Claims{
+		Subject: "foo",
+		Issuer:  "bar",
+	}
+
+	raw, _ := Encrypted(sig).Claims(cl).CompactSerialize()
+
+	// Modify with valid base64 junk
+	r := strings.Split(raw, ".")
+	r[2] = "b3RoZXJ0aGluZw"
+	raw = strings.Join(r, ".")
+
+	tok, _ := ParseEncrypted(raw)
+
+	cl = Claims{}
+	err := tok.Claims(key, &cl)
+	if err == nil {
+		t.Error("Claims() on invalid token should fail")
+	}
 }
 
 func BenchmarkDecodeSignedToken(b *testing.B) {
