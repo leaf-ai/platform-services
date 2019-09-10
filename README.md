@@ -3,6 +3,7 @@ A public PoC with functioning service using simple Istio Mesh running on K8s
 
 Version : <repo-version>0.7.0-feature-17-o11y-honeycomb-aaaagjwcjtn</repo-version>
 
+This project is intended as a sand-box for experimenting with Istio and some of the services we use in our Evolutionary AI services.  It also provides a good way of exposing and testing out non-proprietary platform functions with other parties such as vendors and customers.
 # Purpose
 
 This proof of concept (PoC) implementation is intended as a means by which the LEAF team can experiment with features of Service Mesh, PaaS, and SaaS platforms provided by third parties.  This project serves as a way of exercising non cognizant services so that code can be openly shared while testing external services and technologies, and for support in relation to external open source offerings in a public support context.
