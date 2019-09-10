@@ -3,6 +3,8 @@ A PoC with functioning service using simple Istio Mesh running on K8s
 
 Version : <repo-version>0.6.1</repo-version>
 
+This project is intended as a sand-box for experimenting with Istio and some of the services we use in our Evolutionary AI services.  It also provides a good way of exposing and testing out non-proprietary platform functions with other parties such as vendors and customers.
+
 # Installation
 
 <pre><code><b>go get github.com/leaf-ai/platform-services
