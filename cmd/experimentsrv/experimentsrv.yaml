@@ -139,7 +139,7 @@ spec:
   selector:
     app: experiment
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: experiment-v1
@@ -147,6 +147,9 @@ metadata:
     version: v1
 spec:
   replicas: 1
+  selector:
+      matchlabels:
+          app: experiment
   template:
     metadata:
       labels:
