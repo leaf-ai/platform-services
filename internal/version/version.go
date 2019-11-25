@@ -4,7 +4,6 @@ package version
 // version information derived from git and the build tooling
 
 var (
-	BuildTime = "unknown"
-	GitHash   = "unknown"
-	SemVer    = "unknown"
+	GitHash = "unknown"
+	SemVer  = "unknown"
 )

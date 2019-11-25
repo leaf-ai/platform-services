@@ -10,7 +10,6 @@ set -e
 set -o pipefail
 
 export HASH=`git rev-parse HEAD`
-export DATE=`date '+%Y-%m-%d_%H:%M:%S%z'`
 export PATH=$PATH:$GOPATH/bin
 go get -u -f github.com/golang/dep/cmd/dep
 go get -u -f github.com/aktau/github-release
@@ -25,8 +24,8 @@ if [ "$1" == "gen" ]; then
     exit 0
 fi
 mkdir -p cmd/echosrv/bin
-go build -ldflags "-X github.com/leaf-ai/platform-services/internal/version.BuildTime=$DATE -X github.com/leaf-ai/platform-services/internal/version.GitHash=$HASH" -o cmd/echosrv/bin/echosrv cmd/echosrv/*.go
-go build -ldflags "-X github.com/leaf-ai/platform-services/internal/version.BuildTime=$DATE -X github.com/leaf-ai/platform-services/internal/version.GitHash=$HASH" -race -o cmd/echosrv/bin/echosrv-race cmd/echosrv/*.go
+go build -asmflags -trimpath -ldflags "-X github.com/leaf-ai/platform-services/internal/version.GitHash=$HASH" -o cmd/echosrv/bin/echosrv cmd/echosrv/*.go
+go build -asmflags -trimpath -ldflags "-X github.com/leaf-ai/platform-services/internal/version.GitHash=$HASH" -race -o cmd/echosrv/bin/echosrv-race cmd/echosrv/*.go
 if ! [ -z "${TRAVIS_TAG}" ]; then
     if ! [ -z "${GITHUB_TOKEN}" ]; then
         github-release release --user leaf-ai --repo platform-services --tag ${TRAVIS_TAG} --pre-release || true

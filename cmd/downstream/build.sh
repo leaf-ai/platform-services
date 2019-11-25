@@ -10,7 +10,6 @@ set -e
 set -o pipefail
 
 export HASH=`git rev-parse HEAD`
-export DATE=`date '+%Y-%m-%d_%H:%M:%S%z'`
 export PATH=$PATH:$GOPATH/bin
 go get -u -f github.com/golang/dep/cmd/dep
 go get -u -f github.com/aktau/github-release
@@ -32,7 +31,7 @@ do
         PATCH+=$part
     fi
 done
-flags='-X github.com/leaf-ai/platform-services/internal/version.BuildTime="$DATE" -X github.com/leaf-ai/platform-services/internal/version.GitHash="$HASH" -X github.com/leaf-ai/platform-services/internal/version.SemVer="$SEMVER"'
+flags='-X github.com/leaf-ai/platform-services/internal/version.GitHash="$HASH" -X github.com/leaf-ai/platform-services/internal/version.SemVer="$SEMVER"'
 flags="$(eval echo $flags)"
 [ -e internal/gen/downstream ] || mkdir -p internal/gen/downstream
 #[ -e vendor/github.com/leaf-ai/platform-services/internal ] || mkdir -p vendor/github.com/leaf-ai/platform-services/internal
@@ -42,8 +41,8 @@ if [ "$1" == "gen" ]; then
     exit 0
 fi
 mkdir -p cmd/downstream/bin
-CGO_ENABLED=0 go build -ldflags "$flags" -o cmd/downstream/bin/downstream cmd/downstream/*.go
-go build -ldflags "$flags" -race -o cmd/downstream/bin/downstream-race cmd/downstream/*.go
+CGO_ENABLED=0 go build -asmflags -trimpath -ldflags "$flags" -o cmd/downstream/bin/downstream cmd/downstream/*.go
+go build -asmflags -trimpath -ldflags "$flags" -race -o cmd/downstream/bin/downstream-race cmd/downstream/*.go
 CGO_ENABLED=0 go test -ldflags "$flags" -coverpkg="." -c -o cmd/downstream/bin/downstream-run-coverage cmd/downstream/*.go
 CGO_ENABLED=0 go test -ldflags "$flags" -coverpkg="." -c -o bin/downstream-test-coverage cmd/downstream/*.go
 go test -ldflags "$flags" -race -c -o cmd/downstream/bin/downstream-test cmd/downstream/*.go

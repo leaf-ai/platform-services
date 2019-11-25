@@ -12,8 +12,7 @@ import (
 )
 
 type info struct {
-	GitHash    string `json:"VersionHash,omitempty"`
-	BuildStamp string `json:"BuildTimeStamp,omitempty"`
+	GitHash string `json:"VersionHash,omitempty"`
 }
 
 var (
@@ -23,8 +22,7 @@ var (
 
 func init() {
 	inf := &info{
-		GitHash:    version.GitHash,
-		BuildStamp: version.BuildTime,
+		GitHash: version.GitHash,
 	}
 	b, err := json.Marshal(inf)
 	if err != nil {

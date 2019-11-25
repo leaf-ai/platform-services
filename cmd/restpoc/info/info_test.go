@@ -34,8 +34,7 @@ func TestInfoContent(t *testing.T) {
 	}
 
 	infoRef := &info{
-		GitHash:    version.GitHash,
-		BuildStamp: version.BuildTime,
+		GitHash: version.GitHash,
 	}
 	if diff := deep.Equal(infoBlock, infoRef); diff != nil {
 		t.Error(diff)

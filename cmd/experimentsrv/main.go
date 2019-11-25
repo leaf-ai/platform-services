@@ -91,7 +91,7 @@ var (
 func usage() {
 	fmt.Fprintln(os.Stderr, path.Base(os.Args[0]))
 	fmt.Fprintln(os.Stderr, "usage: ", os.Args[0], "[arguments]      Sentient Technologies experiment service ")
-	fmt.Fprintln(os.Stderr, "version: ", version.SemVer, " ", version.BuildTime, " ", version.GitHash)
+	fmt.Fprintln(os.Stderr, "version: ", version.SemVer, " ", version.GitHash)
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Arguments:")
 	fmt.Fprintln(os.Stderr, "")
@@ -153,7 +153,7 @@ func main() {
 //
 func Main() {
 
-	fmt.Printf("%s %s built at %s, against commit id %s\n", os.Args[0], version.SemVer, version.BuildTime, version.GitHash)
+	fmt.Printf("%s %s built against commit id %s\n", os.Args[0], version.SemVer, version.GitHash)
 
 	if !flag.Parsed() {
 		// Use the go options parser to load command line options that have been set, and look

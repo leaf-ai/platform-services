@@ -9,6 +9,6 @@ RUN apt-get -y update && apt-get -y install net-tools iproute2 curl libssl1.0.0 
 RUN apt-get -y update && apt-get -y install iputils-ping telnet
 
 WORKDIR /root/
-COPY bin/experimentsrv .
 COPY run.sh .
+COPY bin/experimentsrv .
 CMD ["./run.sh"]

@@ -10,7 +10,6 @@ set -e
 set -o pipefail
 
 export HASH=`git rev-parse HEAD`
-export DATE=`date '+%Y-%m-%d_%H:%M:%S%z'`
 export PATH=$PATH:$GOPATH/bin
 go get -u -f github.com/golang/dep/cmd/dep
 go get -u -f github.com/aktau/github-release
@@ -32,7 +31,7 @@ do
         PATCH+=$part
     fi
 done
-flags='-X github.com/leaf-ai/platform-services/internal/version.BuildTime="$DATE" -X github.com/leaf-ai/platform-services/internal/version.GitHash="$HASH" -X github.com/leaf-ai/platform-services/internal/version.SemVer="$SEMVER"'
+flags='-X github.com/leaf-ai/platform-services/internal/version.GitHash="$HASH" -X github.com/leaf-ai/platform-services/internal/version.SemVer="$SEMVER"'
 flags="$(eval echo $flags)"
 [ -e internal/gen/experimentsrv ] || mkdir -p internal/gen/experimentsrv
 #[ -e vendor/github.com/leaf-ai/platform-services/internal ] || mkdir -p vendor/github.com/leaf-ai/platform-services/internal
@@ -42,11 +41,11 @@ if [ "$1" == "gen" ]; then
     exit 0
 fi
 mkdir -p cmd/experimentsrv/bin
-CGO_ENABLED=0 go build -ldflags "$flags" -o cmd/experimentsrv/bin/experimentsrv cmd/experimentsrv/*.go
-go build -ldflags "$flags" -race -o cmd/experimentsrv/bin/experimentsrv-race cmd/experimentsrv/*.go
-CGO_ENABLED=0 go test -ldflags "$flags" -coverpkg="." -c -o cmd/experimentsrv/bin/experimentsrv-run-coverage cmd/experimentsrv/*.go
-CGO_ENABLED=0 go test -ldflags "$flags" -coverpkg="." -c -o bin/experimentsrv-test-coverage cmd/experimentsrv/*.go
-go test -ldflags "$flags" -race -c -o cmd/experimentsrv/bin/experimentsrv-test cmd/experimentsrv/*.go
+CGO_ENABLED=0 go build -asmflags -trimpath -ldflags "$flags" -o cmd/experimentsrv/bin/experimentsrv cmd/experimentsrv/*.go
+go build -asmflags -trimpath -ldflags "$flags" -race -o cmd/experimentsrv/bin/experimentsrv-race cmd/experimentsrv/*.go
+CGO_ENABLED=0 go test -asmflags -trimpath -ldflags "$flags" -coverpkg="." -c -o cmd/experimentsrv/bin/experimentsrv-run-coverage cmd/experimentsrv/*.go
+CGO_ENABLED=0 go test -asmflags -trimpath -ldflags "$flags" -coverpkg="." -c -o bin/experimentsrv-test-coverage cmd/experimentsrv/*.go
+go test -asmflags -trimpath -ldflags "$flags" -race -c -o cmd/experimentsrv/bin/experimentsrv-test cmd/experimentsrv/*.go
 if [ -z "$PATCH" ]; then
     if ! [ -z "${SEMVER}" ]; then
         if ! [ -z "${GITHUB_TOKEN}" ]; then
