@@ -50,8 +50,8 @@ go test -ldflags "$flags" -race -c -o cmd/downstream/bin/downstream-test cmd/dow
 if [ -z "$PATCH" ]; then
     if ! [ -z "${SEMVER}" ]; then
         if ! [ -z "${GITHUB_TOKEN}" ]; then
-            github-release release --user leaf-ai --repo platform-services --tag ${SEMVER} --pre-release && \
-            github-release upload --user leaf-ai --repo platform-services  --tag ${SEMVER} --name platform-services --file cmd/downstream/bin/downstream
+            github-release release --user leaf-ai --repo platform-services --tag ${SEMVER} --pre-release || true
+            github-release upload --user leaf-ai --repo platform-services  --tag ${SEMVER} --name downstream --file cmd/downstream/bin/downstream
         fi
     fi
 fi

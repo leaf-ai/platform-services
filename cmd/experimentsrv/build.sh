@@ -50,8 +50,8 @@ go test -ldflags "$flags" -race -c -o cmd/experimentsrv/bin/experimentsrv-test c
 if [ -z "$PATCH" ]; then
     if ! [ -z "${SEMVER}" ]; then
         if ! [ -z "${GITHUB_TOKEN}" ]; then
-            github-release release --user leaf-ai --repo platform-services --tag ${SEMVER} --pre-release && \
-            github-release upload --user leaf-ai --repo platform-services  --tag ${SEMVER} --name platform-services --file cmd/experimentsrv/bin/experimentsrv
+            github-release release --user leaf-ai --repo platform-services --tag ${SEMVER} --pre-release || true
+            github-release upload --user leaf-ai --repo platform-services  --tag ${SEMVER} --name experimentsrv --file cmd/experimentsrv/bin/experimentsrv
         fi
     fi
 fi

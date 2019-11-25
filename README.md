@@ -1,7 +1,7 @@
 # platform-services
 A public PoC with functioning service using simple Istio Mesh running on K8s
 
-Version : <repo-version>0.7.1-feature-22-auth0-password-aaaagmezirk</repo-version>
+Version : <repo-version>0.7.1</repo-version>
 
 This project is intended as a sand-box for experimenting with Istio and some of the services we use in our Evolutionary AI services.  It also provides a good way of exposing and testing out non-proprietary platform functions while collaborating with other parties such as vendors and customers.
 # Purpose

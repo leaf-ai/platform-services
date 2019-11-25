@@ -29,7 +29,7 @@ go build -ldflags "-X github.com/leaf-ai/platform-services/internal/version.Buil
 go build -ldflags "-X github.com/leaf-ai/platform-services/internal/version.BuildTime=$DATE -X github.com/leaf-ai/platform-services/internal/version.GitHash=$HASH" -race -o cmd/echosrv/bin/echosrv-race cmd/echosrv/*.go
 if ! [ -z "${TRAVIS_TAG}" ]; then
     if ! [ -z "${GITHUB_TOKEN}" ]; then
-        github-release release --user leaf-ai --repo platform-services --tag ${TRAVIS_TAG} --pre-release && \
-        github-release upload --user leaf-ai --repo platform-services  --tag ${TRAVIS_TAG} --name platform-services --file cmd/echosrv/bin/echosrv
+        github-release release --user leaf-ai --repo platform-services --tag ${TRAVIS_TAG} --pre-release || true
+        github-release upload --user leaf-ai --repo platform-services  --tag ${TRAVIS_TAG} --name echosrv --file cmd/echosrv/bin/echosrv
     fi
 fi

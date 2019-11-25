@@ -23,7 +23,7 @@ go test -ldflags "-X github.com/leaf-ai/platform-services/internal/version.Build
 go test -ldflags "-X github.com/leaf-ai/platform-services/internal/version.BuildTime=$DATE -X github.com/leaf-ai/platform-services/internal/version.GitHash=$HASH" -race -c -o cmd/restpoc/bin/restpoc-test cmd/restpoc/*.go
 if ! [ -z "${TRAVIS_TAG}" ]; then
     if ! [ -z "${GITHUB_TOKEN}" ]; then
-        github-release release --user leaf-ai --repo platform-services --tag ${TRAVIS_TAG} --pre-release && \
-        github-release upload --user leaf-ai --repo platform-services  --tag ${TRAVIS_TAG} --name platform-services --file cmd/restpoc/bin/restpoc
+        github-release release --user leaf-ai --repo platform-services --tag ${TRAVIS_TAG} --pre-release || true
+        github-release upload --user leaf-ai --repo platform-services  --tag ${TRAVIS_TAG} --name restpoc --file cmd/restpoc/bin/restpoc
     fi
 fi
