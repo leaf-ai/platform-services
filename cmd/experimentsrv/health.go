@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/go-stack/stack"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )

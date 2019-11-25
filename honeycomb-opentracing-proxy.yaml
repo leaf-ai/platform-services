@@ -1,11 +1,14 @@
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: honeycomb-opentracing-proxy
   namespace: default
 spec:
   replicas: 2
+  selector:
+    matchLabels:
+      app: honeycomb-opentracing-proxy
   template:
     metadata:
       labels:
@@ -38,8 +41,6 @@ spec:
             secretKeyRef:
               key: dataset
               name: honeycomb-writekey
-
-
 ---
 apiVersion: v1
 kind: Service
