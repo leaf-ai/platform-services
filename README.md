@@ -1,9 +1,12 @@
 # platform-services
-A public PoC with functioning service using simple Istio Mesh running on K8s
+A public PoC with functioning services using a simple Istio Mesh running on K8s
 
-Version : <repo-version>0.7.1</repo-version>
+Version : <repo-version>0.8.0-feature-21-letsencrypt-aaaagmghmgb</repo-version>
 
-This project is intended as a sand-box for experimenting with Istio and some of the services we use in our Evolutionary AI services.  It also provides a good way of exposing and testing out non-proprietary platform functions while collaborating with other parties such as vendors and customers.
+This project is intended as a sand-box for experimenting with Istio and some example services in a similiar manner to what is used by the Cognizant Evolutionary AI services.  It also provides a good way of exposing and testing out non-proprietary platform functions while collaborating with other parties such as vendors and customers.
+
+Because this project is intended to mirror production examples of services deploy it requires that the user has an account and a registered internet domain name.  A service such as domains.google.com, or cloudflare is a good start.  Your DNS registered host will be used to issue certificates on your behalf to secure the public connections that are exposed by services to the internet, and more specifically to secure the username and password based access exposed by the service mesh.
+
 # Purpose
 
 This proof of concept (PoC) implementation is intended as a means by which the LEAF team can experiment with features of Service Mesh, PaaS, and SaaS platforms provided by third parties.  This project serves as a way of exercising non cognizant services so that code can be openly shared while testing external services and technologies, and for support in relation to external open source offerings in a public support context.
@@ -14,7 +17,7 @@ This project is intended as a sand-box for experimenting with Istio and some of 
 
 # Installation
 
-These instructions were used with Kubernetes 1.16.x, and Istio 1.3.4.
+These instructions were used with Kubernetes 1.16.x, and Istio 1.4.0.
 
 ## Development and Building from source
 
@@ -45,12 +48,12 @@ go install github.com/karlmutch/duat/cmd/stencil
 go install github.com/karlmutch/petname/cmd/petname
 </b></code></pre>
 
+## Running the build using the container
+
 Creating a build container to isolate the build into a versioned environment
 
 <pre><code><b>docker build -t platform-services:latest --build-arg USER=$USER --build-arg USER_ID=`id -u $USER` --build-arg USER_GROUP_ID=`id -g $USER` .
 </b></code></pre>
-
-Running the build using the container
 
 Prior to doing the build a GitHub OAUTH token needs to be defined within your environment.  Use the github admin pages for your account to generate a token, in Travis builds the token is probably already defined by the Travis service.
 <pre><code><b>docker run -e GITHUB_TOKEN=$GITHUB_TOKEN -v $GOPATH:/project platform-services ; echo "Done" ; docker container prune -f</b>
@@ -58,37 +61,36 @@ Prior to doing the build a GitHub OAUTH token needs to be defined within your en
 
 A combined build script is provided 'platform-services/build.sh' to allow all stages of the build including producing docker images to be run together.
 
-# Deploying the Istio Service platform on AWS with Kubernetes
+# Deployment
 
-The k8s instructions in this section are for unmanaged solutions.  They are included as a baseline for AWS prior to the wide availability of EKS.  Once EKS is in wide distribution and managed offerings for k8s is available from the big three cloud vendors and k8s receeds into the cloud platform then the kops instructions could well become redundant and the cloud vendors tooling will take over this function.
+These deployment instructions are intended for use with the Ubuntu 18.04 LTS distribution.
 
-Thje following instructions make use of the stencil tool for templating configuration files.
+The following instructions make use of the stencil tool for templating configuration files.
 
 This major section describes two basic alternatives for deployment, AWS kops, and locally hosted microk8s.  Other Kubernetes distribution and deployment models will work but are not explicitly described here.
 
 ## Kubernetes (unmanaged)
 
-The experimentsrv component comes with an Istio definition file for deployment into AWS using Kubernetes (k8s) and Istio.
+The experimentsrv component comes with an Istio definition file for deployment into AWS, or microk8s using Kubernetes (k8s) and Istio.
 
 The deployment definition file can be found at cmd/experimentsrv/experimentsrv.yaml.
 
-Using k8s will use both the kops, and the kubectl tools. You should have an AWS account configured prior to starting deployments, and your environment variables for using the AWS cli should also be done.
+Using AWS k8s will use both the kops, and the kubectl tools. You should have an AWS account configured prior to starting deployments, and your environment variables for using the AWS cli should also be done.
+
+The microk8s tooling installation is documented below.
 
 ### Verify Docker Version
 
-Docker is preinstalled.  You can verify the version by running the following:
-<pre><code><b>docker --version</b>
-Docker version 17.12.0-ce, build c97c6d6
+Docker fopr Ubuntu can be retrieved from the snap store using the following:
+<pre><code><b>sudo snap install docker
+docker --version</b>
+Docker version 18.09.9, build 1752eb3
 </code></pre>
 You should have a similar or newer version.
 
-When using recent versions of Ubuntu the snap utility can be used to install docker in the event it is not already installed:
-<pre><code><b>snap install docker</b></code></pre>
-
-
 ## Install Kubectl CLI
 
-Install the kubectl CLI can be done using kubectl 1.12.x version.
+Install the kubectl CLI can be done using kubectl 1.16.x version.
 
 <pre><code><b>sudo snap install kubectl --classic</b></code></pre>
 
@@ -103,10 +105,93 @@ You can verify that kubectl is installed by executing the following command:
 Client Version: version.Info{Major:"1", Minor:"9", GitVersion:"v1.9.2", GitCommit:"5fa2db2bd46ac79e5e00a4e6ed24191080aa463b", GitTreeState:"clean", BuildDate:"2018-01-18T10:09:24Z", GoVersion:"go1.9.2", Compiler:"gc", Platform:"linux/amd64"}
 </code></pre>
 
+## Helm Kubernetes package manager
+
+Helm is used by several packages that are deployed using Kubernetes.  Helm can be installed using instructions found at, https://helm.sh/docs/using\_helm/#installing-helm.  
+For snap based linux distributions the following can be used as a quick-start.
+
+<pre><code><b>sudo snap install helm --channel=2.16/stable --classic
+kubectl create serviceaccount --namespace kube-system tiller
+kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
+helm init --history-max 200 --service-account tiller --upgrade
+helm repo update
+</b></code></pre>
+
+
+## Lets Encrypt
+
+letsencrypt is a public SSL/TLS certificate provider that is being used to secure our service mesh for this project. The lets encrypt provisioning tool can be installed from github and accessed to produce TLS certificates for your service.  
+
+Prior to running the lets encrypt tools you should identify the desired hostname and email you wish to make use of.  In our example we have a domain registered as an example, cognizant-ai.net.  This domain is available for management, and we have choosen to use the host name platform-service.cognizant-ai.net as the services hostname.
+
+We first added a registered hosts entry for the platform-services.cognizant-ai.net host into the DNS account, if the host is unknown add an IP address such as 127.0.0.1.  During the generation process you will be prompted to add a DNS TXT record into the custom resource records for the domain, this requires the dummy entry to be present.
+
+Setting up and initiating this process can be done using the following:
+
+<pre><code><b>git clone https://github.com/letsencrypt/letsencrypt</b>
+Cloning into 'letsencrypt'...
+remote: Enumerating objects: 255, done.
+remote: Counting objects: 100% (255/255), done.
+remote: Compressing objects: 100% (188/188), done.
+remote: Total 71278 (delta 135), reused 110 (delta 65), pack-reused 71023
+Receiving objects: 100% (71278/71278), 23.55 MiB | 26.53 MiB/s, done.
+Resolving deltas: 100% (52331/52331), done.
+<b>cd letsencrypt</b>
+<b>./letsencrypt-auto certonly --rsa-key-size 4096 --agree-tos --manual --preferred-challenges=dns --email=karlmutch@cognizant.com -d platform-services.cognizant-ai.net</b>
+</code></pre>
+
+You will be prompted with the IP address logging when starting the script, you should choose 'Y' to enabled the logging as this assists auditing of DNS changes on the internet by registras and regulatory bodies.
+
+<pre><code>
+Are you OK with your IP being logged?
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+(Y)es/(N)o: <b>Y
+</b></code></pre>
+
+After this step you will be asked to add a text record to your DNS records proving that you have control over the domain, this will appear much like the following:
+
+<pre><code>
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Please deploy a DNS TXT record under the name
+_acme-challenge.platform-services.cognizant-ai.net with the following value:
+
+mbUa9_gb4RVYhTumHy3zIi3PIXFh0k_oOgCie4NvhqQ
+
+Before continuing, verify the record is deployed.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Press Enter to Continue
+</code></pre>
+
+You should wait 10 to 20 minutes for the TXT record to appear in the database of your DNS provider before selecting continue otherwise the verification will fail and you will need to restart it.
+
+<pre><code>
+Waiting for verification...
+Cleaning up challenges
+
+IMPORTANT NOTES:
+ - Congratulations! Your certificate and chain have been saved at:
+   /etc/letsencrypt/live/platform-services.cognizant-ai.net/fullchain.pem
+   Your key file has been saved at:
+   /etc/letsencrypt/live/platform-services.cognizant-ai.net/privkey.pem
+   Your cert will expire on 2020-02-23. To obtain a new or tweaked
+   version of this certificate in the future, simply run
+   letsencrypt-auto again. To non-interactively renew *all* of your
+   certificates, run "letsencrypt-auto renew"
+ - If you like Certbot, please consider supporting our work by:
+
+   Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
+   Donating to EFF:                    https://eff.org/donate-le
+</code></pre>
+
+Once the certificate generation is complete you will have the certificate saved at the location detailed in the 'IMPORTANT NOTES' section.  Keep a record of where this is you will need it later.
+
+After the certificate has been issue feel free to delete the TXT record that served as proof of ownership as it is no longer needed.
+
 ## Base cluster installation
 
 This documentation Kubernetes describes two means by which Kubernetes clusters can be installed, choose one however there are many other alternatives also available.
-### Installing microk8s
+
+### Installing microk8s Kubernetes
 
 The microk8s solution implements a single host deployment of Kubernetes, https://microk8s.io/. Use snap on Ubuntu to install this component to allow for management of the optional features of microk8s.  When using microk8s the Istio distribution is included in the Kubernetes install as an addon.
 
@@ -128,9 +213,11 @@ microk8s.kubectl --kubeconfig=$HOME/.kube/config get no
 
 #### Using kops
 
-At the time this guide was updated kops 1.12 was released, if you are reading this guide in August of 2019 or later look for the release version of kops 1.12 or later.  kops for the AWS use case at the alpha is a very restricted use case for our purposes and works in a stable fashion.  If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
+If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
 
-<pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/1.12.9/kops-linux-amd64
+When using AWS the TLS certificates used to secure the connections to your AWS LoadBalancer will require that an ElasticIP is used.  It is recommended that an ElasticIP is allocated for use and then your DNS entries on the domain registra are modified to used the IP as a registered host matching the LetsEncrypt certificate used.  Using an ElasticIP allows the cluster to be regenerated and for the LoadBalancer to be reassociated with the IP whenever the cluster is regenerated.
+
+<pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/1.15.0/kops-linux-amd64
 chmod +x kops-linux-amd64
 sudo mv kops-linux-amd64 /usr/local/bin/kops
 
@@ -150,7 +237,7 @@ aws s3api put-bucket-versioning --bucket $S3_BUCKET --versioning-configuration S
 
 export CLUSTER_NAME=test-$USER.platform.cluster.k8s.local
 
-kops create cluster --name $CLUSTER_NAME --zones $AWS_AVAILABILITY_ZONES --node-count 1
+kops create cluster --name $CLUSTER_NAME --zones $AWS_AVAILABILITY_ZONES --node-count 1 --node-size=m4.2xlarge
 </b></code></pre>
 
 Optionally use an image from your preferred zone e.g. --image=ami-0def3275.  Also you can modify the AWS machine types, recommended during developer testing using options such as '--master-size=m4.large --node-size=m4.large'.
@@ -200,27 +287,26 @@ done;
 
 The initial cluster spinup will take sometime, use kops commands such as 'kops validate cluster' to determine when the cluster is spun up ready for Istio and the platform services.
 
-#### Istio 1.2.x
+#### Istio 1.4.x
 
-Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, 
-https://archive.istio.io/v1.2/docs/setup/kubernetes/quick-start/#prerequisites. Helm will also be needed for installation of these more recent versions of Istio, please see the instructions for postgres.  We recommend using the mTLS installation for the k8s cluster deployment, for example
+If you performed a microk8s installation of Kubernetes do not perform the steps in this subsection.
+
+Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, https://istio.io/docs/setup/getting-started/#install.  Istio was at one time a Helm based installation but has since moved to using its own methodology.
 
 <pre><code><b>cd ~
-curl -LO https://github.com/istio/istio/releases/download/1.2.2/istio-1.2.2-linux.tar.gz
-tar xzf istio-1.2.2-linux.tar.gz
-export ISTIO_DIR=`pwd`/istio-1.2.2
+curl -LO https://github.com/istio/istio/releases/download/1.4.0/istio-1.4.0-linux.tar.gz
+tar xzf istio-1.4.0-linux.tar.gz
+export ISTIO_DIR=`pwd`/istio-1.4.0
 export PATH=$ISTIO_DIR/bin:$PATH
 cd -
-kubectl apply -f $ISTIO_DIR/install/kubernetes/helm/helm-service-account.yaml
-
-helm install $ISTIO_DIR/install/kubernetes/helm/istio-init --name istio-init --namespace istio-system -f helm_custom.yaml
-sleep 10
-helm install $ISTIO_DIR/install/kubernetes/helm/istio --name istio --namespace istio-system -f helm_custom.yaml
+istioctl manifest apply --set profile=demo --set values.tracing.enabled=true --set values.tracing.provider=zipkin --set values.global.tracer.zipkin.address=honeycomb-opentracing-proxy.default.svc.cluster.local:9411 --set values.pilot.traceSampling=100 --set values.gateways.istio-egressgateway.enabled=false --set values.gateways.istio-ingressgateway.sds.enabled=true
 </b></code></pre>
 
 ## Configuration of secrets
 
-The experiment service supports the Honeycomb observability solution.  Configuring the service is done by creating a Kubernetes secret.  For now we can define the Honeycomb API key using an environment variable and when we deploy the secrets for the Postgres Database the secret for the API will be injected using the stencil tool.
+This project makes use of several secrets that are used to access resources under its control, including the Postgres Database, the Honeycomb service, and the lets encrypt issues certificate.
+
+The experiment service Honeycomb observability solution uses a key to access Datasets defined by the Honeycomb account and store events in the same.  Configuring the service is done by creating a Kubernetes secret.  For now we can define the Honeycomb API key using an environment variable and when we deploy the secrets for the Postgres Database the secret for the API will be injected using the stencil tool.
 
 <pre><code><b>export O11Y_KEY a54d762df847474b22915
 </b></code></pre>
@@ -239,6 +325,14 @@ export PGDATABASE=platform
 stencil < cmd/experimentsrv/secret.yaml | kubectl apply -f -
 </b></code></pre>
 
+The last set of secrets that need to be stored are related to securing the mesh for third party connections using TLS.  This secret contains the full certificate chain and private key needed to implement TLS on the gRPC connections exposed by the mesh.
+
+<pre><code><b>
+sudo kubectl create -n istio-system secret generic platform-services-tls-cert \
+    --from-file=key=/etc/letsencrypt/live/platform-services.cognizant-ai.net/privkey.pem \
+    --from-file=cert=/etc/letsencrypt/live/platform-services.cognizant-ai.net/fullchain.pem
+</b></code></pre>
+
 ## Deploying the Observability proxy server
 
 This proxy server is used to forward tracing and metrics from your istio mesh based deployment to the Honeycomb service.
@@ -248,18 +342,6 @@ stencil < honeycomb-opentracing-proxy.yaml | kubectl apply -f -
 </b></code></pre>
 
 In order to instrument the base Kubernetes deployment for us with honeycomb you should follow the instructions found at https://docs.honeycomb.io/getting-data-in/integrations/kubernetes/.
-
-## Helm Kubernetes package manager
-
-Helm is used by several packages that are deployed using Kubernetes.  Helm can be installed using instructions found at, https://helm.sh/docs/using\_helm/#installing-helm.  
-For snap based linux distributions the following can be used as a quick-start.
-
-<pre><code><b>sudo snap install helm --classic
-kubectl create serviceaccount --namespace kube-system tiller
-kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
-helm init --history-max 200 --service-account tiller --upgrade
-helm repo update
-</b></code></pre>
 
 ### Postgres DB
 
@@ -460,7 +542,7 @@ Platform services are secured using the Auth0.com service.  Auth0 is a service t
 
 Auth0 supports the ability to create a hosted database for storing user account and credential information.  You should navigate to the Connections -> Database section and create a database with the name of "Username-Password-Authentication".  This will be used later when creating applications as your source of user information.
 
-Auth0 authorizations can be done using a Demo auth0.com account.  To do this you will need to add a custom API to the Auth0 account, call it something like "Experiments API" and give it an identifier of "http://api.cognizant-ai.dev/experimentsrv", you should also enable RBAC and the "Add Permissions in the Access Token" options.  Then use the save button to persist the new API.  Identifiers are used as the 'audience' setting when generating tokens via web calls against the AAA features of the Auth0 platform.
+Auth0 authorizations can be done using a Demo auth0.com account.  To do this you will need to add a custom API to the Auth0 account, call it something like "Experiments API" and give it an identifier of "http://api.cognizant-ai.net/experimentsrv", you should also enable RBAC and the "Add Permissions in the Access Token" options.  Then use the save button to persist the new API.  Identifiers are used as the 'audience' setting when generating tokens via web calls against the AAA features of the Auth0 platform.
 
 The next stop is to use the menu bar to select the "Permissions" tab.  This tab allows you to create a scope to be used for the permissions granted to user.  Create a scope called "all:experiments" with a description, and select the Add button.  This scope will become available for use by authenticated user roles to allow them to access the API.
 
@@ -478,7 +560,7 @@ You can now use various commands to manipulate the APIs outside of what will exi
 export AUTH0_DOMAIN=cognizant-ai.auth0.com
 export AUTH0_CLIENT_ID=pL3iSUmOB7EPiXae4gPfuEasccV7PATs
 export AUTH0_CLIENT_SECRET=KHSCFuFumudWGKISCYD79ZkwF2YFCiQYurhjik0x6OKYyOb7TkfGKJrHKXXADzqG
-export AUTH0_REQUEST=$(printf '{"client_id": "%s", "client_secret": "%s", "audience":"http://api.cognizant-ai.dev/experimentsrv","grant_type":"password", "username": "karlmutch@gmail.com", "password": Ap9ss2345f"", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' "$AUTH0_CLIENT_ID" "$AUTH0_CLIENT_SECRET")
+export AUTH0_REQUEST=$(printf '{"client_id": "%s", "client_secret": "%s", "audience":"http://api.cognizant-ai.net/experimentsrv","grant_type":"password", "username": "karlmutch@gmail.com", "password": Ap9ss2345f"", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' "$AUTH0_CLIENT_ID" "$AUTH0_CLIENT_SECRET")
 export AUTH0_TOKEN=$(curl -s --request POST --url https://cognizant-ai.auth0.com/oauth/token --header 'content-type: application/json' --data "$AUTH0_REQUEST" | jq -r '"\(.access_token)"')
 
 </b>
@@ -495,28 +577,48 @@ cd cmd/experimentsrv
 export AUTH0_DOMAIN=cognizant-ai.auth0.com
 export AUTH0_CLIENT_ID=pL3iSUmOB7EPiXae4gPfuEasccV7PATs
 export AUTH0_CLIENT_SECRET=KHSCFuFumudWGKISCYD79ZkwF2YFCiQYurhjik0x6OKYyOb7TkfGKJrHKXXADzqG
-export AUTH0_REQUEST=$(printf '{"client_id": "%s", "client_secret": "%s", "audience":"http://api.cognizant-ai.dev/experimentsrv","grant_type":"password", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' "$AUTH0_CLIENT_ID" "$AUTH0_CLIENT_SECRET")
+export AUTH0_REQUEST=$(printf '{"client_id": "%s", "client_secret": "%s", "audience":"http://api.cognizant-ai.net/experimentsrv","grant_type":"password", "username": "karlmutch@gmail.com", "password": "Passw0rd!", "scope": "all:experiments", "realm": "Username-Password-Authentication" }' "$AUTH0_CLIENT_ID" "$AUTH0_CLIENT_SECRET")
 export AUTH0_TOKEN=$(curl -s --request POST --url https://cognizant-ai.auth0.com/oauth/token --header 'content-type: application/json' --data "$AUTH0_REQUEST" | jq -r '"\(.access_token)"')
 go test -v --dbaddr=localhost:5432 -ip-port="[::]:30007" -dbname=platform -downstream="[::]:30008"
 </b></code></pre>
 
-# Manually invoking and using services
+# Manually invoking and using production services with TLS
+
+When using the gRPC services within a secured cluster these instructions can be used to access and exercise the services.
+
+A very basic test of the TLS can be done using the curl command:
+
+<pre><code><b>
+curl -Iv https://helloworld.letsencrypt.org
+</b></code></pre>
+
+An example client for running a simple ping style test against the cluster is provided in the cmd/cli-experiment directory.  This client acts as a test for the presence of the service.  If the commands to obtain a JWT have been followed then this command can be run against the cluster as follows:
+
+<pre><code><b>
+go run . --server-addr=platform-services.cognizant-ai.net:443 --auth0-token="$AUTH0_TOKEN"</b>
+(*dev_cognizant_ai_experiment.CheckResponse)(0xc00003c280)(modules:"downstream" )
+</code></pre>
+
+
+
+# Manually invoking and using services without TLS
+
+When using the gRPC services within an unsecured cluster these instructions can be used to access and exercise the services.
 
 A pre-requiste of manually invoking GRPC servcies is that the grpc_cli tooling is installed.  The instructions for doing this can be found within the grpc source code repository at, https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md.
 
 The following instructions identify a $INGRESS_HOST value for cases where a LoadBalancer is being used.  If you are using minikube or microk8s and the cluster is hosted locally then the INGRESS_HOST value should be 127.0.0.1 for the following instructions.
 
-Services used within the platform require that not only is the link integrity and security is maintained using mTLS but that an authorization block is also supplied to verify the user requesting a service.  The authorization can be supplied when using the gRPC command line tool using the metadata options.  First we retrieve a token using curl and then make a request against the service as follows:
+Services used within the platform require that not only is the link integrity and security is maintained using mTLS but that an authorization block is also supplied to verify the user requesting a service.  The authorization can be supplied when using the gRPC command line tool using the metadata options.  First we retrieve a token using curl and then make a request against the service, run in this case as a local docker container, as follows:
 
 <pre><code><b>grpc_cli call localhost:30001 dev.cognizant-ai.experiment.Service.Get "id: 'test'" --metadata authorization:"Bearer $AUTH0_TOKEN"
 </b></code></pre>
 
-The services used within the platform all support reflection when using gRPC.  To examine calls available for a server you should first identify the endpoint through which the gateway is being routed, for example:
+The services used within the platform all support reflection when using gRPC.  To examine calls available for a server you should first identify the endpoint through which the gateway is being routed, in this case as part of an Istio cluster on AWS, for example:
 
-<pre><code><b>export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
-export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
+<pre><code><b>export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
 export INGRESS_HOST=$(kubectl get po -l istio=ingressgateway -n istio-system -o jsonpath='{.items[0].status.hostIP}')
-export CLUSTER_INGRESS=$INGRESS_HOST:$INGRESS_PORT
+export CLUSTER_INGRESS=$INGRESS_HOST:$SECURE_INGRESS_PORT
 <b>grpc_cli ls $CLUSTER_INGRESS -l</b>
 filename: experimentsrv.proto
 package: dev.cognizant_ai.experiment;

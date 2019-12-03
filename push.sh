@@ -14,6 +14,9 @@ if [ $? -eq 0 ]; then
         for dir in cmd/*/ ; do
             base="${dir%%\/}"
             base="${base##*/}"
+            if [ "$base" == "cli-experiment" ] ; then
+                continue
+            fi
             if [ "$base" == "cli-downstream" ] ; then
                 continue
             fi
@@ -30,6 +33,9 @@ if [ $? -eq 0 ]; then
     for dir in cmd/*/ ; do
         base="${dir%%\/}"
         base="${base##*/}"
+            if [ "$base" == "cli-experiment" ] ; then
+                continue
+            fi
         if [ "$base" == "cli-downstream" ] ; then
             continue
         fi
