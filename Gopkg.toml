@@ -21,3 +21,7 @@
 required = [
     "github.com/golang/protobuf/protoc-gen-go",
 ]
+
+[[constraint]]
+  name = "cloud.google.com/go"
+  version = "0.49.0"
