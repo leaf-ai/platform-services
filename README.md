@@ -1,7 +1,7 @@
 # platform-services
 A public PoC with functioning services using a simple Istio Mesh running on K8s
 
-Version : <repo-version>0.8.0-feature-21-letsencrypt-aaaagmghmgb</repo-version>
+Version : <repo-version>0.8.0</repo-version>
 
 This project is intended as a sand-box for experimenting with Istio and some example services in a similiar manner to what is used by the Cognizant Evolutionary AI services.  It also provides a good way of exposing and testing out non-proprietary platform functions while collaborating with other parties such as vendors and customers.
 
