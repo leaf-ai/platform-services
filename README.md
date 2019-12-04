@@ -1,7 +1,7 @@
 # platform-services
 A public PoC with functioning services using a simple Istio Mesh running on K8s
 
-Version : <repo-version>0.8.0</repo-version>
+Version : <repo-version>0.8.1-feature-17-honeycomb-aaaagmibubw</repo-version>
 
 This project is intended as a sand-box for experimenting with Istio and some example services in a similiar manner to what is used by the Cognizant Evolutionary AI services.  It also provides a good way of exposing and testing out non-proprietary platform functions while collaborating with other parties such as vendors and customers.
 
@@ -107,8 +107,7 @@ Client Version: version.Info{Major:"1", Minor:"9", GitVersion:"v1.9.2", GitCommi
 
 ## Helm Kubernetes package manager
 
-Helm is used by several packages that are deployed using Kubernetes.  Helm can be installed using instructions found at, https://helm.sh/docs/using\_helm/#installing-helm.  
-For snap based linux distributions the following can be used as a quick-start.
+Helm is used by several packages that are deployed using Kubernetes.  Helm can be installed using instructions found at, https://helm.sh/docs/using\_helm/#installing-helm.  For snap based linux distributions the following can be used as a quick-start.
 
 <pre><code><b>sudo snap install helm --channel=2.16/stable --classic
 kubectl create serviceaccount --namespace kube-system tiller
@@ -116,7 +115,6 @@ kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admi
 helm init --history-max 200 --service-account tiller --upgrade
 helm repo update
 </b></code></pre>
-
 
 ## Lets Encrypt
 
@@ -237,7 +235,7 @@ aws s3api put-bucket-versioning --bucket $S3_BUCKET --versioning-configuration S
 
 export CLUSTER_NAME=test-$USER.platform.cluster.k8s.local
 
-kops create cluster --name $CLUSTER_NAME --zones $AWS_AVAILABILITY_ZONES --node-count 1 --node-size=m4.2xlarge
+kops create cluster --name $CLUSTER_NAME --zones $AWS_AVAILABILITY_ZONES --node-count 1 --node-size=m4.2xlarge --cloud-labels="HostUser=$HOST:$USER"
 </b></code></pre>
 
 Optionally use an image from your preferred zone e.g. --image=ami-0def3275.  Also you can modify the AWS machine types, recommended during developer testing using options such as '--master-size=m4.large --node-size=m4.large'.
@@ -339,6 +337,9 @@ This proxy server is used to forward tracing and metrics from your istio mesh ba
 
 <pre><code><b>
 stencil < honeycomb-opentracing-proxy.yaml | kubectl apply -f -
+stencil < new-telemetry.yaml | kubectl apply -f -
+stencil < honeycomb-agent.yaml | kubectl apply -f -</b></code></pre>
+
 </b></code></pre>
 
 In order to instrument the base Kubernetes deployment for us with honeycomb you should follow the instructions found at https://docs.honeycomb.io/getting-data-in/integrations/kubernetes/.
@@ -424,6 +425,7 @@ To connect to your database from outside the cluster execute the following comma
 Setting up the proxy will be needed prior to running the SQL database provisioning scripts.  When doing this prior to running the postgres client set the PGHOST environment variable to 127.0.0.1 so that the proxy on the localhost is used.  The proxy will timeout after inactivity and shutdown so be prepared to restart it when needed.
 
 <pre><code><b>
+kubectl wait --for=condition=Ready pod/$PGRELEASE-postgresql-0
 kubectl port-forward --namespace default svc/$PGRELEASE-postgresql 5432:5432 &amp;
 PGHOST=127.0.0.1 PGDATABASE=platform psql -f sql/platform.sql -d postgres
 </b></code></pre>
@@ -431,10 +433,6 @@ PGHOST=127.0.0.1 PGDATABASE=platform psql -f sql/platform.sql -d postgres
 Further information about how to deployed the service specific database for the experiment service for example can be found in the cmd/experiment/README.md file.
 
 ## Deploying into the Istio mesh
-
-Having install the Istio components we now load the telemetry needed for
-
-<pre><code><b>stencil < new_telemetry.yaml | kubectl apply -f -</b></code></pre>
 
 ### Service deployment overview
 

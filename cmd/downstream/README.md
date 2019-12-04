@@ -28,7 +28,7 @@ To deploy the service three commands will be used stencil (a SDLC aware templati
 When version controlled containers are being used with ECS or another docker registry the semver can be used to extract a git cloned repository that has the version string embeeded inside the README.md or another file of your choice, and then use this with your application deployment yaml specification, as follows:
 
 <pre><code><b>cd ~/project/src/github.com/leaf-ai/platform-services/cmd/downstream</b>
-<b>kubectl apply -f <(istioctl kube-inject --includeIPRanges="172.20.0.0/16"  -f <(stencil < downstream.yaml))
+<b>kubectl apply -f <(istioctl kube-inject -f <(stencil < downstream.yaml))
 </b></code></pre>
 
 This technique can be used to upgrade software versions etc and performing rolling upgrades.
