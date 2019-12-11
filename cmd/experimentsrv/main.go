@@ -270,7 +270,7 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 
 	// Initiate a regular checker that looks to the example downstream gRPC service
 	// and validates that it is working
-	initiateDownstream(ctx, *downstreamHostPort)
+	initiateDownstream(ctx, *downstreamHostPort, time.Duration(30*time.Second))
 
 	// Now check for any fatal errors before allowing the system to continue.  This allows
 	// all errors that could have ocuured as a result of incorrect options to be flushed

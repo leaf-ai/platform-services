@@ -61,7 +61,7 @@ func main() {
 	defer conn.Close()
 	client := experimentsrv.NewServiceClient(conn)
 
-	response, errGo := client.MeshCheck(context.Background(), &experimentsrv.CheckRequest{})
+	response, errGo := client.MeshCheck(context.Background(), &experimentsrv.CheckRequest{Live: true})
 	if errGo != nil {
 		logger.Error(fmt.Sprint(errors.Wrap(errGo).With("address", *serverAddr).With("stack", stack.Trace().TrimRuntime())))
 		os.Exit(-1)

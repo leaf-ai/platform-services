@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -21,6 +22,8 @@ import (
 	experiment "github.com/leaf-ai/platform-services/internal/gen/experimentsrv"
 	"github.com/leaf-ai/platform-services/internal/platform"
 
+	"go.opencensus.io/plugin/ocgrpc"
+	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
 )
 
@@ -38,7 +41,10 @@ func (*ExperimentServer) MeshCheck(ctx context.Context, in *experiment.CheckRequ
 		Modules: []string{},
 	}
 
-	if ds := aliveDownstream(); len(ds) != 0 {
+	ctxTimeout, cancel := context.WithTimeout(ctx, time.Duration(10*time.Second))
+	defer cancel()
+
+	if ds := aliveDownstream(ctxTimeout, in.Live); len(ds) != 0 {
 		resp.Modules = append(resp.Modules, ds)
 	}
 
@@ -88,45 +94,6 @@ func (es *ExperimentServer) Watch(in *grpc_health_v1.HealthCheckRequest, server 
 	return errors.New(grpc_health_v1.HealthCheckResponse_UNKNOWN.String())
 }
 
-func o11yUnaryInterceptor() grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, errGo error) {
-		ctx, span := trace.StartSpan(ctx, info.FullMethod, trace.WithSpanKind(trace.SpanKindServer))
-		defer span.End()
-
-		if resp, errGo = handler(ctx, req); errGo != nil {
-			span.SetStatus(trace.Status{
-				Code:    trace.StatusCodeUnknown,
-				Message: errGo.Error(),
-			})
-		}
-
-		return resp, errGo
-	}
-}
-
-type stream struct {
-	grpc.ServerStream
-	ctx context.Context
-}
-
-func o11yStreamInterceptor() grpc.StreamServerInterceptor {
-	return func(srv interface{}, strm grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) (errGo error) {
-		ctx, span := trace.StartSpan(strm.Context(), info.FullMethod, trace.WithSpanKind(trace.SpanKindServer))
-		defer span.End()
-
-		s := stream{strm, ctx}
-
-		if errGo = handler(srv, s); errGo != nil {
-			span.SetStatus(trace.Status{
-				Code:    trace.StatusCodeUnknown,
-				Message: errGo.Error(),
-			})
-		}
-
-		return errGo
-	}
-}
-
 func runServer(ctx context.Context, serviceName string, ipPort string) (errC chan errors.Error) {
 
 	errC = make(chan errors.Error, 3)
@@ -142,16 +109,33 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 	}
 
 	// Start the honeycomb OpenCensus exporter
-	platform.StartOpenCensus(ctx, *honeycombKey, *honeycombData)
+	if err := platform.StartOpenCensus(ctx, *honeycombKey, *honeycombData); err != nil {
+		logger.Warn(err.Error())
+	}
 
 	streams := grpc_middleware.ChainStreamServer(
 		authStreamInterceptor,
-		o11yStreamInterceptor())
+	)
 	unaries := grpc_middleware.ChainUnaryServer(
 		authUnaryInterceptor,
-		o11yUnaryInterceptor())
+	)
 
+	// Register views to collect data for the OpenCensus interceptor.
+	if errGo := view.Register(ocgrpc.DefaultServerViews...); errGo != nil {
+		logger.Fatal(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
+	}
+
+	// In debugging scenarios we want every trace captured
+	trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
+
+	// Set up the server with the OpenCensus
+	// stats handler to enable stats and tracing
 	server := grpc.NewServer(
+		grpc.StatsHandler(&ocgrpc.ServerHandler{
+			StartOptions: trace.StartOptions{
+				SpanKind: trace.SpanKindServer,
+			},
+		}),
 		grpc.StreamInterceptor(streams),
 		grpc.UnaryInterceptor(unaries),
 	)
@@ -210,10 +194,8 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 	}
 
 	go func() {
-		select {
-		case <-ctx.Done():
-			server.Stop()
-		}
+		<-ctx.Done()
+		server.Stop()
 	}()
 	return errC
 }

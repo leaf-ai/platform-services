@@ -47,6 +47,16 @@ spec:
           value: "*=TRC"
         - name: "IP_PORT"
           value: ":30001,0.0.0.0:30001"
+        - name: "O11Y_KEY"
+          valueFrom:
+            secretKeyRef:
+              name: honeycomb-writekey
+              key: apikey
+        - name: "O11Y_DATASET"
+          valueFrom:
+            secretKeyRef:
+              name: honeycomb-writekey
+              key: dataset
       resources:
         requests:
           memory: "256Mi"

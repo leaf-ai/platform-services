@@ -434,6 +434,17 @@ Further information about how to deployed the service specific database for the 
 
 ## Deploying into the Istio mesh
 
+### Configuring the service DNS
+
+When using this mesh instance with a TLS based deployment the DNS domain name used for the LetsEncrypt certificate (CN), will need to have its address record (A) updated to point at the AWS load balancer assigned to the Kubernetes cluster.  In AWS this is done via Route53:
+
+<pre><code><b>
+INGRESS_HOST=`kubectl get svc --namespace istio-system -o go-template='{{range .items}}{{range .status.loadBalancer.ingress}}{{.hostname}}{{printf "\n"}}{{end}}{{end}}'`
+dig +short $INGRESS_HOST
+</b></code></pre>
+
+Take the IP addresses from the above output and use these as the A record for the LetsEncrypt host name and this will enable accessing the mesh and validation of the common name (CN) in the certificate.
+
 ### Service deployment overview
 
 Platform services use Dockerfiles to encapsulate their build steps which are documented within their respective README.md files.  Building services are single step CLI operations and require only the installation of Docker, and any version of Go 1.7 or later.  Builds will produce containers and will upload these to your current AWS account users ECS docker registry.  Deployments are staged from this registry.  
@@ -593,6 +604,7 @@ curl -Iv https://helloworld.letsencrypt.org
 An example client for running a simple ping style test against the cluster is provided in the cmd/cli-experiment directory.  This client acts as a test for the presence of the service.  If the commands to obtain a JWT have been followed then this command can be run against the cluster as follows:
 
 <pre><code><b>
+cd cmd/cli-experiment
 go run . --server-addr=platform-services.cognizant-ai.net:443 --auth0-token="$AUTH0_TOKEN"</b>
 (*dev_cognizant_ai_experiment.CheckResponse)(0xc00003c280)(modules:"downstream" )
 </code></pre>

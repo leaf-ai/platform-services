@@ -13,7 +13,6 @@ import (
 
 	"net/http"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
 
@@ -204,9 +203,6 @@ func authStreamInterceptor(srv interface{}, strm grpc.ServerStream, info *grpc.S
 			return grpc.Errorf(codes.Unauthenticated, "missing context metadata "+stack.Trace().TrimRuntime().String())
 		}
 
-		logger.Debug(stack.Trace().TrimRuntime().String())
-		logger.Debug(spew.Sdump(strm.Context()))
-		logger.Debug(spew.Sdump(srv))
 		auth, isPresent := meta["authorization"]
 		if !isPresent {
 			return grpc.Errorf(codes.Unauthenticated, "missing security token "+stack.Trace().TrimRuntime().String())
