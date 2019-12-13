@@ -280,6 +280,14 @@
   version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:0c93b4970c254d3f8f76c3e8eb72571d6f24a15415f9c418ecb0801ba5765a90"
+  name = "github.com/grpc-ecosystem/grpc-opentracing"
+  packages = ["go/otgrpc"]
+  pruneopts = ""
+  revision = "8e809c8a86450a29b90dcc9efbf062d0fe6d9746"
+
+[[projects]]
   digest = "1:85f8f8d390a03287a563e215ea6bd0610c858042731a8b42062435a0dcbc485f"
   name = "github.com/hashicorp/golang-lru"
   packages = ["simplelru"]
@@ -443,28 +451,81 @@
   version = "v1.1.2"
 
 [[projects]]
+  digest = "1:1fc4897d3cc482d070651563c16a51489296cd9150e6d53fb7ff4d59a24334bc"
+  name = "github.com/opentracing/opentracing-go"
+  packages = [
+    ".",
+    "ext",
+    "log",
+  ]
+  pruneopts = ""
+  revision = "659c90643e714681897ec2521c60567dd21da733"
+  version = "v1.1.0"
+
+[[projects]]
+  digest = "1:1d7e1867c49a6dd9856598ef7c3123604ea3daabf5b83f303ff457bcbc410b1d"
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  pruneopts = ""
+  revision = "ba968bfe8b2f7e042a574c888954fccecfa385b4"
+  version = "v0.8.1"
+
+[[projects]]
+  digest = "1:9507116982a7ad025457cfaa147643e20c02530ad31df9978cc1e5a2c64de307"
+  name = "github.com/uber/jaeger-client-go"
+  packages = [
+    ".",
+    "config",
+    "internal/baggage",
+    "internal/baggage/remote",
+    "internal/spanlog",
+    "internal/throttler",
+    "internal/throttler/remote",
+    "log",
+    "rpcmetrics",
+    "thrift",
+    "thrift-gen/agent",
+    "thrift-gen/baggage",
+    "thrift-gen/jaeger",
+    "thrift-gen/sampling",
+    "thrift-gen/zipkincore",
+    "transport",
+    "transport/zipkin",
+    "utils",
+  ]
+  pruneopts = ""
+  revision = "5b163d27fabddbb0e7fae4548c8933c379210610"
+  version = "v2.20.1"
+
+[[projects]]
+  digest = "1:6afbf06917cb67a1a895aecd38ff31bd691f4fad239e5ce468f2265359bee7b7"
+  name = "github.com/uber/jaeger-lib"
+  packages = ["metrics"]
+  pruneopts = ""
+  revision = "a87ae9d84fb038a8d79266298970720be7c80fcd"
+  version = "v2.2.0"
+
+[[projects]]
   digest = "1:15322677d41c39ba767c0bcfe258fe2ffeeb1c355069674788418bf9c507e811"
   name = "go.opencensus.io"
   packages = [
     ".",
     "internal",
-    "internal/tagencoding",
-    "metric/metricdata",
-    "metric/metricproducer",
-    "plugin/ocgrpc",
-    "resource",
-    "stats",
-    "stats/internal",
-    "stats/view",
-    "tag",
     "trace",
     "trace/internal",
-    "trace/propagation",
     "trace/tracestate",
   ]
   pruneopts = ""
   revision = "9c377598961b706d1542bd2d84d538b5094d596e"
   version = "v0.22.0"
+
+[[projects]]
+  digest = "1:44da3f221472d00188fa0d9bdae0c0abbdd45eebe8b8a6f5bdf22d24affff760"
+  name = "go.uber.org/atomic"
+  packages = ["."]
+  pruneopts = ""
+  revision = "40ae6a40a970ef4cdbffa7b24b280e316db8accc"
+  version = "v1.5.1"
 
 [[projects]]
   branch = "master"
@@ -477,6 +538,17 @@
   ]
   pruneopts = ""
   revision = "cc06ce4a13d484c0101a9e92913248488a75786d"
+
+[[projects]]
+  branch = "master"
+  digest = "1:465c831311f144be27d64ae3cb416b243ff67e73407852bc4265d09efbb66283"
+  name = "golang.org/x/lint"
+  packages = [
+    ".",
+    "golint",
+  ]
+  pruneopts = ""
+  revision = "fdd1cda4f05fd1fd86124f0ef9ce31a0b72c8448"
 
 [[projects]]
   branch = "master"
@@ -543,6 +615,19 @@
   pruneopts = ""
   revision = "342b2e1fbaa52c93f31447ad2c6abc048c63e475"
   version = "v0.3.2"
+
+[[projects]]
+  branch = "master"
+  digest = "1:c6288eccbf9dcc1c024a8fc4bb368b6a3ea283a38e26b549cb20da678472c75e"
+  name = "golang.org/x/tools"
+  packages = [
+    "go/ast/astutil",
+    "go/gcexportdata",
+    "go/internal/gcimporter",
+    "go/types/typeutil",
+  ]
+  pruneopts = ""
+  revision = "98df123772120179846dbe20280e26b427d64dd6"
 
 [[projects]]
   digest = "1:c4404231035fad619a12f82ae3f0f8f9edc1cc7f34e7edad7a28ccac5336cc96"
@@ -676,6 +761,7 @@
     "github.com/golang/protobuf/ptypes",
     "github.com/golang/protobuf/ptypes/timestamp",
     "github.com/grpc-ecosystem/go-grpc-middleware",
+    "github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc",
     "github.com/honeycombio/opencensus-exporter/honeycomb",
     "github.com/jessevdk/go-flags",
     "github.com/jmoiron/sqlx",
@@ -683,8 +769,10 @@
     "github.com/karlmutch/errors",
     "github.com/lib/pq",
     "github.com/mgutz/logxi",
-    "go.opencensus.io/plugin/ocgrpc",
-    "go.opencensus.io/stats/view",
+    "github.com/opentracing/opentracing-go",
+    "github.com/uber/jaeger-client-go",
+    "github.com/uber/jaeger-client-go/config",
+    "github.com/uber/jaeger-client-go/transport/zipkin",
     "go.opencensus.io/trace",
     "golang.org/x/net/context",
     "golang.org/x/net/netutil",

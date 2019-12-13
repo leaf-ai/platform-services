@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net"
 	"strings"
@@ -10,9 +9,14 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
-	"go.opencensus.io/plugin/ocgrpc"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/trace"
+
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	opentracing "github.com/opentracing/opentracing-go"
+	jaeger "github.com/uber/jaeger-client-go"
+	jaegercfg "github.com/uber/jaeger-client-go/config"
+	"github.com/uber/jaeger-client-go/transport/zipkin"
 
 	"github.com/golang/protobuf/ptypes"
 
@@ -21,12 +25,6 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	downstream "github.com/leaf-ai/platform-services/internal/gen/downstream"
-	"github.com/leaf-ai/platform-services/internal/platform"
-)
-
-var (
-	honeycombKey  = flag.String("o11y-key", "", "An API key used to activate, and for use with the honeycomb.io service")
-	honeycombData = flag.String("o11y-dataset", "", "The name for the dataset into which observability data is to be written")
 )
 
 type DownstreamServer struct {
@@ -67,19 +65,6 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 		}
 	}
 
-	// Start the honeycomb OpenCensus exporter
-	if err := platform.StartOpenCensus(ctx, *honeycombKey, *honeycombData); err != nil {
-		logger.Warn(err.Error())
-	}
-
-	// Register views to collect data for the OpenCensus interceptor.
-	if errGo := view.Register(ocgrpc.DefaultServerViews...); errGo != nil {
-		logger.Fatal(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
-	}
-
-	// In debugging scenarios we want every trace captured
-	trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
-
 	// To prevent the server starting before the network listeners report
 	// their states we inject a server module ID and set it to false then
 	// one the logic to begin listening to the network interfaces is done
@@ -93,12 +78,51 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 
 	errC = make(chan errors.Error, 3)
 
+	// Sample configuration for testing. Use constant sampling to sample every trace
+	// and enable LogSpan to log every span via configured Logger.
+	jCfg := &jaegercfg.Configuration{
+		Sampler: &jaegercfg.SamplerConfig{
+			Type:  jaeger.SamplerTypeConst,
+			Param: 1,
+		},
+		Reporter: &jaegercfg.ReporterConfig{
+			LogSpans: true,
+		},
+	}
+
+	jCfg, errGo := jCfg.FromEnv()
+	if errGo != nil {
+		logger.Warn(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
+	}
+
+	// Start the opentracing framework using Jaeger as the tracer implementation, and
+	// zipkin HTTP backend interface pointing at the honeycomb opentracing proxy
+	backendURI := "http://honeycomb-opentracing-proxy:9411/api/v1/spans"
+	transport, errGo := zipkin.NewHTTPTransport(backendURI) // , zipkin.HTTPLogger(jaeger.StdLogger))
+	if errGo != nil {
+		logger.Warn(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
+	}
+
+	reporter := jaegercfg.Reporter(jaeger.NewRemoteReporter(transport))
+
+	zscloser, errGo := jCfg.InitGlobalTracer(
+		"downstream",
+		reporter)
+	if errGo != nil {
+		logger.Warn(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
+	}
+	defer zscloser.Close()
+
+	streams := grpc_middleware.ChainStreamServer(
+		otgrpc.OpenTracingStreamServerInterceptor(opentracing.GlobalTracer()),
+	)
+	unaries := grpc_middleware.ChainUnaryServer(
+		otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer()),
+	)
+
 	server := grpc.NewServer(
-		grpc.StatsHandler(&ocgrpc.ServerHandler{
-			StartOptions: trace.StartOptions{
-				SpanKind: trace.SpanKindServer,
-			},
-		}),
+		grpc.StreamInterceptor(streams),
+		grpc.UnaryInterceptor(unaries),
 	)
 	handler := &DownstreamServer{}
 

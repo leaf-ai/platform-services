@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net"
 	"strings"
@@ -20,16 +19,11 @@ import (
 
 	model "github.com/leaf-ai/platform-services/internal/experiment"
 	experiment "github.com/leaf-ai/platform-services/internal/gen/experimentsrv"
-	"github.com/leaf-ai/platform-services/internal/platform"
 
-	"go.opencensus.io/plugin/ocgrpc"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/trace"
-)
-
-var (
-	honeycombKey  = flag.String("o11y-key", "", "An API key used to activate, and for use with the honeycomb.io service")
-	honeycombData = flag.String("o11y-dataset", "", "The name for the dataset into which observability data is to be written")
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	opentracing "github.com/opentracing/opentracing-go"
+	jaeger "github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/transport/zipkin"
 )
 
 type ExperimentServer struct {
@@ -108,34 +102,31 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 		}
 	}
 
-	// Start the honeycomb OpenCensus exporter
-	if err := platform.StartOpenCensus(ctx, *honeycombKey, *honeycombData); err != nil {
-		logger.Warn(err.Error())
+	// Start the opentracing framework using Jaeger as the tracer implementation, and
+	// zipkin HTTP backend interface pointing at the honeycomb opentracing proxy
+	backendURI := "http://honeycomb-opentracing-proxy:9411/api/v1/spans"
+	transport, errGo := zipkin.NewHTTPTransport(backendURI, zipkin.HTTPLogger(jaeger.StdLogger))
+	if errGo != nil {
+		logger.Warn(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
 	}
+
+	reporter := jaeger.NewRemoteReporter(transport)
+	sampler := jaeger.NewConstSampler(true) // Always output a trace when requested
+
+	zstracer, zscloser := jaeger.NewTracer("experiment", sampler, reporter)
+	opentracing.SetGlobalTracer(zstracer) // Setup the Jaeger as the global default
+	defer zscloser.Close()
 
 	streams := grpc_middleware.ChainStreamServer(
 		authStreamInterceptor,
+		otgrpc.OpenTracingStreamServerInterceptor(opentracing.GlobalTracer()),
 	)
 	unaries := grpc_middleware.ChainUnaryServer(
 		authUnaryInterceptor,
+		otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer()),
 	)
 
-	// Register views to collect data for the OpenCensus interceptor.
-	if errGo := view.Register(ocgrpc.DefaultServerViews...); errGo != nil {
-		logger.Fatal(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
-	}
-
-	// In debugging scenarios we want every trace captured
-	trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
-
-	// Set up the server with the OpenCensus
-	// stats handler to enable stats and tracing
 	server := grpc.NewServer(
-		grpc.StatsHandler(&ocgrpc.ServerHandler{
-			StartOptions: trace.StartOptions{
-				SpanKind: trace.SpanKindServer,
-			},
-		}),
 		grpc.StreamInterceptor(streams),
 		grpc.UnaryInterceptor(unaries),
 	)

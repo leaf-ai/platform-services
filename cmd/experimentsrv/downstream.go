@@ -8,9 +8,10 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
-	"go.opencensus.io/trace"
 
 	"google.golang.org/grpc"
+
+	opentracing "github.com/opentracing/opentracing-go"
 
 	downstream "github.com/leaf-ai/platform-services/internal/gen/downstream"
 )
@@ -28,10 +29,8 @@ type lastSeen struct {
 func aliveDownstream(ctx context.Context, onlineCheck bool) (server string) {
 
 	if onlineCheck {
-		ctx, span := trace.StartSpan(ctx, "experiment/aliveDownstream",
-			trace.WithSampler(trace.ProbabilitySampler(100.0)),
-			trace.WithSpanKind(trace.SpanKindClient))
-		defer span.End()
+		span, ctx := opentracing.StartSpanFromContext(ctx, "experiment/aliveDownstream")
+		defer span.Finish()
 		if err := seen.checkDownstream(ctx); err == nil {
 			return "downstream"
 		}
@@ -64,9 +63,6 @@ func (server *lastSeen) checkDownstream(ctx context.Context) (err errors.Error) 
 
 	client := downstream.NewServiceClient(conn)
 
-	ctx, span := trace.StartSpan(ctx, "experiment/checkDownstream",
-		trace.WithSpanKind(trace.SpanKindClient))
-	defer span.End()
 	spew.Dump(ctx)
 
 	if _, errGo = client.Ping(ctx, &downstream.PingRequest{}); errGo != nil {
@@ -87,13 +83,18 @@ func initiateDownstream(ctx context.Context, hostAndPort string, refresh time.Du
 		for {
 			select {
 			case <-time.After(refresh):
-				timeout := refresh - time.Duration(-2*time.Second)
-				ctxTimeout, cancel := context.WithTimeout(ctx, time.Duration(timeout))
+				func() {
+					timeout := refresh - time.Duration(-2*time.Second)
+					ctxTimeout, cancel := context.WithTimeout(ctx, time.Duration(timeout))
+					defer cancel()
 
-				if err := seen.checkDownstream(ctxTimeout); err != nil {
-					logger.Warn(err.Error())
-				}
-				cancel()
+					span, ctxTimeout := opentracing.StartSpanFromContext(ctxTimeout, "experiment/checkDownstream")
+					defer span.Finish()
+
+					if err := seen.checkDownstream(ctxTimeout); err != nil {
+						logger.Warn(err.Error())
+					}
+				}()
 			case <-ctx.Done():
 				return
 			}

@@ -25,6 +25,8 @@ spec:
           - "$(HONEYCOMB_DATASET)"
           - -k
           - "$(HONEYCOMB_WRITEKEY)"
+          - --samplerate 
+          - "1"
           - --debug
           # To also send spans to a Zipkin collector listening at
           # zipkin.default:9411, uncomment the following lines:
