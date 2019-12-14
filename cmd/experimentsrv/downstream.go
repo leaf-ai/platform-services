@@ -28,13 +28,14 @@ type lastSeen struct {
 func aliveDownstream(ctx context.Context, onlineCheck bool) (server string) {
 
 	if onlineCheck {
-		ctx, span := trace.StartSpan(ctx, "experiment/aliveDownstream",
-			trace.WithSampler(trace.ProbabilitySampler(100.0)),
+		ctx, span := trace.StartSpan(ctx, "dev.cognizant_ai.experiment.Service.aliveDownstream",
 			trace.WithSpanKind(trace.SpanKindClient))
 		defer span.End()
+
 		if err := seen.checkDownstream(ctx); err == nil {
 			return "downstream"
 		}
+		span.SetStatus(trace.Status{Code: trace.StatusCodeUnknown, Message: err.String()})
 		return ""
 	}
 
@@ -64,14 +65,17 @@ func (server *lastSeen) checkDownstream(ctx context.Context) (err errors.Error) 
 
 	client := downstream.NewServiceClient(conn)
 
-	ctx, span := trace.StartSpan(ctx, "experiment/checkDownstream",
+	ctx, span := trace.StartSpan(ctx, "dev.cognizant_ai.experiment.Service.checkDownstream",
 		trace.WithSpanKind(trace.SpanKindClient))
 	defer span.End()
-	spew.Dump(ctx)
+
+	spew.Dump(span.String())
 
 	if _, errGo = client.Ping(ctx, &downstream.PingRequest{}); errGo != nil {
+		span.SetStatus(trace.Status{Code: trace.StatusCodeUnknown, Message: errGo.String()})
 		return errors.Wrap(errGo).With("address", hostAndPort).With("stack", stack.Trace().TrimRuntime())
 	}
+
 	server.Lock()
 	server.when = time.Now()
 	server.Unlock()
@@ -101,4 +105,5 @@ func initiateDownstream(ctx context.Context, hostAndPort string, refresh time.Du
 	}()
 
 	return nil
+
 }

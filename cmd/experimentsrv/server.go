@@ -23,7 +23,6 @@ import (
 	"github.com/leaf-ai/platform-services/internal/platform"
 
 	"go.opencensus.io/plugin/ocgrpc"
-	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
 )
 
@@ -119,14 +118,6 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 	unaries := grpc_middleware.ChainUnaryServer(
 		authUnaryInterceptor,
 	)
-
-	// Register views to collect data for the OpenCensus interceptor.
-	if errGo := view.Register(ocgrpc.DefaultServerViews...); errGo != nil {
-		logger.Fatal(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
-	}
-
-	// In debugging scenarios we want every trace captured
-	trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
 
 	// Set up the server with the OpenCensus
 	// stats handler to enable stats and tracing
