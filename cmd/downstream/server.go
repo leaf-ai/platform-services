@@ -10,9 +10,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
-	"go.opencensus.io/plugin/ocgrpc"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/trace"
 
 	"github.com/golang/protobuf/ptypes"
 
@@ -21,7 +18,6 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	downstream "github.com/leaf-ai/platform-services/internal/gen/downstream"
-	"github.com/leaf-ai/platform-services/internal/platform"
 )
 
 var (
@@ -34,11 +30,11 @@ type DownstreamServer struct {
 
 func (*DownstreamServer) Ping(ctx context.Context, in *downstream.PingRequest) (resp *downstream.PingResponse, err error) {
 
-	logger.Info(spew.Sdump(ctx))
-
 	if in == nil {
 		return nil, fmt.Errorf("request is missing a message to downstream")
 	}
+
+	spew.Dump(ctx)
 
 	resp = &downstream.PingResponse{
 		Tm: ptypes.TimestampNow(),
@@ -67,19 +63,6 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 		}
 	}
 
-	// Start the honeycomb OpenCensus exporter
-	if err := platform.StartOpenCensus(ctx, *honeycombKey, *honeycombData); err != nil {
-		logger.Warn(err.Error())
-	}
-
-	// Register views to collect data for the OpenCensus interceptor.
-	if errGo := view.Register(ocgrpc.DefaultServerViews...); errGo != nil {
-		logger.Fatal(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
-	}
-
-	// In debugging scenarios we want every trace captured
-	trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
-
 	// To prevent the server starting before the network listeners report
 	// their states we inject a server module ID and set it to false then
 	// one the logic to begin listening to the network interfaces is done
@@ -93,13 +76,7 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 
 	errC = make(chan errors.Error, 3)
 
-	server := grpc.NewServer(
-		grpc.StatsHandler(&ocgrpc.ServerHandler{
-			StartOptions: trace.StartOptions{
-				SpanKind: trace.SpanKindServer,
-			},
-		}),
-	)
+	server := grpc.NewServer()
 	handler := &DownstreamServer{}
 
 	downstream.RegisterServiceServer(server, handler)

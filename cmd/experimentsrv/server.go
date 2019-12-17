@@ -20,11 +20,6 @@ import (
 
 	model "github.com/leaf-ai/platform-services/internal/experiment"
 	experiment "github.com/leaf-ai/platform-services/internal/gen/experimentsrv"
-	"github.com/leaf-ai/platform-services/internal/platform"
-
-	"go.opencensus.io/plugin/ocgrpc"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/trace"
 )
 
 var (
@@ -108,11 +103,6 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 		}
 	}
 
-	// Start the honeycomb OpenCensus exporter
-	if err := platform.StartOpenCensus(ctx, *honeycombKey, *honeycombData); err != nil {
-		logger.Warn(err.Error())
-	}
-
 	streams := grpc_middleware.ChainStreamServer(
 		authStreamInterceptor,
 	)
@@ -120,22 +110,9 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 		authUnaryInterceptor,
 	)
 
-	// Register views to collect data for the OpenCensus interceptor.
-	if errGo := view.Register(ocgrpc.DefaultServerViews...); errGo != nil {
-		logger.Fatal(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
-	}
-
-	// In debugging scenarios we want every trace captured
-	trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
-
 	// Set up the server with the OpenCensus
 	// stats handler to enable stats and tracing
 	server := grpc.NewServer(
-		grpc.StatsHandler(&ocgrpc.ServerHandler{
-			StartOptions: trace.StartOptions{
-				SpanKind: trace.SpanKindServer,
-			},
-		}),
 		grpc.StreamInterceptor(streams),
 		grpc.UnaryInterceptor(unaries),
 	)

@@ -5,10 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
-	"go.opencensus.io/trace"
 
 	"google.golang.org/grpc"
 
@@ -28,10 +26,6 @@ type lastSeen struct {
 func aliveDownstream(ctx context.Context, onlineCheck bool) (server string) {
 
 	if onlineCheck {
-		ctx, span := trace.StartSpan(ctx, "experiment/aliveDownstream",
-			trace.WithSampler(trace.ProbabilitySampler(100.0)),
-			trace.WithSpanKind(trace.SpanKindClient))
-		defer span.End()
 		if err := seen.checkDownstream(ctx); err == nil {
 			return "downstream"
 		}
@@ -63,11 +57,6 @@ func (server *lastSeen) checkDownstream(ctx context.Context) (err errors.Error) 
 	defer conn.Close()
 
 	client := downstream.NewServiceClient(conn)
-
-	ctx, span := trace.StartSpan(ctx, "experiment/checkDownstream",
-		trace.WithSpanKind(trace.SpanKindClient))
-	defer span.End()
-	spew.Dump(ctx)
 
 	if _, errGo = client.Ping(ctx, &downstream.PingRequest{}); errGo != nil {
 		return errors.Wrap(errGo).With("address", hostAndPort).With("stack", stack.Trace().TrimRuntime())
