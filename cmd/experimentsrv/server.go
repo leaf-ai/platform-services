@@ -12,6 +12,7 @@ import (
 
 	"google.golang.org/grpc/reflection"
 
+	"github.com/davecgh/go-spew/spew"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 
 	"github.com/go-stack/stack"
@@ -20,10 +21,10 @@ import (
 	model "github.com/leaf-ai/platform-services/internal/experiment"
 	experiment "github.com/leaf-ai/platform-services/internal/gen/experimentsrv"
 
+	openzipkin "github.com/openzipkin/zipkin-go-opentracing"
+
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	opentracing "github.com/opentracing/opentracing-go"
-	jaeger "github.com/uber/jaeger-client-go"
-	"github.com/uber/jaeger-client-go/transport/zipkin"
 )
 
 type ExperimentServer struct {
@@ -34,6 +35,19 @@ func (*ExperimentServer) MeshCheck(ctx context.Context, in *experiment.CheckRequ
 	resp = &experiment.CheckResponse{
 		Modules: []string{},
 	}
+
+	spew.Dump(ctx)
+
+	if parent := opentracing.SpanFromContext(ctx); parent != nil {
+		pctx := parent.Context()
+		if tracer := opentracing.GlobalTracer(); tracer != nil {
+			span := tracer.StartSpan("dev.cognizant_ai.experiment.Service.MeshCheck", opentracing.ChildOf(pctx))
+			defer span.Finish()
+			ctx = opentracing.ContextWithSpan(ctx, span)
+		}
+	}
+
+	spew.Dump(ctx)
 
 	ctxTimeout, cancel := context.WithTimeout(ctx, time.Duration(10*time.Second))
 	defer cancel()
@@ -105,25 +119,41 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 	// Start the opentracing framework using Jaeger as the tracer implementation, and
 	// zipkin HTTP backend interface pointing at the honeycomb opentracing proxy
 	backendURI := "http://honeycomb-opentracing-proxy:9411/api/v1/spans"
-	transport, errGo := zipkin.NewHTTPTransport(backendURI, zipkin.HTTPLogger(jaeger.StdLogger))
+	/**
+		transport, errGo := zipkin.NewHTTPTransport(backendURI, zipkin.HTTPLogger(jaeger.StdLogger))
+		if errGo != nil {
+			logger.Warn(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
+		}
+
+		reporter := jaeger.NewRemoteReporter(transport)
+		sampler := jaeger.NewConstSampler(true) // Always output a trace when requested
+
+		zstracer, zscloser := jaeger.NewTracer("experiment", sampler, reporter)
+		opentracing.SetGlobalTracer(zstracer) // Setup the Jaeger as the global default
+		defer zscloser.Close()
+	**/
+	collector, errGo := openzipkin.NewHTTPCollector(backendURI)
 	if errGo != nil {
 		logger.Warn(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
 	}
-
-	reporter := jaeger.NewRemoteReporter(transport)
-	sampler := jaeger.NewConstSampler(true) // Always output a trace when requested
-
-	zstracer, zscloser := jaeger.NewTracer("experiment", sampler, reporter)
-	opentracing.SetGlobalTracer(zstracer) // Setup the Jaeger as the global default
-	defer zscloser.Close()
+	recorder := openzipkin.NewRecorder(collector, true, "127.0.0.1:0", "experimentsrv")
+	tracer, errGo := openzipkin.NewTracer(
+		recorder,
+		openzipkin.ClientServerSameSpan(true),
+		openzipkin.TraceID128Bit(true),
+	)
+	if errGo != nil {
+		logger.Warn(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
+	}
+	opentracing.SetGlobalTracer(tracer)
 
 	streams := grpc_middleware.ChainStreamServer(
 		authStreamInterceptor,
-		otgrpc.OpenTracingStreamServerInterceptor(opentracing.GlobalTracer()),
+		otgrpc.OpenTracingStreamServerInterceptor(opentracing.GlobalTracer(), otgrpc.LogPayloads()),
 	)
 	unaries := grpc_middleware.ChainUnaryServer(
 		authUnaryInterceptor,
-		otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer()),
+		otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer(), otgrpc.LogPayloads()),
 	)
 
 	server := grpc.NewServer(

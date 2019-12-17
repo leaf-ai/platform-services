@@ -25,3 +25,11 @@ required = [
 [[constraint]]
   name = "cloud.google.com/go"
   version = "0.49.0"
+
+[[constraint]]
+  name = "github.com/openzipkin-contrib/zipkin-go-opentracing"
+  version = "v0.3.5"
+
+[[constraint]]
+  name = "github.com/openzipkin/zipkin-go-opentracing"
+  version = "v0.3.5"

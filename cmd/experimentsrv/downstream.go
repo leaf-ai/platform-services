@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
 
@@ -28,9 +27,16 @@ type lastSeen struct {
 
 func aliveDownstream(ctx context.Context, onlineCheck bool) (server string) {
 
+	if parent := opentracing.SpanFromContext(ctx); parent != nil {
+		pctx := parent.Context()
+		if tracer := opentracing.GlobalTracer(); tracer != nil {
+			span := tracer.StartSpan("dev.cognizant_ai.experiment.Service.aliveDownstream", opentracing.ChildOf(pctx))
+			defer span.Finish()
+			ctx = opentracing.ContextWithSpan(ctx, span)
+		}
+	}
+
 	if onlineCheck {
-		span, ctx := opentracing.StartSpanFromContext(ctx, "experiment/aliveDownstream")
-		defer span.Finish()
 		if err := seen.checkDownstream(ctx); err == nil {
 			return "downstream"
 		}
@@ -54,6 +60,15 @@ func (server *lastSeen) checkDownstream(ctx context.Context) (err errors.Error) 
 	hostAndPort := server.hostAndPort
 	server.Unlock()
 
+	if parent := opentracing.SpanFromContext(ctx); parent != nil {
+		pctx := parent.Context()
+		if tracer := opentracing.GlobalTracer(); tracer != nil {
+			span := tracer.StartSpan("dev.cognizant_ai.experiment.Service.checkDownstream", opentracing.ChildOf(pctx))
+			defer span.Finish()
+			ctx = opentracing.ContextWithSpan(ctx, span)
+		}
+	}
+
 	// Internal connections are protected using the mTLS features of the Istio side-car
 	conn, errGo := grpc.Dial(hostAndPort, grpc.WithInsecure())
 	if errGo != nil {
@@ -62,8 +77,6 @@ func (server *lastSeen) checkDownstream(ctx context.Context) (err errors.Error) 
 	defer conn.Close()
 
 	client := downstream.NewServiceClient(conn)
-
-	spew.Dump(ctx)
 
 	if _, errGo = client.Ping(ctx, &downstream.PingRequest{}); errGo != nil {
 		return errors.Wrap(errGo).With("address", hostAndPort).With("stack", stack.Trace().TrimRuntime())
@@ -84,12 +97,14 @@ func initiateDownstream(ctx context.Context, hostAndPort string, refresh time.Du
 			select {
 			case <-time.After(refresh):
 				func() {
+					span := opentracing.StartSpan("dev.cognizant_ai.experiment.Service.initiateDownstream")
+					defer span.Finish()
+
 					timeout := refresh - time.Duration(-2*time.Second)
 					ctxTimeout, cancel := context.WithTimeout(ctx, time.Duration(timeout))
 					defer cancel()
 
-					span, ctxTimeout := opentracing.StartSpanFromContext(ctxTimeout, "experiment/checkDownstream")
-					defer span.Finish()
+					ctxTimeout = opentracing.ContextWithSpan(ctxTimeout, span)
 
 					if err := seen.checkDownstream(ctxTimeout); err != nil {
 						logger.Warn(err.Error())
