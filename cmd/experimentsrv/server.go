@@ -36,18 +36,16 @@ func (*ExperimentServer) MeshCheck(ctx context.Context, in *experiment.CheckRequ
 		Modules: []string{},
 	}
 
-	spew.Dump(ctx)
-
 	if parent := opentracing.SpanFromContext(ctx); parent != nil {
+		spew.Dump(parent)
 		pctx := parent.Context()
 		if tracer := opentracing.GlobalTracer(); tracer != nil {
 			span := tracer.StartSpan("dev.cognizant_ai.experiment.Service.MeshCheck", opentracing.ChildOf(pctx))
 			defer span.Finish()
 			ctx = opentracing.ContextWithSpan(ctx, span)
+			defer spew.Dump(span)
 		}
 	}
-
-	spew.Dump(ctx)
 
 	ctxTimeout, cancel := context.WithTimeout(ctx, time.Duration(10*time.Second))
 	defer cancel()
@@ -119,24 +117,11 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 	// Start the opentracing framework using Jaeger as the tracer implementation, and
 	// zipkin HTTP backend interface pointing at the honeycomb opentracing proxy
 	backendURI := "http://honeycomb-opentracing-proxy:9411/api/v1/spans"
-	/**
-		transport, errGo := zipkin.NewHTTPTransport(backendURI, zipkin.HTTPLogger(jaeger.StdLogger))
-		if errGo != nil {
-			logger.Warn(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
-		}
-
-		reporter := jaeger.NewRemoteReporter(transport)
-		sampler := jaeger.NewConstSampler(true) // Always output a trace when requested
-
-		zstracer, zscloser := jaeger.NewTracer("experiment", sampler, reporter)
-		opentracing.SetGlobalTracer(zstracer) // Setup the Jaeger as the global default
-		defer zscloser.Close()
-	**/
 	collector, errGo := openzipkin.NewHTTPCollector(backendURI)
 	if errGo != nil {
 		logger.Warn(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
 	}
-	recorder := openzipkin.NewRecorder(collector, true, "127.0.0.1:0", "experimentsrv")
+	recorder := openzipkin.NewRecorder(collector, true, "127.0.0.1:0", "experiment")
 	tracer, errGo := openzipkin.NewTracer(
 		recorder,
 		openzipkin.ClientServerSameSpan(true),

@@ -609,55 +609,12 @@
   version = "2.4.0"
 
 [[projects]]
-  digest = "1:1d7e1867c49a6dd9856598ef7c3123604ea3daabf5b83f303ff457bcbc410b1d"
-  name = "github.com/pkg/errors"
-  packages = ["."]
-  pruneopts = ""
-  revision = "ba968bfe8b2f7e042a574c888954fccecfa385b4"
-  version = "v0.8.1"
-
-[[projects]]
   branch = "master"
   digest = "1:66f310f7b0c225fd633cfaf4fa80da9105a395f320caf490b55cce4bcee20709"
   name = "github.com/rcrowley/go-metrics"
   packages = ["."]
   pruneopts = ""
   revision = "cac0b30c2563378d434b5af411844adff8e32960"
-
-[[projects]]
-  digest = "1:9507116982a7ad025457cfaa147643e20c02530ad31df9978cc1e5a2c64de307"
-  name = "github.com/uber/jaeger-client-go"
-  packages = [
-    ".",
-    "config",
-    "internal/baggage",
-    "internal/baggage/remote",
-    "internal/spanlog",
-    "internal/throttler",
-    "internal/throttler/remote",
-    "log",
-    "rpcmetrics",
-    "thrift",
-    "thrift-gen/agent",
-    "thrift-gen/baggage",
-    "thrift-gen/jaeger",
-    "thrift-gen/sampling",
-    "thrift-gen/zipkincore",
-    "transport",
-    "transport/zipkin",
-    "utils",
-  ]
-  pruneopts = ""
-  revision = "5b163d27fabddbb0e7fae4548c8933c379210610"
-  version = "v2.20.1"
-
-[[projects]]
-  digest = "1:6afbf06917cb67a1a895aecd38ff31bd691f4fad239e5ce468f2265359bee7b7"
-  name = "github.com/uber/jaeger-lib"
-  packages = ["metrics"]
-  pruneopts = ""
-  revision = "a87ae9d84fb038a8d79266298970720be7c80fcd"
-  version = "v2.2.0"
 
 [[projects]]
   digest = "1:15322677d41c39ba767c0bcfe258fe2ffeeb1c355069674788418bf9c507e811"
@@ -674,14 +631,6 @@
   version = "v0.22.0"
 
 [[projects]]
-  digest = "1:44da3f221472d00188fa0d9bdae0c0abbdd45eebe8b8a6f5bdf22d24affff760"
-  name = "go.uber.org/atomic"
-  packages = ["."]
-  pruneopts = ""
-  revision = "40ae6a40a970ef4cdbffa7b24b280e316db8accc"
-  version = "v1.5.1"
-
-[[projects]]
   branch = "master"
   digest = "1:90722da867436e04650b8491e5d9f690aeb2a4e305d548666bdd541d68d6cdbd"
   name = "golang.org/x/crypto"
@@ -693,17 +642,6 @@
   ]
   pruneopts = ""
   revision = "cc06ce4a13d484c0101a9e92913248488a75786d"
-
-[[projects]]
-  branch = "master"
-  digest = "1:465c831311f144be27d64ae3cb416b243ff67e73407852bc4265d09efbb66283"
-  name = "golang.org/x/lint"
-  packages = [
-    ".",
-    "golint",
-  ]
-  pruneopts = ""
-  revision = "fdd1cda4f05fd1fd86124f0ef9ce31a0b72c8448"
 
 [[projects]]
   branch = "master"
@@ -772,19 +710,6 @@
   pruneopts = ""
   revision = "342b2e1fbaa52c93f31447ad2c6abc048c63e475"
   version = "v0.3.2"
-
-[[projects]]
-  branch = "master"
-  digest = "1:c6288eccbf9dcc1c024a8fc4bb368b6a3ea283a38e26b549cb20da678472c75e"
-  name = "golang.org/x/tools"
-  packages = [
-    "go/ast/astutil",
-    "go/gcexportdata",
-    "go/internal/gcimporter",
-    "go/types/typeutil",
-  ]
-  pruneopts = ""
-  revision = "98df123772120179846dbe20280e26b427d64dd6"
 
 [[projects]]
   digest = "1:c4404231035fad619a12f82ae3f0f8f9edc1cc7f34e7edad7a28ccac5336cc96"
@@ -994,9 +919,6 @@
     "github.com/mgutz/logxi",
     "github.com/opentracing/opentracing-go",
     "github.com/openzipkin/zipkin-go-opentracing",
-    "github.com/uber/jaeger-client-go",
-    "github.com/uber/jaeger-client-go/config",
-    "github.com/uber/jaeger-client-go/transport/zipkin",
     "go.opencensus.io/trace",
     "golang.org/x/net/context",
     "golang.org/x/net/netutil",

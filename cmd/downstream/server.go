@@ -14,9 +14,7 @@ import (
 
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	opentracing "github.com/opentracing/opentracing-go"
-	jaeger "github.com/uber/jaeger-client-go"
-	jaegercfg "github.com/uber/jaeger-client-go/config"
-	"github.com/uber/jaeger-client-go/transport/zipkin"
+	openzipkin "github.com/openzipkin/zipkin-go-opentracing"
 
 	"github.com/golang/protobuf/ptypes"
 
@@ -32,7 +30,16 @@ type DownstreamServer struct {
 
 func (*DownstreamServer) Ping(ctx context.Context, in *downstream.PingRequest) (resp *downstream.PingResponse, err error) {
 
-	logger.Info(spew.Sdump(ctx))
+	if parent := opentracing.SpanFromContext(ctx); parent != nil {
+		fmt.Println("** Input")
+		spew.Dump(parent)
+		pctx := parent.Context()
+		if tracer := opentracing.GlobalTracer(); tracer != nil {
+			span := tracer.StartSpan("dev.cognizant_ai.downstream.Service.Ping", opentracing.ChildOf(pctx))
+			defer span.Finish()
+			ctx = opentracing.ContextWithSpan(ctx, span)
+		}
+	}
 
 	if in == nil {
 		return nil, fmt.Errorf("request is missing a message to downstream")
@@ -78,46 +85,29 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 
 	errC = make(chan errors.Error, 3)
 
-	// Sample configuration for testing. Use constant sampling to sample every trace
-	// and enable LogSpan to log every span via configured Logger.
-	jCfg := &jaegercfg.Configuration{
-		Sampler: &jaegercfg.SamplerConfig{
-			Type:  jaeger.SamplerTypeConst,
-			Param: 1,
-		},
-		Reporter: &jaegercfg.ReporterConfig{
-			LogSpans: true,
-		},
-	}
-
-	jCfg, errGo := jCfg.FromEnv()
-	if errGo != nil {
-		logger.Warn(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
-	}
-
 	// Start the opentracing framework using Jaeger as the tracer implementation, and
 	// zipkin HTTP backend interface pointing at the honeycomb opentracing proxy
 	backendURI := "http://honeycomb-opentracing-proxy:9411/api/v1/spans"
-	transport, errGo := zipkin.NewHTTPTransport(backendURI) // , zipkin.HTTPLogger(jaeger.StdLogger))
+
+	collector, errGo := openzipkin.NewHTTPCollector(backendURI)
 	if errGo != nil {
 		logger.Warn(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
 	}
-
-	reporter := jaegercfg.Reporter(jaeger.NewRemoteReporter(transport))
-
-	zscloser, errGo := jCfg.InitGlobalTracer(
-		"downstream",
-		reporter)
+	recorder := openzipkin.NewRecorder(collector, true, "127.0.0.1:0", "downstream")
+	tracer, errGo := openzipkin.NewTracer(
+		recorder,
+		openzipkin.ClientServerSameSpan(true),
+		openzipkin.TraceID128Bit(true),
+	)
 	if errGo != nil {
 		logger.Warn(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
 	}
-	defer zscloser.Close()
-
+	opentracing.SetGlobalTracer(tracer)
 	streams := grpc_middleware.ChainStreamServer(
-		otgrpc.OpenTracingStreamServerInterceptor(opentracing.GlobalTracer()),
+		otgrpc.OpenTracingStreamServerInterceptor(opentracing.GlobalTracer(), otgrpc.LogPayloads()),
 	)
 	unaries := grpc_middleware.ChainUnaryServer(
-		otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer()),
+		otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer(), otgrpc.LogPayloads()),
 	)
 
 	server := grpc.NewServer(
