@@ -591,6 +591,18 @@ export AUTH0_TOKEN=$(curl -s --request POST --url https://cognizant-ai.auth0.com
 go test -v --dbaddr=localhost:5432 -ip-port="[::]:30007" -dbname=platform -downstream="[::]:30008"
 </b></code></pre>
 
+## Auth0 claims extensibility
+
+Auth0 can be configured to include additional headers with user metadata such as email addresses etc using custom rules in the Auth0 rules configuration.  Header that are added can be queried and extracted from gRPC HTTP authorization header meta data as shown in the experimentsrv server.go file. An example of a rule is as follows:
+
+<pre><code>
+function (user, context, callback) {
+  context.accessToken["http://cognizant-ai.dev/user"] = user.email;
+  callback(null, user, context);
+ }</code></pre>
+
+ An example of extracting this item on the gRPC client side can be found in cmd/experimentsrv/server.go in the GetUserFromClaims function.
+
 # Manually invoking and using production services with TLS
 
 When using the gRPC services within a secured cluster these instructions can be used to access and exercise the services.

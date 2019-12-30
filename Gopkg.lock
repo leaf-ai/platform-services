@@ -58,6 +58,14 @@
   version = "v1.1.1"
 
 [[projects]]
+  digest = "1:6098222470fe0172157ce9bbef5d2200df4edde17ee649c5d6e48330e4afa4c6"
+  name = "github.com/dgrijalva/jwt-go"
+  packages = ["."]
+  pruneopts = ""
+  revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
+  version = "v3.2.0"
+
+[[projects]]
   digest = "1:a8212495120c94f629a8cf5c9760c4017390e24ab8a049cf566dbd3f5627d6cb"
   name = "github.com/docker/go-units"
   packages = ["."]
@@ -443,6 +451,23 @@
   version = "v1.1.2"
 
 [[projects]]
+  digest = "1:7d65d1db635ba27d9fe959330e3e3614325b03ec04b64ce95b83f28c58c79a46"
+  name = "github.com/openzipkin/zipkin-go"
+  packages = [
+    ".",
+    "idgenerator",
+    "middleware/grpc",
+    "model",
+    "propagation",
+    "propagation/b3",
+    "reporter",
+    "reporter/http",
+  ]
+  pruneopts = ""
+  revision = "c29478e51bfb2e9c93e0e9f5e015e5993a490399"
+  version = "v0.2.2"
+
+[[projects]]
   digest = "1:15322677d41c39ba767c0bcfe258fe2ffeeb1c355069674788418bf9c507e811"
   name = "go.opencensus.io"
   packages = [
@@ -643,6 +668,7 @@
     "github.com/Masterminds/squirrel",
     "github.com/auth0-community/go-auth0",
     "github.com/davecgh/go-spew/spew",
+    "github.com/dgrijalva/jwt-go",
     "github.com/dustin/go-humanize",
     "github.com/go-chi/chi",
     "github.com/go-chi/chi/middleware",
@@ -673,6 +699,9 @@
     "github.com/karlmutch/errors",
     "github.com/lib/pq",
     "github.com/mgutz/logxi",
+    "github.com/openzipkin/zipkin-go",
+    "github.com/openzipkin/zipkin-go/middleware/grpc",
+    "github.com/openzipkin/zipkin-go/reporter/http",
     "go.opencensus.io/trace",
     "golang.org/x/net/context",
     "golang.org/x/net/netutil",

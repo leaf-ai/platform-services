@@ -71,6 +71,9 @@ import (
 	"github.com/leaf-ai/platform-services/internal/platform"
 	"github.com/leaf-ai/platform-services/internal/version"
 
+	zipkin "github.com/openzipkin/zipkin-go"
+	zipkinHTTP "github.com/openzipkin/zipkin-go/reporter/http"
+
 	"github.com/karlmutch/envflag"
 
 	"github.com/go-stack/stack"
@@ -175,9 +178,7 @@ func Main() {
 	// After starting the application message handling loops
 	// wait until the system has shutdown
 	//
-	select {
-	case <-quitC:
-	}
+	<-quitC
 
 	// Allow the quitC to be sent across the server for a short period of time before exiting
 	time.Sleep(time.Second)
@@ -196,7 +197,7 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 
 	defer func() {
 		defer func() {
-			recover()
+			_ = recover()
 		}()
 		close(doneC)
 	}()
@@ -268,9 +269,26 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 		}()
 	}
 
+	reporter := zipkinHTTP.NewReporter("http://honeycomb-opentracing-proxy:9411/api/v2/spans")
+
+	endpoint, errGo := zipkin.NewEndpoint("experiment", "localhost:0")
+	if errGo != nil {
+		logger.Warn(errors.Wrap(errGo).With("address", "localhost:0").With("stack", stack.Trace().TrimRuntime()).Error())
+	}
+
+	tracer, errGo := zipkin.NewTracer(reporter,
+		zipkin.WithTraceID128Bit(true),
+		zipkin.WithSharedSpans(false),
+		zipkin.WithLocalEndpoint(endpoint))
+	if errGo != nil {
+		logger.Warn(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).Error())
+	}
+
 	// Initiate a regular checker that looks to the example downstream gRPC service
 	// and validates that it is working
-	initiateDownstream(ctx, *downstreamHostPort, time.Duration(30*time.Second))
+	if err = initiateDownstream(ctx, tracer, *downstreamHostPort, time.Duration(30*time.Minute)); err != nil {
+		logger.Warn(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime()).Error())
+	}
 
 	// Now check for any fatal errors before allowing the system to continue.  This allows
 	// all errors that could have ocuured as a result of incorrect options to be flushed
@@ -287,7 +305,7 @@ func EntryPoint(quitC chan struct{}, doneC chan struct{}) (errs []errors.Error) 
 	// Will start a go routine internally and send errors on the channel.
 	// An error present on the channel implies that the REST server has
 	// failed
-	errC := runServer(ctx, serviceName, *ipPort)
+	errC := runServer(ctx, tracer, serviceName, *ipPort)
 
 	close(doneC)
 
