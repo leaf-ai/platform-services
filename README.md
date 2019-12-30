@@ -1,7 +1,7 @@
 # platform-services
 A public PoC with functioning services using a simple Istio Mesh running on K8s
 
-Version : <repo-version>0.8.0</repo-version>
+Version : <repo-version>0.8.1-feature-17-honeycomb-aaaagmibubw</repo-version>
 
 This project is intended as a sand-box for experimenting with Istio and some example services in a similiar manner to what is used by the Cognizant Evolutionary AI services.  It also provides a good way of exposing and testing out non-proprietary platform functions while collaborating with other parties such as vendors and customers.
 
@@ -107,8 +107,7 @@ Client Version: version.Info{Major:"1", Minor:"9", GitVersion:"v1.9.2", GitCommi
 
 ## Helm Kubernetes package manager
 
-Helm is used by several packages that are deployed using Kubernetes.  Helm can be installed using instructions found at, https://helm.sh/docs/using\_helm/#installing-helm.  
-For snap based linux distributions the following can be used as a quick-start.
+Helm is used by several packages that are deployed using Kubernetes.  Helm can be installed using instructions found at, https://helm.sh/docs/using\_helm/#installing-helm.  For snap based linux distributions the following can be used as a quick-start.
 
 <pre><code><b>sudo snap install helm --channel=2.16/stable --classic
 kubectl create serviceaccount --namespace kube-system tiller
@@ -116,7 +115,6 @@ kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admi
 helm init --history-max 200 --service-account tiller --upgrade
 helm repo update
 </b></code></pre>
-
 
 ## Lets Encrypt
 
@@ -237,7 +235,7 @@ aws s3api put-bucket-versioning --bucket $S3_BUCKET --versioning-configuration S
 
 export CLUSTER_NAME=test-$USER.platform.cluster.k8s.local
 
-kops create cluster --name $CLUSTER_NAME --zones $AWS_AVAILABILITY_ZONES --node-count 1 --node-size=m4.2xlarge
+kops create cluster --name $CLUSTER_NAME --zones $AWS_AVAILABILITY_ZONES --node-count 1 --node-size=m4.2xlarge --cloud-labels="HostUser=$HOST:$USER"
 </b></code></pre>
 
 Optionally use an image from your preferred zone e.g. --image=ami-0def3275.  Also you can modify the AWS machine types, recommended during developer testing using options such as '--master-size=m4.large --node-size=m4.large'.
@@ -294,9 +292,9 @@ If you performed a microk8s installation of Kubernetes do not perform the steps 
 Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, https://istio.io/docs/setup/getting-started/#install.  Istio was at one time a Helm based installation but has since moved to using its own methodology.
 
 <pre><code><b>cd ~
-curl -LO https://github.com/istio/istio/releases/download/1.4.0/istio-1.4.0-linux.tar.gz
-tar xzf istio-1.4.0-linux.tar.gz
-export ISTIO_DIR=`pwd`/istio-1.4.0
+curl -LO https://github.com/istio/istio/releases/download/1.4.2/istio-1.4.2-linux.tar.gz
+tar xzf istio-1.4.2-linux.tar.gz
+export ISTIO_DIR=`pwd`/istio-1.4.2
 export PATH=$ISTIO_DIR/bin:$PATH
 cd -
 istioctl manifest apply --set profile=demo --set values.tracing.enabled=true --set values.tracing.provider=zipkin --set values.global.tracer.zipkin.address=honeycomb-opentracing-proxy.default.svc.cluster.local:9411 --set values.pilot.traceSampling=100 --set values.gateways.istio-egressgateway.enabled=false --set values.gateways.istio-ingressgateway.sds.enabled=true
@@ -306,9 +304,10 @@ istioctl manifest apply --set profile=demo --set values.tracing.enabled=true --s
 
 This project makes use of several secrets that are used to access resources under its control, including the Postgres Database, the Honeycomb service, and the lets encrypt issues certificate.
 
-The experiment service Honeycomb observability solution uses a key to access Datasets defined by the Honeycomb account and store events in the same.  Configuring the service is done by creating a Kubernetes secret.  For now we can define the Honeycomb API key using an environment variable and when we deploy the secrets for the Postgres Database the secret for the API will be injected using the stencil tool.
+The experiment service Honeycomb observability solution uses a key to access Datasets defined by the Honeycomb account and store events in the same.  Configuring the service is done by creating a Kubernetes secret.  For now we can define the Honeycomb Dataset, and API key using an environment variable and when we deploy the secrets for the Postgres Database the secret for the API will be injected using the stencil tool.
 
-<pre><code><b>export O11Y_KEY a54d762df847474b22915
+<pre><code><b>export O11Y_KEY=a54d762df847474b22915
+export O11Y_DATASET=platform-services
 </b></code></pre>
 
 The services also use a postgres Database instance to persist experiment data.  The following shows an example of what should be defined for Postgres support prior to running the stencil command:
@@ -339,9 +338,14 @@ This proxy server is used to forward tracing and metrics from your istio mesh ba
 
 <pre><code><b>
 stencil < honeycomb-opentracing-proxy.yaml | kubectl apply -f -
+stencil < new-telemetry.yaml | kubectl apply -f -
+stencil < honeycomb-agent.yaml | kubectl apply -f -</b></code></pre>
+
 </b></code></pre>
 
 In order to instrument the base Kubernetes deployment for us with honeycomb you should follow the instructions found at https://docs.honeycomb.io/getting-data-in/integrations/kubernetes/.
+
+The dataset used by the istio and services deployed within this project also needs configuration to allow the Honeycomb platform to identify import fields.  Once data begins flowing into the data set you can navigate to the definitions section for the dataset and set the 'Name' item to the name field, 'Parent span ID' item to parentId, 'Service name' to serviceName, 'Span duration' to durationMs, 'Span ID' to id, and finally 'Trace ID' to traceId.
 
 ### Postgres DB
 
@@ -424,6 +428,7 @@ To connect to your database from outside the cluster execute the following comma
 Setting up the proxy will be needed prior to running the SQL database provisioning scripts.  When doing this prior to running the postgres client set the PGHOST environment variable to 127.0.0.1 so that the proxy on the localhost is used.  The proxy will timeout after inactivity and shutdown so be prepared to restart it when needed.
 
 <pre><code><b>
+kubectl wait --for=condition=Ready pod/$PGRELEASE-postgresql-0
 kubectl port-forward --namespace default svc/$PGRELEASE-postgresql 5432:5432 &amp;
 PGHOST=127.0.0.1 PGDATABASE=platform psql -f sql/platform.sql -d postgres
 </b></code></pre>
@@ -432,9 +437,16 @@ Further information about how to deployed the service specific database for the 
 
 ## Deploying into the Istio mesh
 
-Having install the Istio components we now load the telemetry needed for
+### Configuring the service DNS
 
-<pre><code><b>stencil < new_telemetry.yaml | kubectl apply -f -</b></code></pre>
+When using this mesh instance with a TLS based deployment the DNS domain name used for the LetsEncrypt certificate (CN), will need to have its address record (A) updated to point at the AWS load balancer assigned to the Kubernetes cluster.  In AWS this is done via Route53:
+
+<pre><code><b>
+INGRESS_HOST=`kubectl get svc --namespace istio-system -o go-template='{{range .items}}{{range .status.loadBalancer.ingress}}{{.hostname}}{{printf "\n"}}{{end}}{{end}}'`
+dig +short $INGRESS_HOST
+</b></code></pre>
+
+Take the IP addresses from the above output and use these as the A record for the LetsEncrypt host name and this will enable accessing the mesh and validation of the common name (CN) in the certificate.
 
 ### Service deployment overview
 
@@ -582,6 +594,18 @@ export AUTH0_TOKEN=$(curl -s --request POST --url https://cognizant-ai.auth0.com
 go test -v --dbaddr=localhost:5432 -ip-port="[::]:30007" -dbname=platform -downstream="[::]:30008"
 </b></code></pre>
 
+## Auth0 claims extensibility
+
+Auth0 can be configured to include additional headers with user metadata such as email addresses etc using custom rules in the Auth0 rules configuration.  Header that are added can be queried and extracted from gRPC HTTP authorization header meta data as shown in the experimentsrv server.go file. An example of a rule is as follows:
+
+<pre><code>
+function (user, context, callback) {
+  context.accessToken["http://cognizant-ai.dev/user"] = user.email;
+  callback(null, user, context);
+ }</code></pre>
+
+ An example of extracting this item on the gRPC client side can be found in cmd/experimentsrv/server.go in the GetUserFromClaims function.
+
 # Manually invoking and using production services with TLS
 
 When using the gRPC services within a secured cluster these instructions can be used to access and exercise the services.
@@ -595,11 +619,12 @@ curl -Iv https://helloworld.letsencrypt.org
 An example client for running a simple ping style test against the cluster is provided in the cmd/cli-experiment directory.  This client acts as a test for the presence of the service.  If the commands to obtain a JWT have been followed then this command can be run against the cluster as follows:
 
 <pre><code><b>
+cd cmd/cli-experiment
 go run . --server-addr=platform-services.cognizant-ai.net:443 --auth0-token="$AUTH0_TOKEN"</b>
 (*dev_cognizant_ai_experiment.CheckResponse)(0xc00003c280)(modules:"downstream" )
 </code></pre>
 
-
+Once valid transactions are being performed you should go back to the section on Honeycomb and configure the relevant fields inside the definitions panel for your Dataset.
 
 # Manually invoking and using services without TLS
 

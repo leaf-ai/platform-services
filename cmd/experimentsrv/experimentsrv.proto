@@ -54,6 +54,7 @@ message GetResponse {
 }
 
 message CheckRequest {
+    bool live = 1;
 }
 
 message CheckResponse {

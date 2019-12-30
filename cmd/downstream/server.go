@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net"
 	"strings"
@@ -18,10 +19,16 @@ import (
 	downstream "github.com/leaf-ai/platform-services/internal/gen/downstream"
 )
 
+var (
+	honeycombKey  = flag.String("o11y-key", "", "An API key used to activate, and for use with the honeycomb.io service")
+	honeycombData = flag.String("o11y-dataset", "", "The name for the dataset into which observability data is to be written")
+)
+
 type DownstreamServer struct {
 }
 
 func (*DownstreamServer) Ping(ctx context.Context, in *downstream.PingRequest) (resp *downstream.PingResponse, err error) {
+
 	if in == nil {
 		return nil, fmt.Errorf("request is missing a message to downstream")
 	}
@@ -44,8 +51,8 @@ func (*DownstreamServer) Watch(in *grpc_health_v1.HealthCheckRequest, server grp
 func runServer(ctx context.Context, serviceName string, ipPort string) (errC chan errors.Error) {
 
 	{
-		if addrs, err := net.InterfaceAddrs(); err != nil {
-			logger.Warn(fmt.Sprint(errors.Wrap(err).With("stack", stack.Trace().TrimRuntime())))
+		if addrs, errGo := net.InterfaceAddrs(); errGo != nil {
+			logger.Warn(fmt.Sprint(errors.Wrap(errGo).With("stack", stack.Trace().TrimRuntime())))
 		} else {
 			for _, addr := range addrs {
 				logger.Debug("", "network", addr.Network(), "addr", addr.String())
@@ -121,10 +128,8 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 	}
 
 	go func() {
-		select {
-		case <-ctx.Done():
-			server.Stop()
-		}
+		<-ctx.Done()
+		server.Stop()
 	}()
 	return errC
 }
