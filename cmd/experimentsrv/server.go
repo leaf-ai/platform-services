@@ -10,10 +10,15 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/metadata"
 
 	"google.golang.org/grpc/reflection"
 
+	"github.com/davecgh/go-spew/spew"
+	"github.com/dgrijalva/jwt-go"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	zipkin "github.com/openzipkin/zipkin-go"
+	zipkingrpc "github.com/openzipkin/zipkin-go/middleware/grpc"
 
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
@@ -28,9 +33,68 @@ var (
 )
 
 type ExperimentServer struct {
+	tracer *zipkin.Tracer
 }
 
-func (*ExperimentServer) MeshCheck(ctx context.Context, in *experiment.CheckRequest) (resp *experiment.CheckResponse, err error) {
+// GetUserFromClaims show how given a custom rule in Auth0 extrat metadata related to the claims of
+// what is assumed to be an authenticated user can be extracted and used, for example the users
+// email address.  The custom rule would appear as follows:
+//
+// function (user, context, callback) {
+//  context.accessToken["http://cognizant-ai.dev/user"] = user.email;
+//  callback(null, user, context);
+// }
+//
+func GetUserFromClaims(ctx context.Context) {
+	md, _ := metadata.FromIncomingContext(ctx)
+
+	user, err := func() (user string, err errors.Error) {
+		if auth := md.Get("authorization"); len(auth) > 0 {
+			splitToken := strings.Split(auth[0], "Bearer")
+			if len(splitToken) != 2 {
+				return "", errors.New("badly formatted token").With("stack", stack.Trace().TrimRuntime())
+			}
+
+			type CustomClaims struct {
+				Email string `json:"http://cognizant-ai.dev/user"`
+				jwt.StandardClaims
+			}
+
+			func() {
+				defer func() {
+					logger.Warn(spew.Sdump(recover()))
+				}()
+				token, _ := jwt.ParseWithClaims(strings.TrimSpace(splitToken[1]), &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+					if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+						return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+					}
+					// Dont supply a valuable key as we assume that because this is embeeded in a mesh that the mTLS has
+					// secured the JWT in transit between the Auth module of the ingress and the service itself.
+					// Should you wish to fully secure this then a private key should be supplied here so that the signing
+					// can be checked at least.  THis however has risk and should be designed in by the final system
+					// implementation people.
+					return nil, nil
+				})
+				// Untrusted dely on the mTLS to secure it and prevent meddling
+				if claims, ok := token.Claims.(*CustomClaims); ok {
+					user = claims.Email
+				}
+			}()
+		}
+		return user, nil
+	}()
+	if err != nil {
+		logger.Warn(err.Error())
+	} else {
+		if len(user) != 0 {
+			logger.Info(user)
+		}
+	}
+}
+
+func (eServer *ExperimentServer) MeshCheck(ctx context.Context, in *experiment.CheckRequest) (resp *experiment.CheckResponse, err error) {
+
+	GetUserFromClaims(ctx)
 
 	resp = &experiment.CheckResponse{
 		Modules: []string{},
@@ -39,7 +103,7 @@ func (*ExperimentServer) MeshCheck(ctx context.Context, in *experiment.CheckRequ
 	ctxTimeout, cancel := context.WithTimeout(ctx, time.Duration(10*time.Second))
 	defer cancel()
 
-	if ds := aliveDownstream(ctxTimeout, in.Live); len(ds) != 0 {
+	if ds := aliveDownstream(ctxTimeout, eServer.tracer, in.Live); len(ds) != 0 {
 		resp.Modules = append(resp.Modules, ds)
 	}
 
@@ -89,7 +153,7 @@ func (es *ExperimentServer) Watch(in *grpc_health_v1.HealthCheckRequest, server 
 	return errors.New(grpc_health_v1.HealthCheckResponse_UNKNOWN.String())
 }
 
-func runServer(ctx context.Context, serviceName string, ipPort string) (errC chan errors.Error) {
+func runServer(ctx context.Context, tracer *zipkin.Tracer, serviceName string, ipPort string) (errC chan errors.Error) {
 
 	errC = make(chan errors.Error, 3)
 
@@ -113,11 +177,12 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 	// Set up the server with the OpenCensus
 	// stats handler to enable stats and tracing
 	server := grpc.NewServer(
+		grpc.StatsHandler(zipkingrpc.NewServerHandler(tracer)),
 		grpc.StreamInterceptor(streams),
 		grpc.UnaryInterceptor(unaries),
 	)
 
-	experimentSrv := &ExperimentServer{}
+	experimentSrv := &ExperimentServer{tracer: tracer}
 
 	experiment.RegisterServiceServer(server, experimentSrv)
 	grpc_health_v1.RegisterHealthServer(server, experimentSrv)

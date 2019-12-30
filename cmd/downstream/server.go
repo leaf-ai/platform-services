@@ -7,7 +7,6 @@ import (
 	"net"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-stack/stack"
 	"github.com/karlmutch/errors"
 
@@ -33,8 +32,6 @@ func (*DownstreamServer) Ping(ctx context.Context, in *downstream.PingRequest) (
 	if in == nil {
 		return nil, fmt.Errorf("request is missing a message to downstream")
 	}
-
-	spew.Dump(ctx)
 
 	resp = &downstream.PingResponse{
 		Tm: ptypes.TimestampNow(),
