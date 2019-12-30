@@ -292,9 +292,9 @@ If you performed a microk8s installation of Kubernetes do not perform the steps 
 Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, https://istio.io/docs/setup/getting-started/#install.  Istio was at one time a Helm based installation but has since moved to using its own methodology.
 
 <pre><code><b>cd ~
-curl -LO https://github.com/istio/istio/releases/download/1.4.0/istio-1.4.0-linux.tar.gz
-tar xzf istio-1.4.0-linux.tar.gz
-export ISTIO_DIR=`pwd`/istio-1.4.0
+curl -LO https://github.com/istio/istio/releases/download/1.4.2/istio-1.4.2-linux.tar.gz
+tar xzf istio-1.4.2-linux.tar.gz
+export ISTIO_DIR=`pwd`/istio-1.4.2
 export PATH=$ISTIO_DIR/bin:$PATH
 cd -
 istioctl manifest apply --set profile=demo --set values.tracing.enabled=true --set values.tracing.provider=zipkin --set values.global.tracer.zipkin.address=honeycomb-opentracing-proxy.default.svc.cluster.local:9411 --set values.pilot.traceSampling=100 --set values.gateways.istio-egressgateway.enabled=false --set values.gateways.istio-ingressgateway.sds.enabled=true
@@ -304,9 +304,10 @@ istioctl manifest apply --set profile=demo --set values.tracing.enabled=true --s
 
 This project makes use of several secrets that are used to access resources under its control, including the Postgres Database, the Honeycomb service, and the lets encrypt issues certificate.
 
-The experiment service Honeycomb observability solution uses a key to access Datasets defined by the Honeycomb account and store events in the same.  Configuring the service is done by creating a Kubernetes secret.  For now we can define the Honeycomb API key using an environment variable and when we deploy the secrets for the Postgres Database the secret for the API will be injected using the stencil tool.
+The experiment service Honeycomb observability solution uses a key to access Datasets defined by the Honeycomb account and store events in the same.  Configuring the service is done by creating a Kubernetes secret.  For now we can define the Honeycomb Dataset, and API key using an environment variable and when we deploy the secrets for the Postgres Database the secret for the API will be injected using the stencil tool.
 
-<pre><code><b>export O11Y_KEY a54d762df847474b22915
+<pre><code><b>export O11Y_KEY=a54d762df847474b22915
+export O11Y_DATASET=platform-services
 </b></code></pre>
 
 The services also use a postgres Database instance to persist experiment data.  The following shows an example of what should be defined for Postgres support prior to running the stencil command:
@@ -343,6 +344,8 @@ stencil < honeycomb-agent.yaml | kubectl apply -f -</b></code></pre>
 </b></code></pre>
 
 In order to instrument the base Kubernetes deployment for us with honeycomb you should follow the instructions found at https://docs.honeycomb.io/getting-data-in/integrations/kubernetes/.
+
+The dataset used by the istio and services deployed within this project also needs configuration to allow the Honeycomb platform to identify import fields.  Once data begins flowing into the data set you can navigate to the definitions section for the dataset and set the 'Name' item to the name field, 'Parent span ID' item to parentId, 'Service name' to serviceName, 'Span duration' to durationMs, 'Span ID' to id, and finally 'Trace ID' to traceId.
 
 ### Postgres DB
 
@@ -621,7 +624,7 @@ go run . --server-addr=platform-services.cognizant-ai.net:443 --auth0-token="$AU
 (*dev_cognizant_ai_experiment.CheckResponse)(0xc00003c280)(modules:"downstream" )
 </code></pre>
 
-
+Once valid transactions are being performed you should go back to the section on Honeycomb and configure the relevant fields inside the definitions panel for your Dataset.
 
 # Manually invoking and using services without TLS
 
