@@ -1,7 +1,7 @@
 # platform-services
 A public PoC with functioning services using a simple Istio Mesh running on K8s
 
-Version : <repo-version>0.8.1</repo-version>
+Version : <repo-version>0.8.2-feature-30-kops-1-16-0-aaaagnirjzf</repo-version>
 
 This project is intended as a sand-box for experimenting with Istio and some example services in a similiar manner to what is used by the Cognizant Evolutionary AI services.  It also provides a good way of exposing and testing out non-proprietary platform functions while collaborating with other parties such as vendors and customers.
 
@@ -215,7 +215,7 @@ If you are using azure or GCP then options such as acs-engine, and skaffold are 
 
 When using AWS the TLS certificates used to secure the connections to your AWS LoadBalancer will require that an ElasticIP is used.  It is recommended that an ElasticIP is allocated for use and then your DNS entries on the domain registra are modified to used the IP as a registered host matching the LetsEncrypt certificate used.  Using an ElasticIP allows the cluster to be regenerated and for the LoadBalancer to be reassociated with the IP whenever the cluster is regenerated.
 
-<pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/1.15.0/kops-linux-amd64
+<pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/1.16.0/kops-linux-amd64
 chmod +x kops-linux-amd64
 sudo mv kops-linux-amd64 /usr/local/bin/kops
 
@@ -287,7 +287,7 @@ The initial cluster spinup will take sometime, use kops commands such as 'kops v
 
 #### Istio 1.4.x
 
-If you performed a microk8s installation of Kubernetes do not perform the steps in this subsection.
+If you are performing a microk8s installation of Kubernetes you do not perform the steps in this subsection, this is because the microk8s kubernetes distribution contains an embedded istio deployment.
 
 Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, https://istio.io/docs/setup/getting-started/#install.  Istio was at one time a Helm based installation but has since moved to using its own methodology.
 
