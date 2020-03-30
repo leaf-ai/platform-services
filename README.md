@@ -1,7 +1,9 @@
 # platform-services
 A public PoC with functioning services using a simple Istio Mesh running on K8s
 
-Version : <repo-version>0.8.2-feature-30-kops-1-16-0-aaaagnirjzf</repo-version>
+Version : <repo-version>0.8.2-master-aaaagniztcw</repo-version>
+
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/leaf-ai/platform-services/blob/master/LICENSE) [![Go Report Card](https://goreportcard.com/badge/leaf-ai/platform-services)](https://goreportcard.com/report/leaf-ai/platform-services)
 
 This project is intended as a sand-box for experimenting with Istio and some example services in a similiar manner to what is used by the Cognizant Evolutionary AI services.  It also provides a good way of exposing and testing out non-proprietary platform functions while collaborating with other parties such as vendors and customers.
 
