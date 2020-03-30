@@ -59,7 +59,7 @@ data:
 
 # Daemonset
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
@@ -69,6 +69,9 @@ metadata:
   name: honeycomb-agent-v1.5.0
   namespace: kube-system
 spec:
+  selector:
+    matchLabels:
+      name: honeycomb-agent
   updateStrategy:
     type: RollingUpdate
     rollingUpdate:
@@ -79,6 +82,7 @@ spec:
         k8s-app: honeycomb-agent
         kubernetes.io/cluster-service: 'true'
         version: v1.5.0
+        name: honeycomb-agent
     spec:
       tolerations:
         - operator: Exists

@@ -61,7 +61,7 @@ Having deployed and defined the secrets and the postgres specific environment va
 The in-cluster value for the host would appear as follows:
 
 <pre><code><b>
-export PGHOST=$PGRELEASE-postgresql.default.svc.cluster.local
+export PGHOST=$USER-poc-postgresql.default.svc.cluster.local
 </b></code></pre>
 
 ### AWS Specific secrets notes
@@ -164,6 +164,16 @@ export INGRESS_HOST=$(kubectl -n istio-system get service istio-ingressgateway -
 export CLUSTER_INGRESS=$INGRESS_HOST:$INGRESS_PORT
 </b></code></pre>
 
+If you choose to make use of LetsEncrypt and are using the, platform-services.cognizant-ai.net domain, as an example you will want to do the following:
+
+<pre><code><b>
+export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].port}')
+export INGRESS_HOST=platform-services.cognizant-ai.net
+export CLUSTER_INGRESS=$INGRESS_HOST:$SECURE_INGRESS_PORT
+</b></code></pre>
+
+In the cases where TLS is being used with lets encrypt the grpc_cli command will require the '--channel_creds_type=ssl' option be used.
+
 ## grpc\_cli
 
 The grpc\_cli tool can be used to interact with the server for creating and getting experiments.  Other tools do exist as curl like environments for interacting with gRPC servers including the nodejs based tool found at, https://github.com/njpatel/grpcc.  For our purposes we use the less powerful but more common grpc\_cli tool that comes with the gRPC project.  Documentation for the grpc\_cli tool can be found at, https://github.com/grpc/grpc/blob/master/doc/command\_line\_tool.md.
@@ -174,7 +184,7 @@ Two pieces of information are needed in order to make use of the service:
 
 First, you will need the gateway endpoint for your cluster.  The following command sets an environment variable that you will be using as the CLUSTER_INGRESS environment variable across all of the examples within this guide.
 
-<pre><code><b>grpc_cli call $CLUSTER_INGRESS dev.cognizant_ai.experiment.Service.Create "experiment: {uid: 't', name: 'name', description: 'description'}"  --metadata authorization:"Bearer $AUTH0_TOKEN"</b>
+<pre><code><b>grpc_cli call $CLUSTER_INGRESS dev.cognizant_ai.experiment.Service.Create "experiment: {uid: 't', name: 'name', description: 'description'}"  --metadata authorization:"Bearer $AUTH0_TOKEN" --channel_creds_type=ssl</b>
 </pre></code>
 
 # Manually exercising the server from within the mesh

@@ -12,7 +12,7 @@ set -o pipefail
 export HASH=`git rev-parse HEAD`
 export PATH=$PATH:$GOPATH/bin
 go get -u -f github.com/golang/dep/cmd/dep
-go get -u -f github.com/aktau/github-release
+go get -u -f github.com/itchio/gothub
 go get -u google.golang.org/grpc
 go install ./vendor/github.com/golang/protobuf/protoc-gen-go
 go install github.com/karlmutch/duat/cmd/semver
@@ -49,8 +49,8 @@ go test -ldflags "$flags" -race -c -o cmd/downstream/bin/downstream-test cmd/dow
 if [ -z "$PATCH" ]; then
     if ! [ -z "${SEMVER}" ]; then
         if ! [ -z "${GITHUB_TOKEN}" ]; then
-            github-release release --user leaf-ai --repo platform-services --tag ${SEMVER} --pre-release || true
-            github-release upload --user leaf-ai --repo platform-services  --tag ${SEMVER} --name downstream --file cmd/downstream/bin/downstream
+            gothub-release release --user leaf-ai --repo platform-services --tag ${SEMVER} --pre-release || true
+            gothub-release upload --user leaf-ai --repo platform-services  --tag ${SEMVER} --name downstream --file cmd/downstream/bin/downstream
         fi
     fi
 fi
