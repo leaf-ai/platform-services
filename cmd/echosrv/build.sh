@@ -12,7 +12,7 @@ set -o pipefail
 export HASH=`git rev-parse HEAD`
 export PATH=$PATH:$GOPATH/bin
 go get -u -f github.com/golang/dep/cmd/dep
-go get -u -f github.com/aktau/github-release
+go get -u -f github.com/itchio/gothub
 go get -u google.golang.org/grpc
 go install ./vendor/github.com/golang/protobuf/protoc-gen-go
 dep ensure -no-vendor
@@ -28,7 +28,7 @@ go build -asmflags -trimpath -ldflags "-X github.com/leaf-ai/platform-services/i
 go build -asmflags -trimpath -ldflags "-X github.com/leaf-ai/platform-services/internal/version.GitHash=$HASH" -race -o cmd/echosrv/bin/echosrv-race cmd/echosrv/*.go
 if ! [ -z "${TRAVIS_TAG}" ]; then
     if ! [ -z "${GITHUB_TOKEN}" ]; then
-        github-release release --user leaf-ai --repo platform-services --tag ${TRAVIS_TAG} --pre-release || true
-        github-release upload --user leaf-ai --repo platform-services  --tag ${TRAVIS_TAG} --name echosrv --file cmd/echosrv/bin/echosrv
+        gothub-release release --user leaf-ai --repo platform-services --tag ${TRAVIS_TAG} --pre-release || true
+        gothub-release upload --user leaf-ai --repo platform-services  --tag ${TRAVIS_TAG} --name echosrv --file cmd/echosrv/bin/echosrv
     fi
 fi

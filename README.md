@@ -96,7 +96,7 @@ Install the kubectl CLI can be done using kubectl 1.16.x version.
 
 Add kubectl autocompletion to your current shell:
 
-<pre><code><b>source \<(kubectl completion bash)</b>
+<pre><code><b>source \<(kubectl completion $(basename $SHELL))</b>
 </code></pre>
 
 You can verify that kubectl is installed by executing the following command:
@@ -104,6 +104,106 @@ You can verify that kubectl is installed by executing the following command:
 <pre><code><b>kubectl version --client</b>
 Client Version: version.Info{Major:"1", Minor:"9", GitVersion:"v1.9.2", GitCommit:"5fa2db2bd46ac79e5e00a4e6ed24191080aa463b", GitTreeState:"clean", BuildDate:"2018-01-18T10:09:24Z", GoVersion:"go1.9.2", Compiler:"gc", Platform:"linux/amd64"}
 </code></pre>
+
+## Base cluster installation
+
+This documentation Kubernetes describes two means by which Kubernetes clusters can be installed, choose one however there are many other alternatives also available.
+
+### Installing microk8s Kubernetes
+
+The microk8s solution implements a single host deployment of Kubernetes, https://microk8s.io/. Use snap on Ubuntu to install this component to allow for management of the optional features of microk8s.  When using microk8s the Istio distribution is included in the Kubernetes install as an addon.
+
+The following example details how to configure microk8s once it has been installed:
+
+```
+# Allow the storage and registry sub systems and containers within the cluster to communicate.  Also needed for postgres pkg to be fetched and installed
+sudo ufw allow in on cbr0 && sudo ufw allow out on cbr0
+sudo ufw default allow routed
+sudo iptables -P FORWARD ACCEPT
+sudo /snap/bin/microk8s.start
+sudo /snap/bin/microk8s.enable dashboard dns ingress storage registry istio gpu
+
+microk8s.config >> $HOME/.kube/config
+microk8s.kubectl --kubeconfig=$HOME/.kube/config get no
+```
+
+### Installing AWS Kubernetes
+
+#### Using kops
+
+If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
+
+When using AWS the TLS certificates used to secure the connections to your AWS LoadBalancer will require that an ElasticIP is used.  It is recommended that an ElasticIP is allocated for use and then your DNS entries on the domain registra are modified to used the IP as a registered host matching the LetsEncrypt certificate used.  Using an ElasticIP allows the cluster to be regenerated and for the LoadBalancer to be reassociated with the IP whenever the cluster is regenerated.
+
+<pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/v1.16.0/kops-linux-amd64
+chmod +x kops-linux-amd64
+sudo mv kops-linux-amd64 /usr/local/bin/kops
+
+Add kubectl autocompletion to your current shell:
+
+source <(kops completion $(basename $SHELL))
+</b></code></pre>
+
+In order to seed your S3 KOPS\_STATE\_STORE version controlled bucket with a cluster definition the following command could be used:
+
+<pre><code><b>export AWS_AVAILABILITY_ZONES="$(aws ec2 describe-availability-zones --query 'AvailabilityZones[].ZoneName' --output text | awk -v OFS="," '$1=$1')"
+
+export S3_BUCKET=kops-platform-$USER
+export KOPS_STATE_STORE=s3://$S3_BUCKET
+aws s3 mb $KOPS_STATE_STORE
+aws s3api put-bucket-versioning --bucket $S3_BUCKET --versioning-configuration Status=Enabled
+
+export CLUSTER_NAME=test-$USER.platform.cluster.k8s.local
+
+kops create cluster --name $CLUSTER_NAME --zones $AWS_AVAILABILITY_ZONES --node-count 1 --node-size=m4.2xlarge --cloud-labels="HostUser=$HOST:$USER"
+</b></code></pre>
+
+Optionally use an image from your preferred zone e.g. --image=ami-0def3275.  Also you can modify the AWS machine types, recommended during developer testing using options such as '--master-size=m4.large --node-size=m4.large'.
+
+Starting the cluster can now be done using the following command:
+
+<pre><code><b>kops update cluster $CLUSTER_NAME --yes</b>
+I0309 13:48:49.798777    6195 apply_cluster.go:442] Gossip DNS: skipping DNS validation
+I0309 13:48:49.961602    6195 executor.go:91] Tasks: 0 done / 81 total; 30 can run
+I0309 13:48:50.383671    6195 vfs_castore.go:715] Issuing new certificate: "ca"
+I0309 13:48:50.478788    6195 vfs_castore.go:715] Issuing new certificate: "apiserver-aggregator-ca"
+I0309 13:48:50.599605    6195 executor.go:91] Tasks: 30 done / 81 total; 26 can run
+I0309 13:48:51.013957    6195 vfs_castore.go:715] Issuing new certificate: "kube-controller-manager"
+I0309 13:48:51.087447    6195 vfs_castore.go:715] Issuing new certificate: "kube-proxy"
+I0309 13:48:51.092714    6195 vfs_castore.go:715] Issuing new certificate: "kubelet"
+I0309 13:48:51.118145    6195 vfs_castore.go:715] Issuing new certificate: "apiserver-aggregator"
+I0309 13:48:51.133527    6195 vfs_castore.go:715] Issuing new certificate: "kube-scheduler"
+I0309 13:48:51.157876    6195 vfs_castore.go:715] Issuing new certificate: "kops"
+I0309 13:48:51.167195    6195 vfs_castore.go:715] Issuing new certificate: "apiserver-proxy-client"
+I0309 13:48:51.172542    6195 vfs_castore.go:715] Issuing new certificate: "kubecfg"
+I0309 13:48:51.179730    6195 vfs_castore.go:715] Issuing new certificate: "kubelet-api"
+I0309 13:48:51.431304    6195 executor.go:91] Tasks: 56 done / 81 total; 21 can run
+I0309 13:48:51.568136    6195 launchconfiguration.go:334] waiting for IAM instance profile "nodes.test.platform.cluster.k8s.local" to be ready
+I0309 13:48:51.576067    6195 launchconfiguration.go:334] waiting for IAM instance profile "masters.test.platform.cluster.k8s.local" to be ready
+I0309 13:49:01.973887    6195 executor.go:91] Tasks: 77 done / 81 total; 3 can run
+I0309 13:49:02.489343    6195 vfs_castore.go:715] Issuing new certificate: "master"
+I0309 13:49:02.775403    6195 executor.go:91] Tasks: 80 done / 81 total; 1 can run
+I0309 13:49:03.074583    6195 executor.go:91] Tasks: 81 done / 81 total; 0 can run
+I0309 13:49:03.168822    6195 update_cluster.go:279] Exporting kubecfg for cluster
+kops has set your kubectl context to test.platform.cluster.k8s.local
+        image: {{.duat.awsecr}}/platform-services/{{.duat.module}}:{{.duat.version}}
+
+Cluster is starting.  It should be ready in a few minutes.
+
+Suggestions:
+ * validate cluster: kops validate cluster
+ * list nodes: kubectl get nodes --show-labels
+ * ssh to the master: ssh -i ~/.ssh/id_rsa admin@api.test.platform.cluster.k8s.local
+ * the admin user is specific to Debian. If not using Debian please use the appropriate user based on your OS.
+ * read about installing addons at: https://github.com/kubernetes/kops/blob/master/docs/addons.md.
+
+<b>
+while [ 1 ]; do
+    kops validate cluster > /dev/null && break || sleep 10
+done;
+</b></code></pre>
+
+The initial cluster spinup will take sometime, use kops commands such as 'kops validate cluster' to determine when the cluster is spun up ready for Istio and the platform services.
 
 ## Helm Kubernetes package manager
 
@@ -185,106 +285,6 @@ Once the certificate generation is complete you will have the certificate saved 
 
 After the certificate has been issue feel free to delete the TXT record that served as proof of ownership as it is no longer needed.
 
-## Base cluster installation
-
-This documentation Kubernetes describes two means by which Kubernetes clusters can be installed, choose one however there are many other alternatives also available.
-
-### Installing microk8s Kubernetes
-
-The microk8s solution implements a single host deployment of Kubernetes, https://microk8s.io/. Use snap on Ubuntu to install this component to allow for management of the optional features of microk8s.  When using microk8s the Istio distribution is included in the Kubernetes install as an addon.
-
-The following example details how to configure microk8s once it has been installed:
-
-```
-# Allow the storage and registry sub systems and containers within the cluster to communicate.  Also needed for postgres pkg to be fetched and installed
-sudo ufw allow in on cbr0 && sudo ufw allow out on cbr0
-sudo ufw default allow routed
-sudo iptables -P FORWARD ACCEPT
-sudo /snap/bin/microk8s.start
-sudo /snap/bin/microk8s.enable dashboard dns ingress storage registry istio gpu
-
-microk8s.config >> $HOME/.kube/config
-microk8s.kubectl --kubeconfig=$HOME/.kube/config get no
-```
-
-### Installing AWS Kubernetes
-
-#### Using kops
-
-If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
-
-When using AWS the TLS certificates used to secure the connections to your AWS LoadBalancer will require that an ElasticIP is used.  It is recommended that an ElasticIP is allocated for use and then your DNS entries on the domain registra are modified to used the IP as a registered host matching the LetsEncrypt certificate used.  Using an ElasticIP allows the cluster to be regenerated and for the LoadBalancer to be reassociated with the IP whenever the cluster is regenerated.
-
-<pre><code><b>curl -LO https://github.com/kubernetes/kops/releases/download/1.16.0/kops-linux-amd64
-chmod +x kops-linux-amd64
-sudo mv kops-linux-amd64 /usr/local/bin/kops
-
-Add kubectl autocompletion to your current shell:
-
-source <(kops completion bash)
-</b></code></pre>
-
-In order to seed your S3 KOPS\_STATE\_STORE version controlled bucket with a cluster definition the following command could be used:
-
-<pre><code><b>export AWS_AVAILABILITY_ZONES="$(aws ec2 describe-availability-zones --query 'AvailabilityZones[].ZoneName' --output text | awk -v OFS="," '$1=$1')"
-
-export S3_BUCKET=kops-platform-$USER
-export KOPS_STATE_STORE=s3://$S3_BUCKET
-aws s3 mb $KOPS_STATE_STORE
-aws s3api put-bucket-versioning --bucket $S3_BUCKET --versioning-configuration Status=Enabled
-
-export CLUSTER_NAME=test-$USER.platform.cluster.k8s.local
-
-kops create cluster --name $CLUSTER_NAME --zones $AWS_AVAILABILITY_ZONES --node-count 1 --node-size=m4.2xlarge --cloud-labels="HostUser=$HOST:$USER"
-</b></code></pre>
-
-Optionally use an image from your preferred zone e.g. --image=ami-0def3275.  Also you can modify the AWS machine types, recommended during developer testing using options such as '--master-size=m4.large --node-size=m4.large'.
-
-Starting the cluster can now be done using the following command:
-
-<pre><code><b>kops update cluster $CLUSTER_NAME --yes</b>
-I0309 13:48:49.798777    6195 apply_cluster.go:442] Gossip DNS: skipping DNS validation
-I0309 13:48:49.961602    6195 executor.go:91] Tasks: 0 done / 81 total; 30 can run
-I0309 13:48:50.383671    6195 vfs_castore.go:715] Issuing new certificate: "ca"
-I0309 13:48:50.478788    6195 vfs_castore.go:715] Issuing new certificate: "apiserver-aggregator-ca"
-I0309 13:48:50.599605    6195 executor.go:91] Tasks: 30 done / 81 total; 26 can run
-I0309 13:48:51.013957    6195 vfs_castore.go:715] Issuing new certificate: "kube-controller-manager"
-I0309 13:48:51.087447    6195 vfs_castore.go:715] Issuing new certificate: "kube-proxy"
-I0309 13:48:51.092714    6195 vfs_castore.go:715] Issuing new certificate: "kubelet"
-I0309 13:48:51.118145    6195 vfs_castore.go:715] Issuing new certificate: "apiserver-aggregator"
-I0309 13:48:51.133527    6195 vfs_castore.go:715] Issuing new certificate: "kube-scheduler"
-I0309 13:48:51.157876    6195 vfs_castore.go:715] Issuing new certificate: "kops"
-I0309 13:48:51.167195    6195 vfs_castore.go:715] Issuing new certificate: "apiserver-proxy-client"
-I0309 13:48:51.172542    6195 vfs_castore.go:715] Issuing new certificate: "kubecfg"
-I0309 13:48:51.179730    6195 vfs_castore.go:715] Issuing new certificate: "kubelet-api"
-I0309 13:48:51.431304    6195 executor.go:91] Tasks: 56 done / 81 total; 21 can run
-I0309 13:48:51.568136    6195 launchconfiguration.go:334] waiting for IAM instance profile "nodes.test.platform.cluster.k8s.local" to be ready
-I0309 13:48:51.576067    6195 launchconfiguration.go:334] waiting for IAM instance profile "masters.test.platform.cluster.k8s.local" to be ready
-I0309 13:49:01.973887    6195 executor.go:91] Tasks: 77 done / 81 total; 3 can run
-I0309 13:49:02.489343    6195 vfs_castore.go:715] Issuing new certificate: "master"
-I0309 13:49:02.775403    6195 executor.go:91] Tasks: 80 done / 81 total; 1 can run
-I0309 13:49:03.074583    6195 executor.go:91] Tasks: 81 done / 81 total; 0 can run
-I0309 13:49:03.168822    6195 update_cluster.go:279] Exporting kubecfg for cluster
-kops has set your kubectl context to test.platform.cluster.k8s.local
-        image: {{.duat.awsecr}}/platform-services/{{.duat.module}}:{{.duat.version}}
-
-Cluster is starting.  It should be ready in a few minutes.
-
-Suggestions:
- * validate cluster: kops validate cluster
- * list nodes: kubectl get nodes --show-labels
- * ssh to the master: ssh -i ~/.ssh/id_rsa admin@api.test.platform.cluster.k8s.local
- * the admin user is specific to Debian. If not using Debian please use the appropriate user based on your OS.
- * read about installing addons at: https://github.com/kubernetes/kops/blob/master/docs/addons.md.
-
-<b>
-while [ 1 ]; do
-    kops validate cluster > /dev/null && break || sleep 10
-done;
-</b></code></pre>
-
-The initial cluster spinup will take sometime, use kops commands such as 'kops validate cluster' to determine when the cluster is spun up ready for Istio and the platform services.
-
 #### Istio 1.4.x
 
 If you are performing a microk8s installation of Kubernetes you do not perform the steps in this subsection, this is because the microk8s kubernetes distribution contains an embedded istio deployment.
@@ -297,7 +297,10 @@ tar xzf istio-1.4.2-linux.tar.gz
 export ISTIO_DIR=`pwd`/istio-1.4.2
 export PATH=$ISTIO_DIR/bin:$PATH
 cd -
-istioctl manifest apply --set profile=demo --set values.tracing.enabled=true --set values.tracing.provider=zipkin --set values.global.tracer.zipkin.address=honeycomb-opentracing-proxy.default.svc.cluster.local:9411 --set values.pilot.traceSampling=100 --set values.gateways.istio-egressgateway.enabled=false --set values.gateways.istio-ingressgateway.sds.enabled=true
+istioctl manifest apply --set profile=demo --set values.tracing.enabled=true --set values.tracing.provider=zipkin \
+    --set values.global.tracer.zipkin.address=honeycomb-opentracing-proxy.default.svc.cluster.local:9411 \
+    --set values.pilot.traceSampling=100 --set values.gateways.istio-egressgateway.enabled=false \
+    --set values.gateways.istio-ingressgateway.sds.enabled=true
 </b></code></pre>
 
 ## Configuration of secrets
@@ -312,7 +315,7 @@ export O11Y_DATASET=platform-services
 
 The services also use a postgres Database instance to persist experiment data.  The following shows an example of what should be defined for Postgres support prior to running the stencil command:
 
-<pre><code><b>export PGRELEASE=`petname`
+<pre><code><b>export PGRELEASE=$USER-poc
 export PGHOST=$PGRELEASE-postgresql.default.svc.cluster.local
 export PORT=5432
 export PGUSER=postgres
@@ -359,7 +362,7 @@ The first step is to install the postgres 11 client on your system and then to p
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list'
 sudo apt-get -y update
-sudo apt-get upgrade postgresql-client-11
+sudo apt-get -y upgrade postgresql-client-11
 </code></pre>
 
 ### Deploying an in-cluster Database
@@ -430,6 +433,7 @@ Setting up the proxy will be needed prior to running the SQL database provisioni
 <pre><code><b>
 kubectl wait --for=condition=Ready pod/$PGRELEASE-postgresql-0
 kubectl port-forward --namespace default svc/$PGRELEASE-postgresql 5432:5432 &amp;
+sleep 2
 PGHOST=127.0.0.1 PGDATABASE=platform psql -f sql/platform.sql -d postgres
 </b></code></pre>
 
@@ -437,7 +441,7 @@ Further information about how to deployed the service specific database for the 
 
 ## Deploying into the Istio mesh
 
-### Configuring the service DNS
+### Configuring the service DNS (Critical Step)
 
 When using this mesh instance with a TLS based deployment the DNS domain name used for the LetsEncrypt certificate (CN), will need to have its address record (A) updated to point at the AWS load balancer assigned to the Kubernetes cluster.  In AWS this is done via Route53:
 
@@ -446,7 +450,12 @@ INGRESS_HOST=`kubectl get svc --namespace istio-system -o go-template='{{range .
 dig +short $INGRESS_HOST
 </b></code></pre>
 
-Take the IP addresses from the above output and use these as the A record for the LetsEncrypt host name and this will enable accessing the mesh and validation of the common name (CN) in the certificate.
+Take the IP addresses from the above output and use these as the A record for the LetsEncrypt host name, platform-services.cognizant-ai.net, and this will enable accessing the mesh and validation of the common name (CN) in the certificate.  After several minutes, you should test this step by using the following command to verify that the certificate negotiation is completed.
+
+<pre><code><b>
+curl -Iv https://platform-services.cognizant-ai.net:$SECURE_INGRESS_PORT
+export INGRESS_HOST=platform-services.cognizant-ai.net:$SECURE_INGRESS_PORT
+</b></code></pre>
 
 ### Service deployment overview
 
@@ -464,6 +473,13 @@ Once secrets are loaded individual services can be deployed from a checked out d
 <pre><code><b>cd ~/project/src/github.com/leaf-ai/platform-services</b>
 <b>cd cmd/[service] ; kubectl apply -f \<(istioctl kube-inject -f \<( stencil [service].yaml 2>/dev/null)" ); cd - </b>
 </code></pre>
+
+A minimal set of servers for test is to use the downstream and experiment servers as follows:
+
+```
+kubectl apply -f <(istioctl kube-inject -f <(cd cmd/downstream ; stencil < downstream.yaml)) && \
+kubectl apply -f <(istioctl kube-inject -f <(cd cmd/experimentsrv/ ; stencil < experimentsrv.yaml))
+```
 
 In order to locate the image repository the stencil tool will test for the presence of AWS credentials and if found will use the account as the source of AWS ECR images.  In the case where the credentials are not present then the default microk8s registry will be used for image deployment.
 
@@ -614,6 +630,7 @@ A very basic test of the TLS can be done using the curl command:
 
 <pre><code><b>
 curl -Iv https://helloworld.letsencrypt.org
+curl -Iv https://platform-services.cognizant-ai.net:$SECURE_INGRESS_PORT
 </b></code></pre>
 
 An example client for running a simple ping style test against the cluster is provided in the cmd/cli-experiment directory.  This client acts as a test for the presence of the service.  If the commands to obtain a JWT have been followed then this command can be run against the cluster as follows:
@@ -639,12 +656,12 @@ Services used within the platform require that not only is the link integrity an
 <pre><code><b>grpc_cli call localhost:30001 dev.cognizant-ai.experiment.Service.Get "id: 'test'" --metadata authorization:"Bearer $AUTH0_TOKEN"
 </b></code></pre>
 
-The services used within the platform all support reflection when using gRPC.  To examine calls available for a server you should first identify the endpoint through which the gateway is being routed, in this case as part of an Istio cluster on AWS, for example:
+The services used within the platform all support reflection when using gRPC.  To examine calls available for a server you should first identify the endpoint through which the gateway is being routed, in this case as part of an Istio cluster on AWS with TLS enabled, for example:
 
 <pre><code><b>export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
 export INGRESS_HOST=$(kubectl get po -l istio=ingressgateway -n istio-system -o jsonpath='{.items[0].status.hostIP}')
 export CLUSTER_INGRESS=$INGRESS_HOST:$SECURE_INGRESS_PORT
-<b>grpc_cli ls $CLUSTER_INGRESS -l</b>
+<b>grpc_cli ls $CLUSTER_INGRESS -l --channel_creds_type=ssl</b>
 filename: experimentsrv.proto
 package: dev.cognizant_ai.experiment;
 service Service {
@@ -667,13 +684,20 @@ service ServerReflection {
 }
 </code></pre>
 
+
+In circumstances where you have the CN name validation enabled then the host name should reflect the common name for the host, for example:
+
+<pre><code><b>grpc_cli call platform-services.cognizant-ai.net:$SECURE_INGRESS_PORT dev.cognizant-ai.experiment.Service.Get "id: 'test'" --metadata authorization:"Bearer $AUTH0_TOKEN" --channel_creds_type=ssl
+</b></code></pre>
+
+
 To drill further into interfaces and examine the types being used within calls you can perform commands such as:
 
-<pre><code><b>grpc_cli type $CLUSTER_INGRESS dev.cognizant_ai.experiment.CreateRequest -l</b>
+<pre><code><b>grpc_cli type $CLUSTER_INGRESS dev.cognizant_ai.experiment.CreateRequest -l --channel_creds_type=ssl</b>
 message CreateRequest {
 .dev.cognizant_ai.experiment.Experiment experiment = 1[json_name = "experiment"];
 }
-<b>grpc_cli type $CLUSTER_INGRESS dev.cognizant_ai.experiment.Experiment -l</b>
+<b>grpc_cli type $CLUSTER_INGRESS dev.cognizant_ai.experiment.Experiment -l --channel_creds_type=ssl</b>
 message Experiment {
 string uid = 1[json_name = "uid"];
 string name = 2[json_name = "name"];
@@ -682,7 +706,7 @@ string description = 3[json_name = "description"];
 map&lt;uint32, .dev.cognizant_ai.experiment.InputLayer&gt; inputLayers = 5[json_name = "inputLayers"];
 map&lt;uint32, .dev.cognizant_ai.experiment.OutputLayer&gt; outputLayers = 6[json_name = "outputLayers"];
 }
-<b>grpc_cli type $CLUSTER_INGRESS dev.cognizant_ai.experiment.InputLayer -l</b>
+<b>grpc_cli type $CLUSTER_INGRESS dev.cognizant_ai.experiment.InputLayer -l --channel_creds_type=ssl</b>
 message InputLayer {
 enum Type {
 	Unknown = 0;
