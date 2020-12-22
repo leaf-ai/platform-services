@@ -20,6 +20,7 @@ import (
 )
 
 type echoServer struct {
+	echo.UnimplementedEchoServer
 	health *health.Server
 }
 
@@ -48,7 +49,7 @@ func runServer(ctx context.Context, serviceName string, port int) (errC chan err
 	server := grpc.NewServer()
 	echoSrv := &echoServer{health: health.NewServer()}
 
-	echo.RegisterServiceServer(server, echoSrv)
+	echo.RegisterEchoServer(server, echoSrv)
 	grpc_health_v1.RegisterHealthServer(server, echoSrv)
 
 	reflection.Register(server)

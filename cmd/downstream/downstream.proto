@@ -11,6 +11,6 @@ message PingResponse {
   google.protobuf.Timestamp tm = 1;
 }
 
-service Service {
+service Downstream {
   rpc Ping(PingRequest) returns (PingResponse);
 }

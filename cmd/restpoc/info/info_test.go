@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-test/deep"
 
-	"github.com/leaf-ai/platform-services/version"
+	"github.com/leaf-ai/platform-services/internal/version"
 )
 
 func TestInfoContent(t *testing.T) {

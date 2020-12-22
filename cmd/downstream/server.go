@@ -25,6 +25,7 @@ var (
 )
 
 type DownstreamServer struct {
+	downstream.UnimplementedDownstreamServer
 }
 
 func (*DownstreamServer) Ping(ctx context.Context, in *downstream.PingRequest) (resp *downstream.PingResponse, err error) {
@@ -76,7 +77,7 @@ func runServer(ctx context.Context, serviceName string, ipPort string) (errC cha
 	server := grpc.NewServer()
 	handler := &DownstreamServer{}
 
-	downstream.RegisterServiceServer(server, handler)
+	downstream.RegisterDownstreamServer(server, handler)
 	grpc_health_v1.RegisterHealthServer(server, handler)
 
 	reflection.Register(server)

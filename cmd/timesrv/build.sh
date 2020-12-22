@@ -11,18 +11,18 @@ set -o pipefail
 
 export HASH=`git rev-parse HEAD`
 export PATH=$PATH:$GOPATH/bin
-go get -u -f github.com/golang/dep/cmd/dep
-go get -u -f github.com/itchio/gothub
-go get -u -f github.com/go-swagger/go-swagger/cmd/swagger
+go get -u github.com/itchio/gothub
+go get -u github.com/go-swagger/go-swagger/cmd/swagger
 [ -e internal/gen ] || mkdir internal/gen
 swagger generate server -q -t internal/gen -f cmd/timesrv/swagger.yaml --exclude-main -A timesrv
 # go get -u -f gen/...
-dep ensure -no-vendor
 #[ -e vendor/github.com/leaf-ai/platform-services/internal ] || mkdir -p vendor/github.com/leaf-ai/platform-services/internal
 #[ -e vendor/github.com/leaf-ai/platform-services/internal/gen ] || ln -s `pwd`/internal/gen vendor/github.com/leaf-ai/platform-services/internal/gen
 if [ "$1" == "gen" ]; then
     exit 0
 fi
+
+go mod vendor
 mkdir -p cmd/timesrv/bin
 go build -asmflags -trimpath -ldflags "-X github.com/leaf-ai/platform-services/internal/version.GitHash=$HASH" -o cmd/timesrv/bin/timesrv cmd/timesrv/*.go
 go build -asmflags -trimpath -ldflags "-X github.com/leaf-ai/platform-services/internal/version.GitHash=$HASH" -race -o cmd/timesrv/bin/timesrv-race cmd/timesrv/*.go

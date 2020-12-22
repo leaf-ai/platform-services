@@ -33,6 +33,7 @@ var (
 )
 
 type ExperimentServer struct {
+	experiment.UnimplementedExperimentsServer
 	tracer *zipkin.Tracer
 }
 
@@ -184,7 +185,7 @@ func runServer(ctx context.Context, tracer *zipkin.Tracer, serviceName string, i
 
 	experimentSrv := &ExperimentServer{tracer: tracer}
 
-	experiment.RegisterServiceServer(server, experimentSrv)
+	experiment.RegisterExperimentsServer(server, experimentSrv)
 	grpc_health_v1.RegisterHealthServer(server, experimentSrv)
 
 	reflection.Register(server)

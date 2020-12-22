@@ -61,7 +61,7 @@ message CheckResponse {
   repeated string modules = 1;
 }
 
-service Service {
+service Experiments {
   rpc Create(CreateRequest) returns (CreateResponse);
   rpc Get(GetRequest) returns (GetResponse);
   rpc MeshCheck(CheckRequest) returns (CheckResponse);

@@ -8,7 +8,11 @@ EXPOSE 30001
 RUN apt-get -y update && apt-get -y install net-tools iproute2 curl libssl1.0.0 libgflags2v5
 RUN apt-get -y update && apt-get -y install iputils-ping telnet
 
-WORKDIR /root/
+RUN adduser --system app --group
+USER app
+
+WORKDIR /home/app
+
 COPY run.sh .
 COPY bin/experimentsrv .
 CMD ["./run.sh"]

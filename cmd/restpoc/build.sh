@@ -11,9 +11,13 @@ set -o pipefail
 
 export HASH=`git rev-parse --short HEAD`
 export PATH=$PATH:$GOPATH/bin
-go get -u -f github.com/golang/dep/cmd/dep
-go get -u -f github.com/itchio/gothub
-dep ensure -no-vendor
+go get -u github.com/itchio/gothub
+
+if [ "$1" == "gen" ]; then
+    exit 0
+fi
+
+go mod vendor
 mkdir -p cmd/restpoc/bin
 go build -asmflags -trimpath -ldflags "-X github.com/leaf-ai/platform-services/internal/version.GitHash=$HASH" -o cmd/restpoc/bin/restpoc cmd/restpoc/*.go
 go build -asmflags -trimpath -ldflags "-X github.com/leaf-ai/platform-services/internal/version.GitHash=$HASH" -race -o cmd/restpoc/bin/restpoc-race cmd/restpoc/*.go

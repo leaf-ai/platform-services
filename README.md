@@ -1,7 +1,7 @@
 # platform-services
 A public PoC with functioning services using a simple Istio Mesh running on K8s
 
-Version : <repo-version>0.8.2-master-aaaagniztcw</repo-version>
+Version : <repo-version>0.9.0-master-aaaagpsihzg</repo-version>
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/leaf-ai/platform-services/blob/master/LICENSE) [![Go Report Card](https://goreportcard.com/badge/leaf-ai/platform-services)](https://goreportcard.com/report/leaf-ai/platform-services)
 
@@ -19,7 +19,7 @@ This project is intended as a sand-box for experimenting with Istio and some of 
 
 # Installation
 
-These instructions were used with Kubernetes 1.16.x, and Istio 1.4.0.
+These instructions were used with Kubernetes 1.16.x, and Istio 1.8.1.
 
 ## Development and Building from source
 
@@ -40,14 +40,13 @@ Go installation instructions can be found at, https://golang.org/doc/install.
 
 Now download any dependencies, once, into our development environment.
 
-<pre><code><b>go get -u github.com/golang/dep/cmd/dep
-go get github.com/karlmutch/duat
+<pre><code><b>
 go get github.com/karlmutch/petname
-dep ensure
-go install github.com/karlmutch/duat/cmd/semver
-go install github.com/karlmutch/duat/cmd/github-release
-go install github.com/karlmutch/duat/cmd/stencil
-go install github.com/karlmutch/petname/cmd/petname
+go mod vendor
+go get github.com/karlmutch/duat/cmd/semver
+go get github.com/karlmutch/duat/cmd/github-release
+go get github.com/karlmutch/duat/cmd/stencil
+go get github.com/karlmutch/petname/cmd/petname
 </b></code></pre>
 
 ## Running the build using the container
@@ -104,7 +103,8 @@ Add kubectl autocompletion to your current shell:
 You can verify that kubectl is installed by executing the following command:
 
 <pre><code><b>kubectl version --client</b>
-Client Version: version.Info{Major:"1", Minor:"9", GitVersion:"v1.9.2", GitCommit:"5fa2db2bd46ac79e5e00a4e6ed24191080aa463b", GitTreeState:"clean", BuildDate:"2018-01-18T10:09:24Z", GoVersion:"go1.9.2", Compiler:"gc", Platform:"linux/amd64"}
+Client Version: version.Info{Major:"1", Minor:"20", GitVersion:"v1.20.0", GitCommit:"af46c47ce925f4c4ad5cc8d1fca46c7b77d13b38", GitTreeState:"clean", BuildDate:"2020-12-09T16:50:1
+7Z", GoVersion:"go1.15.6", Compiler:"gc", Platform:"linux/amd64"}
 </code></pre>
 
 ## Base cluster installation
@@ -122,6 +122,7 @@ The following example details how to configure microk8s once it has been install
 sudo ufw allow in on cbr0 && sudo ufw allow out on cbr0
 sudo ufw default allow routed
 sudo iptables -P FORWARD ACCEPT
+sudo snap install microk8s
 sudo /snap/bin/microk8s.start
 sudo /snap/bin/microk8s.enable dashboard dns ingress storage registry istio gpu
 
@@ -129,6 +130,38 @@ microk8s.config >> $HOME/.kube/config
 microk8s.kubectl --kubeconfig=$HOME/.kube/config get no
 ```
 
+### Installating Kubernetes in Docker (kind)
+
+kind provides a means by which a kubernetes cluster can be installed using the Docker Desktop platform, or on linux plain docker.
+
+```
+$ kind create cluster
+Creating cluster "kind" ...
+ ✓ Ensuring node image (kindest/node:v1.19.1) 🖼
+ ✓ Preparing nodes 📦
+ ✓ Writing configuration 📜
+ ✓ Starting control-plane 🕹️
+ ✓ Installing CNI 🔌
+ ✓ Installing StorageClass 💾
+Set kubectl context to "kind-kind"
+You can now use your cluster with:
+
+$ kubectl cluster-info --context kind-kind
+
+Have a nice day! 
+
+kubectl config set-context  --namespace=default kind-kind
+Context "kind-kind" modified.
+
+$ istioctl install --set profile=demo -y
+Detected that your cluster does not support third party JWT authentication. Falling back to less secure first party JWT. See https://istio.io/v1.8/docs/ops/best-practices/security
+/#configure-third-party-service-account-tokens for details.
+✔ Istio core installed
+✔ Istiod installed
+✔ Egress gateways installed
+✔ Ingress gateways installed
+✔ Installation complete
+```
 ### Installing AWS Kubernetes
 
 #### Using kops
@@ -287,16 +320,16 @@ Once the certificate generation is complete you will have the certificate saved 
 
 After the certificate has been issue feel free to delete the TXT record that served as proof of ownership as it is no longer needed.
 
-#### Istio 1.4.x
+#### Istio 1.8.x
 
 If you are performing a microk8s installation of Kubernetes you do not perform the steps in this subsection, this is because the microk8s kubernetes distribution contains an embedded istio deployment.
 
 Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, https://istio.io/docs/setup/getting-started/#install.  Istio was at one time a Helm based installation but has since moved to using its own methodology.
 
 <pre><code><b>cd ~
-curl -LO https://github.com/istio/istio/releases/download/1.4.2/istio-1.4.2-linux.tar.gz
-tar xzf istio-1.4.2-linux.tar.gz
-export ISTIO_DIR=`pwd`/istio-1.4.2
+curl -LO https://github.com/istio/istio/releases/download/1.8.1/istio-1.8.1-linux.tar.gz
+tar xzf istio-1.8.1-linux.tar.gz
+export ISTIO_DIR=`pwd`/istio-1.8.1
 export PATH=$ISTIO_DIR/bin:$PATH
 cd -
 istioctl manifest apply --set profile=demo --set values.tracing.enabled=true --set values.tracing.provider=zipkin \

@@ -9,10 +9,9 @@ if [ $exit_code -ne 0 ]; then
     exit $exit_code
 fi
 
-echo "Done" ; docker container prune -f
+echo "Build Done" ; docker container prune -f
 
-go get github.com/karlmutch/duat
-go install github.com/karlmutch/duat/cmd/semver
+go get github.com/karlmutch/duat/cmd/semver
 version=`$GOPATH/bin/semver`
 
 for dir in cmd/*/ ; do
@@ -28,5 +27,7 @@ for dir in cmd/*/ ; do
     docker build -t $base:$version .
     cd -
 done
+
+exit 0
 
 ./push.sh

@@ -1,7 +1,7 @@
 # Docker multi stage build formatted file.  This is used to build then prepare
 # containers for the services that this repository uses
 #
-FROM golang:1.14.1
+FROM golang:1.15.6
 
 MAINTAINER karlmutch@gmail.com
 
@@ -19,7 +19,7 @@ RUN apt-get -y install git software-properties-common wget openssl ssh curl jq a
     pip install awscli --upgrade
 
 # Protobuf version
-ENV PROTOBUF_VERSION="3.7.0"
+ENV PROTOBUF_VERSION="3.14.0"
 ENV PROTOBUF_ZIP=protoc-${PROTOBUF_VERSION}-linux-x86_64.zip
 ENV PROTOBUF_URL=https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/${PROTOBUF_ZIP}
 

@@ -66,7 +66,7 @@ func (server *lastSeen) checkDownstream(ctx context.Context, tracer *zipkin.Trac
 	}
 	defer conn.Close()
 
-	client := downstream.NewServiceClient(conn)
+	client := downstream.NewDownstreamClient(conn)
 
 	if _, errGo = client.Ping(ctx, &downstream.PingRequest{}); errGo != nil {
 		return errors.Wrap(errGo).With("address", hostAndPort).With("stack", stack.Trace().TrimRuntime())
