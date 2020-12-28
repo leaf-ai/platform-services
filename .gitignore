@@ -20,3 +20,4 @@ internal/gen/
 vendor/github.com/leaf-ai/platform-services/internal/gen
 .autoenv.zsh
 letsencrypt
+minica

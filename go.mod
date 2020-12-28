@@ -46,6 +46,7 @@ require (
 	github.com/jjeffery/errors v1.0.3 // indirect
 	github.com/jjeffery/kv v0.8.1 // indirect
 	github.com/jmoiron/sqlx v1.2.0
+	github.com/jsha/minica v1.0.2 // indirect
 	github.com/karlmutch/duat v0.0.0-20200918224055-5162d53e3510 // indirect
 	github.com/karlmutch/envflag v0.0.0-20160830095501-ae3268980a29
 	github.com/karlmutch/errors v0.0.0-20170122013909-ea57f1276151

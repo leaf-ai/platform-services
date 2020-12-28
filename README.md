@@ -68,32 +68,69 @@ These deployment instructions are intended for use with the Ubuntu 18.04 LTS dis
 
 The following instructions make use of the stencil tool for templating configuration files.
 
-This major section describes two basic alternatives for deployment, AWS kops, and locally hosted microk8s.  Other Kubernetes distribution and deployment models will work but are not explicitly described here.
+This major section describes two basic alternatives for deployment, AWS kops, and locally hosted kind (kubernetes in docker).  Other Kubernetes distribution and deployment models will work but are not explicitly described here.
 
-## Kubernetes (unmanaged)
+## Verify Docker Version
 
-The experimentsrv component comes with an Istio definition file for deployment into AWS, or microk8s using Kubernetes (k8s) and Istio.
-
-The deployment definition file can be found at cmd/experimentsrv/experimentsrv.yaml.
-
-Using AWS k8s will use both the kops, and the kubectl tools. You should have an AWS account configured prior to starting deployments, and your environment variables for using the AWS cli should also be done.
-
-The microk8s tooling installation is documented below.
-
-### Verify Docker Version
-
-Docker fopr Ubuntu can be retrieved from the snap store using the following:
+Docker for Ubuntu can be retrieved from the snap store using the following:
 <pre><code><b>sudo snap install docker
 docker --version</b>
 Docker version 18.09.9, build 1752eb3
 </code></pre>
 You should have a similar or newer version.
 
+snap based docker installation is done to ensure that a platform specific deployment is made using the Ubuntu distribution for portability reasons.
+
+## Arkade Portable DevOps marketplace
+
+arkade provides a means for installation of Kubernetes and related software packages with a single command.  arkade is used throughout these instructions to ease the installation of several utilities and tools.
+
+```
+$ curl -sLS https://dl.get-arkade.dev | sudo sh
+x86_64
+Downloading package https://github.com/alexellis/arkade/releases/download/0.6.35/arkade as /tmp/arkade
+Download complete.
+
+Running with sufficient permissions to attempt to move arkade to /usr/local/bin
+New version of arkade installed to /usr/local/bin
+Creating alias 'ark' for 'arkade'.
+            _             _
+  __ _ _ __| | ____ _  __| | ___
+ / _` | '__| |/ / _` |/ _` |/ _ \
+| (_| | |  |   < (_| | (_| |  __/
+ \__,_|_|  |_|\_\__,_|\__,_|\___|
+
+Get Kubernetes apps the easy way
+
+Version: 0.6.35
+Git Commit: df53c4f6d9c604186b36aae7f0feb1d39940be8f
+```
+
+arkcade will use an account specific location for executables which you should add to your path.
+
+```
+$ export PATH=$PATH:$HOME/.arkade/bin/
+```
+
 ## Install Kubectl CLI
 
-Install the kubectl CLI can be done using kubectl 1.16.x version.
+Installing the kubectl CLI can be done using arkade.
 
-<pre><code><b>sudo snap install kubectl --classic</b></code></pre>
+<pre><code><b>ark get kubectl</b>
+Downloading kubectl
+https://storage.googleapis.com/kubernetes-release/release/v1.18.0/bin/linux/amd64/kubectl
+41.98 MiB / 41.98 MiB [-------------------------------------------------------------------------------------------------------------------------------------------------] 100.00%
+Tool written to: /home/kmutch/.arkade/bin/kubectl
+
+# Add (kubectl) to your PATH variable
+export PATH=$PATH:$HOME/.arkade/bin/
+
+# Test the binary:
+/home/kmutch/.arkade/bin/kubectl
+
+# Or install with:
+sudo mv /home/kmutch/.arkade/bin/kubectl /usr/local/bin/
+</code></pre>
 
 Add kubectl autocompletion to your current shell:
 
@@ -107,35 +144,38 @@ Client Version: version.Info{Major:"1", Minor:"20", GitVersion:"v1.20.0", GitCom
 7Z", GoVersion:"go1.15.6", Compiler:"gc", Platform:"linux/amd64"}
 </code></pre>
 
+## Kubernetes
+
+The experimentsrv component comes with an Istio definition file for deployment into AWS, or kind using Kubernetes (k8s) and Istio.
+
+The deployment definition file can be found at cmd/experimentsrv/experimentsrv.yaml.
+
+Using AWS k8s will use both the kops, and the kubectl tools. You should have an AWS account configured prior to starting deployments, and your environment variables for using the AWS cli should also be done.
+
 ## Base cluster installation
 
-This documentation Kubernetes describes two means by which Kubernetes clusters can be installed, choose one however there are many other alternatives also available.
-
-### Installing microk8s Kubernetes
-
-The microk8s solution implements a single host deployment of Kubernetes, https://microk8s.io/. Use snap on Ubuntu to install this component to allow for management of the optional features of microk8s.  When using microk8s the Istio distribution is included in the Kubernetes install as an addon.
-
-The following example details how to configure microk8s once it has been installed:
-
-```
-# Allow the storage and registry sub systems and containers within the cluster to communicate.  Also needed for postgres pkg to be fetched and installed
-sudo ufw allow in on cbr0 && sudo ufw allow out on cbr0
-sudo ufw default allow routed
-sudo iptables -P FORWARD ACCEPT
-sudo snap install microk8s
-sudo /snap/bin/microk8s.start
-sudo /snap/bin/microk8s.enable dashboard dns ingress storage registry istio gpu
-
-microk8s.config >> $HOME/.kube/config
-microk8s.kubectl --kubeconfig=$HOME/.kube/config get no
-```
+This documentation Kubernetes describes several means by which Kubernetes clusters can be installed, choose one however there are many other alternatives also available.
 
 ### Installating Kubernetes in Docker (kind)
 
-kind provides a means by which a kubernetes cluster can be installed using the Docker Desktop platform, or on linux plain docker.
+kind provides a means by which a kubernetes cluster can be installed using the Docker Desktop platform, or on linux plain docker.  kind installation is supported by arkade.
 
 ```
-$ kind create cluster
+$ ark get kind
+Downloading kind
+https://github.com/kubernetes-sigs/kind/releases/download/v0.9.0/kind-linux-amd64
+7.08 MiB / 7.08 MiB [---------------------------------------------------------------------------------------------------------------------------------------------------] 100.00%
+Tool written to: /home/kmutch/.arkade/bin/kind
+
+# Add (kind) to your PATH variable
+export PATH=$PATH:$HOME/.arkade/bin/
+
+# Test the binary:
+/home/kmutch/.arkade/bin/kind
+
+# Or install with:
+sudo mv /home/kmutch/.arkade/bin/kind /usr/local/bin/
+$ kind create cluster --wait 90s
 Creating cluster "kind" ...
  ✓ Ensuring node image (kindest/node:v1.19.1) 🖼
  ✓ Preparing nodes 📦
@@ -143,25 +183,24 @@ Creating cluster "kind" ...
  ✓ Starting control-plane 🕹️
  ✓ Installing CNI 🔌
  ✓ Installing StorageClass 💾
+ ✓ Waiting ≤ 1m30s for control-plane = Ready ⏳
+ • Ready after 27s 💚
 Set kubectl context to "kind-kind"
 You can now use your cluster with:
 
-$ kubectl cluster-info --context kind-kind
+kubectl cluster-info --context kind-kind
 
-Have a nice day! 
+Have a question, bug, or feature request? Let us know! https://kind.sigs.k8s.io/#community 🙂
 
-kubectl config set-context  --namespace=default kind-kind
+$ kubectl config set-context  --namespace=default kind-kind
 Context "kind-kind" modified.
-
-$ istioctl install --set profile=demo -y
-Detected that your cluster does not support third party JWT authentication. Falling back to less secure first party JWT. See https://istio.io/v1.8/docs/ops/best-practices/security
-/#configure-third-party-service-account-tokens for details.
-✔ Istio core installed
-✔ Istiod installed
-✔ Egress gateways installed
-✔ Ingress gateways installed
-✔ Installation complete
+$ kubectl get nodes
+NAME                 STATUS   ROLES    AGE   VERSION
+kind-control-plane   Ready    master   68s   v1.19.1
 ```
+
+After this the next step is to proceed to the certificates installation section.
+
 ### Installing AWS Kubernetes
 
 #### Using kops
@@ -240,24 +279,68 @@ done;
 
 The initial cluster spinup will take sometime, use kops commands such as 'kops validate cluster' to determine when the cluster is spun up ready for Istio and the platform services.
 
-## Helm Kubernetes package manager
+## Istio 1.8.x
+
+Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, https://istio.io/docs/setup/getting-started/#install.  Istio was at one time a Helm based installation but has since moved to using its own methodology, this is the reason we dont use arkade to install it.
+
+<pre><code><b>cd ~
+curl -LO https://github.com/istio/istio/releases/download/1.8.1/istio-1.8.1-linux.tar.gz
+tar xzf istio-1.8.1-linux.tar.gz
+export ISTIO_DIR=`pwd`/istio-1.8.1
+export PATH=$ISTIO_DIR/bin:$PATH
+cd -
+istioctl install --set profile=demo -y 
+# -f istio-config.yaml
+</b>
+
+</code></pre>
+
+## Helm 3 Kubernetes package manager
 
 Helm is used by several packages that are deployed using Kubernetes.  Helm can be installed using instructions found at, https://helm.sh/docs/using\_helm/#installing-helm.  For snap based linux distributions the following can be used as a quick-start.
 
-<pre><code><b>sudo snap install helm --channel=2.16/stable --classic
+<pre><code><b>sudo snap install helm --classic
 kubectl create serviceaccount --namespace kube-system tiller
 kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
-helm init --history-max 200 --service-account tiller --upgrade
 helm repo update
 </b></code></pre>
 
-## Lets Encrypt
+## Encryption
 
-letsencrypt is a public SSL/TLS certificate provider that is being used to secure our service mesh for this project. The lets encrypt provisioning tool can be installed from github and accessed to produce TLS certificates for your service.  
+This section describes how to secure traffic into the service mesh ingress.  Lets Encrypt is an internet based service for provisioning certificates.  If you are using a locally deployed mesh within kind for example you will need to use the minica approach.
 
-Prior to running the lets encrypt tools you should identify the desired hostname and email you wish to make use of.  In our example we have a domain registered as an example, cognizant-ai.net.  This domain is available for management, and we have choosen to use the host name platform-service.cognizant-ai.net as the services hostname.
+### minica
 
-We first added a registered hosts entry for the platform-services.cognizant-ai.net host into the DNS account, if the host is unknown add an IP address such as 127.0.0.1.  During the generation process you will be prompted to add a DNS TXT record into the custom resource records for the domain, this requires the dummy entry to be present.
+Minica is a simple CA intended for use in situations where the CA operator also operates each host where a certificate will be used. It automatically generates both a key and a certificate when asked to produce a certificate. It does not offer OCSP or CRL services. Minica is appropriate, for instance, for generating certificates for RPC systems or microservices.
+
+More information about minica can be found at, https://github.com/jsha/minica.
+```
+$ go get github.com/jsha/minica
+go: downloading github.com/jsha/minica v1.0.2
+go: github.com/jsha/minica upgrade => v1.0.2
+$ mkdir minica
+$ cd minica
+$ minica --domain platform-services.cognizant-ai.net
+$ cd -
+$ tree minica
+minica
+├── minica-key.pem
+├── minica.pem
+└── platform-services.cognizant-ai.net
+    ├── cert.pem
+    └── key.pem
+
+1 directory, 4 filess
+$
+```
+
+### Lets Encrypt
+
+letsencrypt is a public SSL/TLS certificate provider intended for use with the open internet that is being used to secure our service mesh for this project. The lets encrypt provisioning tool can be installed from github and accessed to produce TLS certificates for your service.  If you are deploying on kind or a local installation then lets encrypt is not supported and using minica, https://github.com/jsha/minica, is recommended instead for testing purposes.
+
+Prior to running the lets encrypt tools you should identify the desired DNS hostname and email you wish to use for your example service cluster.  In our example we have a domain registered as, cognizant-ai.net.  This domain is available to us as an administrator, and we have choosen to use the host name platform-service.cognizant-ai.net as the services hostname.
+
+The first step is to add a registered hosts entry for the platform-services.cognizant-ai.net host into the DNS account, if the host is unknown add an IP address such as 127.0.0.1.  During the generation process you will be prompted to add a DNS TXT record into the custom resource records for the domain, this requires the dummy entry to be present.
 
 Setting up and initiating this process can be done using the following:
 
@@ -286,7 +369,7 @@ After this step you will be asked to add a text record to your DNS records provi
 <pre><code>
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Please deploy a DNS TXT record under the name
-_acme-challenge.platform-services.cognizant-ai.net with the following value:
+acme-challenge.platform-services.cognizant-ai.net with the following value:
 
 mbUa9_gb4RVYhTumHy3zIi3PIXFh0k_oOgCie4NvhqQ
 
@@ -320,24 +403,6 @@ Once the certificate generation is complete you will have the certificate saved 
 
 After the certificate has been issue feel free to delete the TXT record that served as proof of ownership as it is no longer needed.
 
-#### Istio 1.8.x
-
-If you are performing a microk8s installation of Kubernetes you do not perform the steps in this subsection, this is because the microk8s kubernetes distribution contains an embedded istio deployment.
-
-Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, https://istio.io/docs/setup/getting-started/#install.  Istio was at one time a Helm based installation but has since moved to using its own methodology.
-
-<pre><code><b>cd ~
-curl -LO https://github.com/istio/istio/releases/download/1.8.1/istio-1.8.1-linux.tar.gz
-tar xzf istio-1.8.1-linux.tar.gz
-export ISTIO_DIR=`pwd`/istio-1.8.1
-export PATH=$ISTIO_DIR/bin:$PATH
-cd -
-istioctl manifest apply --set profile=demo --set values.tracing.enabled=true --set values.tracing.provider=zipkin \
-    --set values.global.tracer.zipkin.address=honeycomb-opentracing-proxy.default.svc.cluster.local:9411 \
-    --set values.pilot.traceSampling=100 --set values.gateways.istio-egressgateway.enabled=false \
-    --set values.gateways.istio-ingressgateway.sds.enabled=true
-</b></code></pre>
-
 ## Configuration of secrets
 
 This project makes use of several secrets that are used to access resources under its control, including the Postgres Database, the Honeycomb service, and the lets encrypt issues certificate.
@@ -364,10 +429,20 @@ stencil < cmd/experimentsrv/secret.yaml | kubectl apply -f -
 
 The last set of secrets that need to be stored are related to securing the mesh for third party connections using TLS.  This secret contains the full certificate chain and private key needed to implement TLS on the gRPC connections exposed by the mesh.
 
+If you used Lets Encrypt then the following applies:
+
 <pre><code><b>
 sudo kubectl create -n istio-system secret generic platform-services-tls-cert \
     --from-file=key=/etc/letsencrypt/live/platform-services.cognizant-ai.net/privkey.pem \
     --from-file=cert=/etc/letsencrypt/live/platform-services.cognizant-ai.net/fullchain.pem
+</b></code></pre>
+
+If minica was used then the following would be used:
+
+<pre><code><b>
+kubectl create -n istio-system secret generic platform-services-tls-cert \
+    --from-file=key=./minica/platform-services.cognizant-ai.net/key.pem \
+    --from-file=cert=./minica/platform-services.cognizant-ai.net/cert.pem
 </b></code></pre>
 
 ## Deploying the Observability proxy server
@@ -375,10 +450,9 @@ sudo kubectl create -n istio-system secret generic platform-services-tls-cert \
 This proxy server is used to forward tracing and metrics from your istio mesh based deployment to the Honeycomb service.
 
 <pre><code><b>
-stencil < honeycomb-opentracing-proxy.yaml | kubectl apply -f -
-stencil < new-telemetry.yaml | kubectl apply -f -
-stencil < honeycomb-agent.yaml | kubectl apply -f -</b></code></pre>
-
+helm repo rm honeycomb || true
+helm repo add honeycomb https://honeycombio.github.io/helm-charts
+helm install opentelemetry-collector honeycomb/opentelemetry-collector --set honeycomb.apiKey=$O11Y_KEY --set honeycomb.dataset=$O11Y_DATASET
 </b></code></pre>
 
 In order to instrument the base Kubernetes deployment for us with honeycomb you should follow the instructions found at https://docs.honeycomb.io/getting-data-in/integrations/kubernetes/.
@@ -397,7 +471,7 @@ The first step is to install the postgres 11 client on your system and then to p
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list'
 sudo apt-get -y update
-sudo apt-get -y upgrade postgresql-client-11
+sudo apt-get -y --upgrade postgresql-client-11
 </code></pre>
 
 ### Deploying an in-cluster Database
@@ -409,59 +483,42 @@ A secrets file containing host information, passwords and other secrets is assum
 In order to deploy Postgres this document describes a helm based approach.  The bitnami postgresql distribution can be installed using the following:
 
 <pre><code><b>
-helm install --name $PGRELEASE \
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm install $PGRELEASE \
   --set postgresqlPassword=$PGPASSWORD,postgresqlDatabase=postgres\
-  stable/postgresql
-</b></code></pre>
-
-Special note should be taken of the output from the helm command it has a lot of valuable information concerning your postgres deployment that will be needed when you load the database schema.
-
-<pre><code>
-NAME:   internal-seasnail
-LAST DEPLOYED: Tue May 21 14:25:32 2019
+  bitnami/postgresql
+</b>
+NAME: wondrous-sturgeon
+LAST DEPLOYED: Mon Dec 28 12:08:20 2020
 NAMESPACE: default
-STATUS: DEPLOYED
-
-RESOURCES:
-==> v1/Pod(related)
-NAME                            READY  STATUS   RESTARTS  AGE
-internal-seasnail-postgresql-0  0/1    Pending  0         0s
-
-==> v1/Secret
-NAME                          TYPE    DATA  AGE
-internal-seasnail-postgresql  Opaque  1     0s
-
-==> v1/Service
-NAME                                   TYPE       CLUSTER-IP     EXTERNAL-IP  PORT(S)   AGE
-internal-seasnail-postgresql           ClusterIP  100.64.75.251  <none>       5432/TCP  0s
-internal-seasnail-postgresql-headless  ClusterIP  None           <none>       5432/TCP  0s
-
-==> v1beta2/StatefulSet
-NAME                          READY  AGE
-internal-seasnail-postgresql  0/1    0s
-
-
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
 NOTES:
 ** Please be patient while the chart is being deployed **
 
 PostgreSQL can be accessed via port 5432 on the following DNS name from within your cluster:
 
-    internal-seasnail-postgresql.default.svc.cluster.local - Read/Write connection
+    wondrous-sturgeon-postgresql.default.svc.cluster.local - Read/Write connection
+
 To get the password for "postgres" run:
 
-    export POSTGRES_PASSWORD=$(kubectl get secret --namespace default internal-seasnail-postgresql -o jsonpath="{.data.postgresql-password}" | base64 --decode)
+    export POSTGRES_PASSWORD=$(kubectl get secret --namespace default wondrous-sturgeon-postgresql -o jsonpath="{.data.postgresql-password}" | base64 --decode)
 
 To connect to your database run the following command:
 
-    kubectl run internal-seasnail-postgresql-client --rm --tty -i --restart='Never' --namespace default --image docker.io/bitnami/postgresql:11.3.0 --env="PGPASSWORD=$POSTGRES_PASSWORD" --command -- psql --host internal-seasnail-postgresql -U $PGUSER -d $PGDATABASE
+    kubectl run wondrous-sturgeon-postgresql-client --rm --tty -i --restart='Never' --namespace default --image docker.io/bitnami/postgresql:11.10.0-debian-10-r24 --env="PGPASS
+WORD=$POSTGRES_PASSWORD" --command -- psql --host wondrous-sturgeon-postgresql -U postgres -d postgres -p 5432
 
 
 
 To connect to your database from outside the cluster execute the following commands:
 
-    kubectl port-forward --namespace default svc/internal-seasnail-postgresql 5432:5432 &
-    PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U $PGUSER -d $PGDATABASE
+    kubectl port-forward --namespace default svc/wondrous-sturgeon-postgresql 5432:5432 &
+    PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432
 </code></pre>
+
+Special note should be taken of the output from the helm command it has a lot of valuable information concerning your postgres deployment that will be needed when you load the database schema.
 
 Setting up the proxy will be needed prior to running the SQL database provisioning scripts.  When doing this prior to running the postgres client set the PGHOST environment variable to 127.0.0.1 so that the proxy on the localhost is used.  The proxy will timeout after inactivity and shutdown so be prepared to restart it when needed.
 
