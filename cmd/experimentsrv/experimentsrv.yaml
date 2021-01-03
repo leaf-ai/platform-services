@@ -11,15 +11,6 @@
 # The empty prefix is used to allow the default route to the experiment service
 # so that reflection, and health checking is defaulted to it.
 #
-apiVersion: rbac.istio.io/v1alpha1
-kind: ClusterRbacConfig
-metadata:
-  name: default
-spec:
-  mode: 'ON_WITH_INCLUSION'
-  inclusion:
-    namespaces: ["default"]
----
 apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
@@ -45,67 +36,35 @@ spec:
     tls:
       mode: SIMPLE
       credentialName: "platform-services-tls-cert"
-#
-# Authentication is still an alpha feature so retain the service side validation and make
-# mesh authentication optional as it is not yet stable
-#
 ---
-apiVersion: authentication.istio.io/v1alpha1
-kind: Policy
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
 metadata:
   name: experiment-auth-policy
   namespace: istio-system
 spec:
-  targets:
-  - name: istio-ingressgateway
-  peers:
-  - mtls: {}
-  origins:
-  - jwt:
-      issuer: "https://cognizant-ai.auth0.com/"
+  selector:
+    matchLabels:
+      istio: ingressgateway
+  jwtRules:
+    - issuer: "https://cognizant-ai.auth0.com/"
       jwksUri: "https://cognizant-ai.auth0.com/.well-known/jwks.json"
       audiences:
         - "http://api.cognizant-ai.dev/experimentsrv"
-      triggerRules:
-      - excluded_paths:
-          - prefix: "/grpc.reflection.v1alpha.ServerReflection/"
-  principalBinding: USE_ORIGIN
 ---
-apiVersion: config.istio.io/v1alpha2
-kind: rule
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
 metadata:
-  name: experiment-add-auth-headers
-  namespace: istio-system
+  name: require-jwt
 spec:
-  match: source.labels["istio"] == "ingressgateway"
-  actions:
-  - handler: keyval.istio-system
-    instances: [ keyval ]
-  request_header_operations:
-  - name: X-company-userId
-    values:
-    - request.auth.claims["sub"]
----
-apiVersion: rbac.istio.io/v1alpha1
-kind: ServiceRole
-metadata:
-  name: service-user
-spec:
+  selector:
+    matchLabels:
+      app: experiment
+  action: ALLOW
   rules:
-  - services: ["*"]
----
-apiVersion: rbac.istio.io/v1alpha1
-kind: ServiceRoleBinding
-metadata:
-  name: all-authenticated-users
-spec:
-  subjects:
-  - properties:
-      source.principal: "*"
-#      request.auth.claims[scope]: "all:experiments"
-  roleRef:
-    kind: ServiceRole
-    name: service-user
+  - from:
+    - source:
+       requestPrincipals: ["https://cognizant-ai.auth0.com//auth0|5dd5df076288170d281d4a09"]
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
@@ -136,6 +95,14 @@ spec:
     tls:
       mode: ISTIO_MUTUAL
 ---
+apiVersion: "security.istio.io/v1beta1"
+kind: "PeerAuthentication"
+metadata:
+  name: "default"
+spec:
+  mtls:
+    mode: STRICT
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -159,7 +126,7 @@ metadata:
 spec:
   replicas: 1
   selector:
-      matchlabels:
+      matchLabels:
           app: experiment
   template:
     metadata:

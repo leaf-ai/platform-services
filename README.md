@@ -68,7 +68,7 @@ These deployment instructions are intended for use with the Ubuntu 18.04 LTS dis
 
 The following instructions make use of the stencil tool for templating configuration files.
 
-This major section describes two basic alternatives for deployment, AWS kops, and locally hosted kind (kubernetes in docker).  Other Kubernetes distribution and deployment models will work but are not explicitly described here.
+This major section describes two basic alternatives for deployment, AWS kops, and locally hosted KinD (kubernetes in docker).  Other Kubernetes distribution and deployment models will work but are not explicitly described here.
 
 ## Verify Docker Version
 
@@ -146,7 +146,7 @@ Client Version: version.Info{Major:"1", Minor:"20", GitVersion:"v1.20.0", GitCom
 
 ## Kubernetes
 
-The experimentsrv component comes with an Istio definition file for deployment into AWS, or kind using Kubernetes (k8s) and Istio.
+The experimentsrv component comes with an Istio definition file for deployment into AWS, or KinD using Kubernetes (k8s) and Istio.
 
 The deployment definition file can be found at cmd/experimentsrv/experimentsrv.yaml.
 
@@ -156,9 +156,11 @@ Using AWS k8s will use both the kops, and the kubectl tools. You should have an 
 
 This documentation Kubernetes describes several means by which Kubernetes clusters can be installed, choose one however there are many other alternatives also available.
 
-### Installating Kubernetes in Docker (kind)
+### Installating Kubernetes in Docker (KinD)
 
-kind provides a means by which a kubernetes cluster can be installed using the Docker Desktop platform, or on linux plain docker.  kind installation is supported by arkade.
+The KinD installation will typically need a registry included in order for cluster images to be pulled.  An AWS registry could be used however this would negate the objective of having a local registry and no dependency on AWS.
+
+KinD provides a means by which a kubernetes cluster can be installed using the Docker Desktop platform, or on linux plain docker.  KinD installation is supported by arkade and installed as follows:.
 
 ```
 $ ark get kind
@@ -175,7 +177,12 @@ export PATH=$PATH:$HOME/.arkade/bin/
 
 # Or install with:
 sudo mv /home/kmutch/.arkade/bin/kind /usr/local/bin/
-$ kind create cluster --wait 90s
+```
+
+The KinD cluster and the registry can be installed using a script within the source code repository, 'kind\_install.sh'.  This script will first check to see if there is a image registry already running on your local docker instance and if not will start one, it will then initialize a KinD instance that trusts your local registry.
+
+```
+$ /bin/sh ./kind_install.sh
 Creating cluster "kind" ...
  ✓ Ensuring node image (kindest/node:v1.19.1) 🖼
  ✓ Preparing nodes 📦
@@ -183,15 +190,13 @@ Creating cluster "kind" ...
  ✓ Starting control-plane 🕹️
  ✓ Installing CNI 🔌
  ✓ Installing StorageClass 💾
- ✓ Waiting ≤ 1m30s for control-plane = Ready ⏳
- • Ready after 27s 💚
 Set kubectl context to "kind-kind"
 You can now use your cluster with:
 
 kubectl cluster-info --context kind-kind
 
-Have a question, bug, or feature request? Let us know! https://kind.sigs.k8s.io/#community 🙂
-
+Thanks for using kind! 😊
+configmap/local-registry-hosting created
 $ kubectl config set-context  --namespace=default kind-kind
 Context "kind-kind" modified.
 $ kubectl get nodes
@@ -290,7 +295,6 @@ export ISTIO_DIR=`pwd`/istio-1.8.1
 export PATH=$ISTIO_DIR/bin:$PATH
 cd -
 istioctl install --set profile=demo -y 
-# -f istio-config.yaml
 </b>
 
 </code></pre>
@@ -307,7 +311,7 @@ helm repo update
 
 ## Encryption
 
-This section describes how to secure traffic into the service mesh ingress.  Lets Encrypt is an internet based service for provisioning certificates.  If you are using a locally deployed mesh within kind for example you will need to use the minica approach.
+This section describes how to secure traffic into the service mesh ingress.  Lets Encrypt is an internet based service for provisioning certificates.  If you are using a locally deployed mesh within KinD for example you will need to use the minica approach.
 
 ### minica
 
@@ -336,7 +340,7 @@ $
 
 ### Lets Encrypt
 
-letsencrypt is a public SSL/TLS certificate provider intended for use with the open internet that is being used to secure our service mesh for this project. The lets encrypt provisioning tool can be installed from github and accessed to produce TLS certificates for your service.  If you are deploying on kind or a local installation then lets encrypt is not supported and using minica, https://github.com/jsha/minica, is recommended instead for testing purposes.
+letsencrypt is a public SSL/TLS certificate provider intended for use with the open internet that is being used to secure our service mesh for this project. The lets encrypt provisioning tool can be installed from github and accessed to produce TLS certificates for your service.  If you are deploying on KinD or a local installation then lets encrypt is not supported and using minica, https://github.com/jsha/minica, is recommended instead for testing purposes.
 
 Prior to running the lets encrypt tools you should identify the desired DNS hostname and email you wish to use for your example service cluster.  In our example we have a domain registered as, cognizant-ai.net.  This domain is available to us as an administrator, and we have choosen to use the host name platform-service.cognizant-ai.net as the services hostname.
 
@@ -455,7 +459,7 @@ helm repo add honeycomb https://honeycombio.github.io/helm-charts
 helm install opentelemetry-collector honeycomb/opentelemetry-collector --set honeycomb.apiKey=$O11Y_KEY --set honeycomb.dataset=$O11Y_DATASET
 </b></code></pre>
 
-In order to instrument the base Kubernetes deployment for us with honeycomb you should follow the instructions found at https://docs.honeycomb.io/getting-data-in/integrations/kubernetes/.
+In order to instrument the base Kubernetes deployment for use with honeycomb you should follow the instructions found at https://docs.honeycomb.io/getting-data-in/integrations/kubernetes/.
 
 The dataset used by the istio and services deployed within this project also needs configuration to allow the Honeycomb platform to identify import fields.  Once data begins flowing into the data set you can navigate to the definitions section for the dataset and set the 'Name' item to the name field, 'Parent span ID' item to parentId, 'Service name' to serviceName, 'Span duration' to durationMs, 'Span ID' to id, and finally 'Trace ID' to traceId.
 
@@ -533,7 +537,9 @@ Further information about how to deployed the service specific database for the 
 
 ## Deploying into the Istio mesh
 
-### Configuring the service DNS (Critical Step)
+This section describes the activities for deployment of the services provided by the Plaform PoC.  The first two sections provide a description of how to deploy the TLS secured ingress for the service mesh, the first being for cloud provisioned systems and the second for the localized KinD based deployment.
+
+### Configuring the service cloud based DNS (Critical Step)
 
 When using this mesh instance with a TLS based deployment the DNS domain name used for the LetsEncrypt certificate (CN), will need to have its address record (A) updated to point at the AWS load balancer assigned to the Kubernetes cluster.  In AWS this is done via Route53:
 
@@ -548,6 +554,8 @@ Take the IP addresses from the above output and use these as the A record for th
 curl -Iv https://platform-services.cognizant-ai.net:$SECURE_INGRESS_PORT
 export INGRESS_HOST=platform-services.cognizant-ai.net:$SECURE_INGRESS_PORT
 </b></code></pre>
+
+### Configuring the KinD ingress (Critical Step)
 
 ### Service deployment overview
 

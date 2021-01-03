@@ -57,13 +57,13 @@ spec:
             secretKeyRef:
               name: honeycomb-writekey
               key: dataset
-      resources:
-        requests:
-          memory: "256Mi"
-          cpu: "100m"
-        limits:
-          memory: "512Mi"
-          cpu: "100m"
+        resources:
+            requests:
+                memory: "256Mi"
+                cpu: "100m"
+            limits:
+                memory: "512Mi"
+                cpu: "100m"
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
