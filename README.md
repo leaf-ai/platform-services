@@ -407,7 +407,7 @@ Once the certificate generation is complete you will have the certificate saved 
 
 After the certificate has been issue feel free to delete the TXT record that served as proof of ownership as it is no longer needed.
 
-## Configuration of secrets
+## Configuration of secrets and cluster access
 
 This project makes use of several secrets that are used to access resources under its control, including the Postgres Database, the Honeycomb service, and the lets encrypt issues certificate.
 
@@ -447,6 +447,13 @@ If minica was used then the following would be used:
 kubectl create -n istio-system secret generic platform-services-tls-cert \
     --from-file=key=./minica/platform-services.cognizant-ai.net/key.pem \
     --from-file=cert=./minica/platform-services.cognizant-ai.net/cert.pem
+</b></code></pre>
+
+In order to access you cluster you will need to define some environment variables that will be used later in these instruction:
+
+<pre><code><b>
+export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
+export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
 </b></code></pre>
 
 ## Deploying the Observability proxy server
@@ -539,6 +546,13 @@ Further information about how to deployed the service specific database for the 
 
 This section describes the activities for deployment of the services provided by the Plaform PoC.  The first two sections provide a description of how to deploy the TLS secured ingress for the service mesh, the first being for cloud provisioned systems and the second for the localized KinD based deployment.
 
+### Configuring the KinD ingress (Critical Step)
+
+<pre><code><b>
+export INGRESS_HOST=$(kubectl get po -l istio=ingressgateway -n istio-system -o jsonpath='{.items[0].status.hostIP}')
+export CLUSTER_INGRESS=$INGRESS_HOST:$SECURE_INGRESS_PORT
+</b></code></pre>
+
 ### Configuring the service cloud based DNS (Critical Step)
 
 When using this mesh instance with a TLS based deployment the DNS domain name used for the LetsEncrypt certificate (CN), will need to have its address record (A) updated to point at the AWS load balancer assigned to the Kubernetes cluster.  In AWS this is done via Route53:
@@ -549,13 +563,6 @@ dig +short $INGRESS_HOST
 </b></code></pre>
 
 Take the IP addresses from the above output and use these as the A record for the LetsEncrypt host name, platform-services.cognizant-ai.net, and this will enable accessing the mesh and validation of the common name (CN) in the certificate.  After several minutes, you should test this step by using the following command to verify that the certificate negotiation is completed.
-
-<pre><code><b>
-curl -Iv https://platform-services.cognizant-ai.net:$SECURE_INGRESS_PORT
-export INGRESS_HOST=platform-services.cognizant-ai.net:$SECURE_INGRESS_PORT
-</b></code></pre>
-
-### Configuring the KinD ingress (Critical Step)
 
 ### Service deployment overview
 
@@ -571,21 +578,98 @@ ip-172-20-55-189.us-west-2.compute.internal    Ready     master    18m       v1.
 Once secrets are loaded individual services can be deployed from a checked out developer copy of the service repo using a command like the following :
 
 <pre><code><b>cd ~/project/src/github.com/leaf-ai/platform-services</b>
-<b>cd cmd/[service] ; kubectl apply -f \<(istioctl kube-inject -f \<( stencil [service].yaml 2>/dev/null)" ); cd - </b>
+<b>cd cmd/[service] ; kubectl apply -f \<(stencil [service].yaml 2>/dev/null); cd - </b>
 </code></pre>
 
 A minimal set of servers for test is to use the downstream and experiment servers as follows:
 
 ```
-kubectl apply -f <(istioctl kube-inject -f <(cd cmd/downstream ; stencil < downstream.yaml)) && \
-kubectl apply -f <(istioctl kube-inject -f <(cd cmd/experimentsrv/ ; stencil < experimentsrv.yaml))
+kubectl apply -f <(cd cmd/downstream > /dev/null ; stencil < downstream.yaml) && \
+kubectl apply -f <(cd cmd/experimentsrv > /dev/null ; stencil < experimentsrv.yaml)
 ```
 
-In order to locate the image repository the stencil tool will test for the presence of AWS credentials and if found will use the account as the source of AWS ECR images.  In the case where the credentials are not present then the default microk8s registry will be used for image deployment.
+In order to locate the image repository the stencil tool will test for the presence of AWS credentials and if found will use the account as the source of AWS ECR images.  In the case where the credentials are not present then the default localhost registry will be used for image deployment.
 
 Once the application is deployed you can discover the gateway points within the kubernetes cluster by using the kubectl commands as documented in the cmd/experimentsrv/README.md file.
 
 More information about deploying a real service and using the experimentsrv server can be found at, https://github.com/leaf-ai/platform-services/blob/master/cmd/experimentsrv/README.md.
+
+### Testing connectivity using KinD
+
+Once the initial services have been deployed the connectivity can be tested using the following:
+
+<pre><code><b>curl -Iv --cacert minica/platform-services.cognizant-ai .net/../minica.pem --header "Host: platform-services.cognizant-ai.net"  --connect-to "platform-services.cognizant-ai.net:$SECURE_INGRESS_PORT:$CLUSTER_INGRESS" https://platform-services.cognizant-ai.net:$SECURE_INGRESS_PORT
+</b>
+* Rebuilt URL to: https://platform-services.cognizant-ai.net:30017/
+* Connecting to hostname: 172.20.0.2
+* Connecting to port: 30017
+*   Trying 172.20.0.2...
+* TCP\_NODELAY set
+* Connected to 172.20.0.2 (172.20.0.2) port 30017 (#0)
+* ALPN, offering h2
+* ALPN, offering http/1.1
+* successfully set certificate verify locations:
+*   CAfile: minica/platform-services.cognizant-ai.net/../minica.pem
+  CApath: /etc/ssl/certs
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+* TLSv1.3 (IN), TLS Unknown, Certificate Status (22):
+* TLSv1.3 (IN), TLS handshake, Unknown (8):
+* TLSv1.3 (IN), TLS handshake, Certificate (11):
+* TLSv1.3 (IN), TLS handshake, CERT verify (15):
+* TLSv1.3 (IN), TLS handshake, Finished (20):
+* TLSv1.3 (OUT), TLS change cipher, Client hello (1):
+* TLSv1.3 (OUT), TLS Unknown, Certificate Status (22):
+* TLSv1.3 (OUT), TLS handshake, Finished (20):
+* SSL connection using TLSv1.3 / TLS\_AES\_256\_GCM\_SHA384
+* ALPN, server accepted to use h2
+* Server certificate:
+*  subject: CN=platform-services.cognizant-ai.net
+*  start date: Dec 23 18:10:54 2020 GMT
+*  expire date: Jan 22 18:10:54 2023 GMT
+*  subjectAltName: host "platform-services.cognizant-ai.net" matched cert's "platform-services.cognizant-ai.net"
+*  issuer: CN=minica root ca 34d475
+*  SSL certificate verify ok.
+* Using HTTP2, server supports multi-use
+* Connection state changed (HTTP/2 confirmed)
+* Copying HTTP/2 data in stream buffer to connection buffer after upgrade: len=0
+* TLSv1.3 (OUT), TLS Unknown, Unknown (23):
+* TLSv1.3 (OUT), TLS Unknown, Unknown (23):
+* TLSv1.3 (OUT), TLS Unknown, Unknown (23):
+* Using Stream ID: 1 (easy handle 0x5584d85765c0)
+* TLSv1.3 (OUT), TLS Unknown, Unknown (23):
+\> HEAD / HTTP/2
+\> Host: platform-services.cognizant-ai.net
+\> User-Agent: curl/7.58.0
+\> Accept: */*
+\>
+* TLSv1.3 (IN), TLS Unknown, Certificate Status (22):
+* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+* TLSv1.3 (IN), TLS Unknown, Unknown (23):
+* Connection state changed (MAX\_CONCURRENT\_STREAMS updated)!
+* TLSv1.3 (OUT), TLS Unknown, Unknown (23):
+* TLSv1.3 (IN), TLS Unknown, Unknown (23):
+\< HTTP/2 404
+HTTP/2 404
+\< date: Mon, 04 Jan 2021 19:50:31 GMT
+date: Mon, 04 Jan 2021 19:50:31 GMT
+\< server: istio-envoy
+server: istio-envoy
+
+\<
+* Connection #0 to host 172.20.0.2 left intact
+</code></pre>
+
+### Testing connectivity using Cloud based solutions
+
+A very basic test of the TLS negotiation can be done using the curl command:
+
+<pre><code><b>
+curl -Iv https://helloworld.letsencrypt.org
+curl -Iv https://platform-services.cognizant-ai.net:$SECURE_INGRESS_PORT
+export INGRESS_HOST=platform-services.cognizant-ai.net:$SECURE_INGRESS_PORT
+</b></code></pre>
 
 ### Debugging
 
@@ -726,13 +810,6 @@ function (user, context, callback) {
 
 When using the gRPC services within a secured cluster these instructions can be used to access and exercise the services.
 
-A very basic test of the TLS can be done using the curl command:
-
-<pre><code><b>
-curl -Iv https://helloworld.letsencrypt.org
-curl -Iv https://platform-services.cognizant-ai.net:$SECURE_INGRESS_PORT
-</b></code></pre>
-
 An example client for running a simple ping style test against the cluster is provided in the cmd/cli-experiment directory.  This client acts as a test for the presence of the service.  If the commands to obtain a JWT have been followed then this command can be run against the cluster as follows:
 
 <pre><code><b>
@@ -749,7 +826,7 @@ When using the gRPC services within an unsecured cluster these instructions can 
 
 A pre-requiste of manually invoking GRPC servcies is that the grpc_cli tooling is installed.  The instructions for doing this can be found within the grpc source code repository at, https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md.
 
-The following instructions identify a $INGRESS_HOST value for cases where a LoadBalancer is being used.  If you are using minikube or microk8s and the cluster is hosted locally then the INGRESS_HOST value should be 127.0.0.1 for the following instructions.
+The following instructions identify a $INGRESS_HOST value for cases where a LoadBalancer is being used.  If you are using Kubernetes in Docker and the cluster is hosted locally then the INGRESS_HOST value should be 127.0.0.1 for the following instructions.
 
 Services used within the platform require that not only is the link integrity and security is maintained using mTLS but that an authorization block is also supplied to verify the user requesting a service.  The authorization can be supplied when using the gRPC command line tool using the metadata options.  First we retrieve a token using curl and then make a request against the service, run in this case as a local docker container, as follows:
 

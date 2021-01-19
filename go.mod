@@ -10,12 +10,12 @@ require (
 	github.com/Masterminds/squirrel v1.1.0
 	github.com/Microsoft/go-winio v0.4.16 // indirect
 	github.com/auth0-community/go-auth0 v1.0.0
-	github.com/aws/aws-sdk-go v1.36.13 // indirect
+	github.com/aws/aws-sdk-go v1.36.28 // indirect
 	github.com/containerd/containerd v1.4.3 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/docker/distribution v2.7.1+incompatible // indirect
-	github.com/docker/docker v20.10.1+incompatible // indirect
+	github.com/docker/docker v20.10.2+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/eknkc/basex v1.0.0 // indirect
@@ -24,18 +24,19 @@ require (
 	github.com/go-chi/render v1.0.1
 	github.com/go-openapi/errors v0.19.9
 	github.com/go-openapi/loads v0.20.0
-	github.com/go-openapi/runtime v0.19.24
-	github.com/go-openapi/spec v0.20.0
-	github.com/go-openapi/strfmt v0.19.11
-	github.com/go-openapi/swag v0.19.12
-	github.com/go-openapi/validate v0.20.0
+	github.com/go-openapi/runtime v0.19.26
+	github.com/go-openapi/spec v0.20.1
+	github.com/go-openapi/strfmt v0.20.0
+	github.com/go-openapi/swag v0.19.13
+	github.com/go-openapi/validate v0.20.1
 	github.com/go-stack/stack v1.8.0
 	github.com/go-swagger/go-swagger v0.25.0 // indirect
 	github.com/go-test/deep v1.0.1
 	github.com/go-yaml/yaml v2.1.0+incompatible // indirect
-	github.com/gogo/protobuf v1.3.1 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20190129154638-5b532d6fd5ef
 	github.com/golang/protobuf v1.4.3
+	github.com/google/uuid v1.1.5 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/honeycombio/opencensus-exporter v1.0.1
@@ -60,6 +61,7 @@ require (
 	github.com/mgutz/logxi v0.0.0-20170321173016-3753102df44e
 	github.com/mitchellh/copystructure v1.0.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
+	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/mitchellh/reflectwalk v1.0.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
@@ -73,14 +75,14 @@ require (
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
 	go.opencensus.io v0.22.0
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad // indirect
-	golang.org/x/mod v0.4.0 // indirect
-	golang.org/x/net v0.0.0-20201216054612-986b41b23924
+	golang.org/x/mod v0.4.1 // indirect
+	golang.org/x/net v0.0.0-20201224014010-6772e930b67b
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	golang.org/x/sys v0.0.0-20201221093633-bc327ba9c2f0 // indirect
-	golang.org/x/text v0.3.4 // indirect
-	golang.org/x/tools v0.0.0-20201221201019-196535612888 // indirect
-	google.golang.org/genproto v0.0.0-20201214200347-8c77b98c765d // indirect
-	google.golang.org/grpc v1.34.0
+	golang.org/x/sys v0.0.0-20210113181707-4bcb84eeeb78 // indirect
+	golang.org/x/text v0.3.5 // indirect
+	golang.org/x/tools v0.0.0-20210115202250-e0d201561e39 // indirect
+	google.golang.org/genproto v0.0.0-20210114201628-6edceaf6022f // indirect
+	google.golang.org/grpc v1.35.0
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/ini.v1 v1.62.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1

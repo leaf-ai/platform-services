@@ -4,7 +4,7 @@ linters-settings:
   golint:
     min-confidence: 0
   gocyclo:
-    min-complexity: 31
+    min-complexity: 30
   maligned:
     suggest-new: true
   dupl:
@@ -12,36 +12,31 @@ linters-settings:
   goconst:
     min-len: 2
     min-occurrences: 4
-
 linters:
   enable-all: true
   disable:
     - maligned
     - lll
-    - gochecknoinits
     - gochecknoglobals
     - godox
     - gocognit
     - whitespace
     - wsl
     - funlen
+    - gochecknoglobals
+    - gochecknoinits
+    - scopelint
     - wrapcheck
-    - testpackage
+    - exhaustivestruct
+    - exhaustive
     - nlreturn
+    - testpackage
+    - gci
     - gofumpt
     - goerr113
-    - gci
     - gomnd
+    - tparallel
+    - nestif
     - godot
-    - exhaustivestruct
-    - paralleltest
-    #- thelper
-
-issues:
-  exclude-rules:
-    - path: bson.go
-      text: "should be .*ObjectID"
-      linters:
-        - golint
-        - stylecheck
-
+    - errorlint
+    - noctx

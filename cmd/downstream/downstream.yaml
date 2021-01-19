@@ -34,7 +34,7 @@ spec:
         {{if .duat.awsecr}}
         image: {{.duat.awsecr}}/platform-services/{{.duat.module}}:{{.duat.version}}
         {{else}}
-        image: localhost:32000/platform-services/{{.duat.module}}:{{.duat.version}}
+        image: localhost:5000/platform-services/{{.duat.module}}:{{.duat.version}}
         {{end}}
         imagePullPolicy: Always
         ports:
@@ -50,12 +50,12 @@ spec:
         - name: "O11Y_KEY"
           valueFrom:
             secretKeyRef:
-              name: honeycomb-writekey
+              name: honeycomb-key
               key: apikey
         - name: "O11Y_DATASET"
           valueFrom:
             secretKeyRef:
-              name: honeycomb-writekey
+              name: honeycomb-key
               key: dataset
         resources:
             requests:
