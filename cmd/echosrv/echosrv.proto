@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package dev.cognizant_ai.echo;
+option go_package = "platform-services/genproto/platform-services/echo/v1;echo";
 
 import "google/protobuf/timestamp.proto";
 

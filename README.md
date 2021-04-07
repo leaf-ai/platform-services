@@ -1,7 +1,7 @@
 # platform-services
 A public PoC with functioning services using a simple Istio Mesh running on K8s
 
-Version : <repo-version>0.9.0-master-aaaagpsihzg</repo-version>
+Version : <repo-version>0.9.0-master-aaaagqrfhew</repo-version>
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/leaf-ai/platform-services/blob/master/LICENSE) [![Go Report Card](https://goreportcard.com/badge/leaf-ai/platform-services)](https://goreportcard.com/report/leaf-ai/platform-services)
 
@@ -19,7 +19,7 @@ This project is intended as a sand-box for experimenting with Istio and some of 
 
 # Installation
 
-These instructions were used with Kubernetes 1.16.x, and Istio 1.8.1.
+These instructions were used with Kubernetes 1.19.x, and Istio 1.9.1.
 
 ## Development and Building from source
 
@@ -75,7 +75,7 @@ This major section describes two basic alternatives for deployment, AWS kops, an
 Docker for Ubuntu can be retrieved from the snap store using the following:
 <pre><code><b>sudo snap install docker
 docker --version</b>
-Docker version 18.09.9, build 1752eb3
+Docker version 19.03.13, build cd8016b6bc
 </code></pre>
 You should have a similar or newer version.
 
@@ -88,7 +88,8 @@ arkade provides a means for installation of Kubernetes and related software pack
 ```
 $ curl -sLS https://dl.get-arkade.dev | sudo sh
 x86_64
-Downloading package https://github.com/alexellis/arkade/releases/download/0.6.35/arkade as /tmp/arkade
+x86_64
+Downloading package https://github.com/alexellis/arkade/releases/download/0.7.10/arkade as /tmp/arkade
 Download complete.
 
 Running with sufficient permissions to attempt to move arkade to /usr/local/bin
@@ -102,8 +103,8 @@ Creating alias 'ark' for 'arkade'.
 
 Get Kubernetes apps the easy way
 
-Version: 0.6.35
-Git Commit: df53c4f6d9c604186b36aae7f0feb1d39940be8f
+Version: 0.7.10
+Git Commit: 0931a3af1754c0e5fdd4013b666cdac2821a300d
 ```
 
 arkcade will use an account specific location for executables which you should add to your path.
@@ -118,8 +119,8 @@ Installing the kubectl CLI can be done using arkade.
 
 <pre><code><b>ark get kubectl</b>
 Downloading kubectl
-https://storage.googleapis.com/kubernetes-release/release/v1.18.0/bin/linux/amd64/kubectl
-41.98 MiB / 41.98 MiB [-------------------------------------------------------------------------------------------------------------------------------------------------] 100.00%
+https://storage.googleapis.com/kubernetes-release/release/v1.20.0/bin/linux/amd64/kubectl
+38.37 MiB / 38.37 MiB [-------------------------------------------------------------------------------------------------------------------------------------] 100.00%
 Tool written to: /home/kmutch/.arkade/bin/kubectl
 
 # Add (kubectl) to your PATH variable
@@ -208,6 +209,95 @@ After this the next step is to proceed to the certificates installation section.
 
 ### Installing AWS Kubernetes
 
+The current preferred approach to deploying on AWS is to make use of EKS via the eksctl tool.  The kops instructions in this section are provided for older deployments.
+
+#### Using eksctl with auto-scaling
+
+To install eksctl the following should be done.
+
+```
+$ curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+$ sudo mv /tmp/eksctl /usr/local/bin
+$ eksctl version
+```
+
+
+A basic cluster with auto scaling can be initialized using eksctl and then the addition of the auto-scaler from the Kubernetes project can be used to scale out the project.  The example eks-cluster.yaml file contains the definitions of a cluster within the us-west-2 region, named platform-services.  Before deploying a long lived cluster it is worth while considering cost savings options which are described at the following URL, https://aws.amazon.com/ec2/cost-and-capacity/.
+
+Cluster creation can be performed using the following:
+
+<pre><code><b>export AWS_ACCOUNT=`aws sts get-caller-identity --query Account --output text`
+aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin $AWS_ACCOUNT.dkr.ecr.us-west-2.amazonaws.com
+export AWS_ACCESS_KEY=xxx
+export AWS_SECRET_ACCESS_KEY=xxx
+export AWS_DEFAULT_REGION=xxx
+sudo ntpdate ntp.ubuntu.com
+export KUBECONFIG=~/.kube/config
+export AWS_CLUSTER_NAME=test-eks
+eksctl create cluster -f eks-cluster.yaml</b>
+2021-04-06 13:39:37 [ℹ]  eksctl version 0.43.0
+2021-04-06 13:39:37 [ℹ]  using region us-west-2
+2021-04-06 13:39:37 [ℹ]  subnets for us-west-2a - public:192.168.0.0/19 private:192.168.96.0/19
+2021-04-06 13:39:37 [ℹ]  subnets for us-west-2b - public:192.168.32.0/19 private:192.168.128.0/19
+2021-04-06 13:39:37 [ℹ]  subnets for us-west-2d - public:192.168.64.0/19 private:192.168.160.0/19
+2021-04-06 13:39:37 [ℹ]  nodegroup "overhead" will use "ami-0a93391193b512e5d" [AmazonLinux2/1.19]
+2021-04-06 13:39:37 [ℹ]  using SSH public key "/home/kmutch/.ssh/id_rsa.pub" as "eksctl-test-eks-nodegroup-overhead-be:07:a0:27:44:d8:27:04:c2:ba:28:fa:8c:47:7f:09"
+2021-04-06 13:39:37 [ℹ]  using Kubernetes version 1.19
+2021-04-06 13:39:37 [ℹ]  creating EKS cluster "test-eks" in "us-west-2" region with un-managed nodes
+2021-04-06 13:39:37 [ℹ]  1 nodegroup (overhead) was included (based on the include/exclude rules)
+2021-04-06 13:39:37 [ℹ]  will create a CloudFormation stack for cluster itself and 1 nodegroup stack(s)
+2021-04-06 13:39:37 [ℹ]  will create a CloudFormation stack for cluster itself and 0 managed nodegroup stack(s)
+2021-04-06 13:39:37 [ℹ]  if you encounter any issues, check CloudFormation console or try 'eksctl utils describe-stacks --region=us-west-2 --cluster=test-eks'
+2021-04-06 13:39:37 [ℹ]  Kubernetes API endpoint access will use default of {publicAccess=true, privateAccess=false} for cluster "test-eks" in "us-west-2"
+2021-04-06 13:39:37 [ℹ]  2 sequential tasks: { create cluster control plane "test-eks", 3 sequential sub-tasks: { 3 sequential sub-tasks: { wait for control plane to
+ become ready, tag cluster, update CloudWatch logging configuration }, create addons, create nodegroup "overhead" } }
+2021-04-06 13:39:37 [ℹ]  building cluster stack "eksctl-test-eks-cluster"
+2021-04-06 13:39:38 [ℹ]  deploying stack "eksctl-test-eks-cluster"
+2021-04-06 13:40:08 [ℹ]  waiting for CloudFormation stack "eksctl-test-eks-cluster"
+2021-04-06 13:40:38 [ℹ]  waiting for CloudFormation stack "eksctl-test-eks-cluster"
+...
+2021-04-06 13:52:39 [ℹ]  waiting for CloudFormation stack "eksctl-test-eks-cluster"
+2021-04-06 13:53:39 [ℹ]  waiting for CloudFormation stack "eksctl-test-eks-cluster"
+2021-04-06 13:53:39 [✔]  tagged EKS cluster (environment=test-eks)
+2021-04-06 13:53:40 [ℹ]  waiting for requested "LoggingUpdate" in cluster "test-eks" to succeed
+2021-04-06 13:53:57 [ℹ]  waiting for requested "LoggingUpdate" in cluster "test-eks" to succeed
+2021-04-06 13:54:14 [ℹ]  waiting for requested "LoggingUpdate" in cluster "test-eks" to succeed
+2021-04-06 13:54:33 [ℹ]  waiting for requested "LoggingUpdate" in cluster "test-eks" to succeed
+2021-04-06 13:54:34 [✔]  configured CloudWatch logging for cluster "test-eks" in "us-west-2" (enabled types: audit, authenticator, controllerManager & disabled types
+: api, scheduler)
+2021-04-06 13:54:34 [ℹ]  building nodegroup stack "eksctl-test-eks-nodegroup-overhead"
+2021-04-06 13:54:34 [ℹ]  deploying stack "eksctl-test-eks-nodegroup-overhead"
+2021-04-06 13:54:34 [ℹ]  waiting for CloudFormation stack "eksctl-test-eks-nodegroup-overhead"
+2021-04-06 13:54:50 [ℹ]  waiting for CloudFormation stack "eksctl-test-eks-nodegroup-overhead"
+...
+2021-04-06 13:57:48 [ℹ]  waiting for CloudFormation stack "eksctl-test-eks-nodegroup-overhead"
+2021-04-06 13:58:06 [ℹ]  waiting for CloudFormation stack "eksctl-test-eks-nodegroup-overhead"
+2021-04-06 13:58:06 [ℹ]  waiting for the control plane availability...
+2021-04-06 13:58:06 [✔]  saved kubeconfig as "/home/kmutch/.kube/config"
+2021-04-06 13:58:06 [ℹ]  no tasks
+2021-04-06 13:58:06 [✔]  all EKS cluster resources for "test-eks" have been created
+2021-04-06 13:58:06 [ℹ]  adding identity "arn:aws:iam::613076437200:role/eksctl-test-eks-nodegroup-overhea-NodeInstanceRole-Q1RVPO36W4VJ" to auth ConfigMap
+2021-04-06 13:58:08 [ℹ]  kubectl command should work with "/home/kmutch/.kube/config", try 'kubectl get nodes'
+2021-04-06 13:58:08 [✔]  EKS cluster "test-eks" in "us-west-2" region is ready
+<b>kubectl get pods --namespace kube-system</b>
+NAME                       READY   STATUS    RESTARTS   AGE
+coredns-6548845887-h82sj   1/1     Running   0          10m
+coredns-6548845887-wz7dm   1/1     Running   0          10m
+</code></pre>
+
+Now the auto scaler can be deployed.
+
+```
+<pre><code><b>
+kubectl apply -f eks-scaler.yaml</b>
+serviceaccount/cluster-autoscaler created
+clusterrole.rbac.authorization.k8s.io/cluster-autoscaler created
+role.rbac.authorization.k8s.io/cluster-autoscaler created
+clusterrolebinding.rbac.authorization.k8s.io/cluster-autoscaler created
+rolebinding.rbac.authorization.k8s.io/cluster-autoscaler created
+deployment.apps/cluster-autoscaler created
+</code></pre>
+
 #### Using kops
 
 If you are using azure or GCP then options such as acs-engine, and skaffold are natively supported by the cloud vendors and written in Go so are readily usable and can be easily customized and maintained and so these are recommended for those cases.
@@ -284,20 +374,26 @@ done;
 
 The initial cluster spinup will take sometime, use kops commands such as 'kops validate cluster' to determine when the cluster is spun up ready for Istio and the platform services.
 
-## Istio 1.8.x
+## Istio 1.9.x
 
 Istio affords a control layer on top of the k8s data plane.  Instructions for deploying Istio are the vanilla instructions that can be found at, https://istio.io/docs/setup/getting-started/#install.  Istio was at one time a Helm based installation but has since moved to using its own methodology, this is the reason we dont use arkade to install it.
 
 <pre><code><b>cd ~
-curl -LO https://github.com/istio/istio/releases/download/1.8.1/istio-1.8.1-linux.tar.gz
-tar xzf istio-1.8.1-linux.tar.gz
-export ISTIO_DIR=`pwd`/istio-1.8.1
+curl -LO https://github.com/istio/istio/releases/download/1.9.2/istio-1.9.2-linux-amd64.tar.gz
+tar xzf istio-1.9.2-linux-amd64.tar.gz
+export ISTIO_DIR=`pwd`/istio-1.9.2
 export PATH=$ISTIO_DIR/bin:$PATH
 cd -
 istioctl install --set profile=demo -y 
 </b>
-
 </code></pre>
+
+In order to access you cluster you will need to define some environment variables that will be used later in these instructions:
+
+<pre><code><b>
+export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
+export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
+</b></code></pre>
 
 ## Helm 3 Kubernetes package manager
 
@@ -417,7 +513,7 @@ The experiment service Honeycomb observability solution uses a key to access Dat
 export O11Y_DATASET=platform-services
 </b></code></pre>
 
-The services also use a postgres Database instance to persist experiment data.  The following shows an example of what should be defined for Postgres support prior to running the stencil command:
+The services also use a postgres Database instance to persist experiment data, this is installed later in the process.  The following shows an example of what should be defined for Postgres support prior to running the stencil command:
 
 <pre><code><b>export PGRELEASE=$USER-poc
 export PGHOST=$PGRELEASE-postgresql.default.svc.cluster.local
@@ -449,11 +545,20 @@ kubectl create -n istio-system secret generic platform-services-tls-cert \
     --from-file=cert=./minica/platform-services.cognizant-ai.net/cert.pem
 </b></code></pre>
 
-In order to access you cluster you will need to define some environment variables that will be used later in these instruction:
+## Deploying the Istio Ingress configuration
+
+Istio provides an ingress resource that can be used to secure the service using either secrets (certificates) or using cloud provider provisioned certificates.
+
+Using your own secrets you will use the default ingress yaml that will point at the platform-services-tls-cert Kubernetes provisioned in the previous section.
 
 <pre><code><b>
-export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
-export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
+kubectl apply -f ingress.yaml
+</b></code></pre>
+
+If you are using AWS to provision certificates to secure the ingress connections then use aws-ingress.yaml
+
+<pre><code><b>
+kubectl apply -f aws-ingress.yaml
 </b></code></pre>
 
 ## Deploying the Observability proxy server

@@ -1,71 +1,3 @@
-# The ingress block is used to route requests using path prefix strings.  The downstream
-# example uses the protoc file package name and then followed by the name of the service
-# from the same protoc file with a dot seperator, a gRPC standard.  The trailing /.* is Istio 
-# version specific to 0.7.1 and is being changed on a regular basis, it indicates prefix based
-# matching but will change in the future to using a Gateway approach, please read
-# https://istio.io/docs/tasks/traffic-management/ingress.html
-#
-# URL paths for formed in gRPC using '[package].[service]/[method]'. gRPC documentation
-# on the topic can be found at, https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md
-#
-# The empty prefix is used to allow the default route to the experiment service
-# so that reflection, and health checking is defaulted to it.
-#
-apiVersion: networking.istio.io/v1alpha3
-kind: Gateway
-metadata:
-  name: ingress-gateway
-spec:
-  selector:
-    istio: ingressgateway # use istio default controller
-  servers:
-  - port:
-      number: 80
-      name: http
-      protocol: HTTP
-    hosts:
-    - "*"
-    tls:
-      httpsRedirect: true
-  - port:
-      number: 443
-      name: grpc
-      protocol: HTTPS
-    hosts:
-    - "*"
-    tls:
-      mode: SIMPLE
-      credentialName: "platform-services-tls-cert"
----
-apiVersion: security.istio.io/v1beta1
-kind: RequestAuthentication
-metadata:
-  name: experiment-auth-policy
-  namespace: istio-system
-spec:
-  selector:
-    matchLabels:
-      istio: ingressgateway
-  jwtRules:
-    - issuer: "https://cognizant-ai.auth0.com/"
-      jwksUri: "https://cognizant-ai.auth0.com/.well-known/jwks.json"
-      audiences:
-        - "http://api.cognizant-ai.dev/experimentsrv"
----
-apiVersion: security.istio.io/v1beta1
-kind: AuthorizationPolicy
-metadata:
-  name: require-jwt
-spec:
-  selector:
-    matchLabels:
-      app: experiment
-  action: ALLOW
-  rules:
-  - from:
-    - source:
-       requestPrincipals: ["https://cognizant-ai.auth0.com//auth0|5dd5df076288170d281d4a09"]
----
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
@@ -94,14 +26,6 @@ spec:
   trafficPolicy:
     tls:
       mode: ISTIO_MUTUAL
----
-apiVersion: "security.istio.io/v1beta1"
-kind: "PeerAuthentication"
-metadata:
-  name: "default"
-spec:
-  mtls:
-    mode: STRICT
 ---
 apiVersion: v1
 kind: Service
@@ -196,37 +120,6 @@ spec:
             secretKeyRef:
               name: honeycomb-key
               key: dataset
----
-apiVersion: networking.istio.io/v1alpha3
-kind: ServiceEntry
-metadata:
-  name: auth0-egress
-spec:
-  hosts:
-  - "cognizant-ai.auth0.com"
-  ports:
-  - number: 443
-    name: https
-    protocol: HTTPS
-  - number: 80
-    name: http
-    protocol: HTTP
-  resolution: DNS
-  location: MESH_EXTERNAL
----
-apiVersion: networking.istio.io/v1alpha3
-kind: ServiceEntry
-metadata:
-  name: honeycomb-egress
-spec:
-  hosts:
-  - "api.honeycomb.io"
-  ports:
-  - number: 443
-    name: https
-    protocol: HTTPS
-  resolution: DNS
-  location: MESH_EXTERNAL
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: ServiceEntry
