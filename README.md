@@ -287,7 +287,6 @@ coredns-6548845887-wz7dm   1/1     Running   0          10m
 
 Now the auto scaler can be deployed.
 
-```
 <pre><code><b>
 kubectl apply -f eks-scaler.yaml</b>
 serviceaccount/cluster-autoscaler created
