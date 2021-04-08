@@ -9,7 +9,7 @@ require (
 	github.com/Masterminds/squirrel v1.1.0
 	github.com/aokoli/goutils v1.1.1 // indirect
 	github.com/auth0-community/go-auth0 v1.0.0
-	github.com/aws/aws-sdk-go v1.38.14 // indirect
+	github.com/aws/aws-sdk-go v1.38.15 // indirect
 	github.com/containerd/containerd v1.4.4 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
@@ -67,7 +67,7 @@ require (
 	golang.org/x/text v0.3.6 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/genproto v0.0.0-20210406143921-e86de6bf7a46 // indirect
-	google.golang.org/grpc v1.36.1
+	google.golang.org/grpc v1.37.0
 	google.golang.org/protobuf v1.26.0
 	gopkg.in/square/go-jose.v2 v2.5.1
 )

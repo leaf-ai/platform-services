@@ -20,7 +20,7 @@ github.com/asaskevich/govalidator
 # github.com/auth0-community/go-auth0 v1.0.0
 ## explicit
 github.com/auth0-community/go-auth0
-# github.com/aws/aws-sdk-go v1.38.14
+# github.com/aws/aws-sdk-go v1.38.15
 ## explicit
 # github.com/containerd/containerd v1.4.4
 ## explicit
@@ -279,7 +279,7 @@ google.golang.org/appengine/urlfetch
 # google.golang.org/genproto v0.0.0-20210406143921-e86de6bf7a46
 ## explicit
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.36.1
+# google.golang.org/grpc v1.37.0
 ## explicit
 google.golang.org/grpc
 google.golang.org/grpc/attributes

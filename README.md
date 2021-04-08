@@ -419,10 +419,11 @@ This section describes how to secure traffic into the service mesh ingress.  Let
 Minica is a simple CA intended for use in situations where the CA operator also operates each host where a certificate will be used. It automatically generates both a key and a certificate when asked to produce a certificate. It does not offer OCSP or CRL services. Minica is appropriate, for instance, for generating certificates for RPC systems or microservices.
 
 More information about minica can be found at, https://github.com/jsha/minica.
-```
+
+<pre><code>
 $ go get github.com/jsha/minica
 go: downloading github.com/jsha/minica v1.0.2
-go: github.com/jsha/minica upgrade => v1.0.2
+go: github.com/jsha/minica upgrade =&lt; v1.0.2
 $ mkdir minica
 $ cd minica
 $ minica --domain platform-services.cognizant-ai.net
@@ -436,8 +437,7 @@ minica
     └── key.pem
 
 1 directory, 4 filess
-$
-```
+</code></pre>
 
 ### Lets Encrypt
 
@@ -549,6 +549,8 @@ kubectl create -n istio-system secret generic platform-services-tls-cert \
     --from-file=key=./minica/platform-services.cognizant-ai.net/key.pem \
     --from-file=cert=./minica/platform-services.cognizant-ai.net/cert.pem
 </b></code></pre>
+
+If you are using AWS ACM to manage your certificates the platform-services-tls-cert secret is not required.
 
 ## Deploying the Istio Ingress configuration
 
@@ -687,7 +689,7 @@ Now we are in a position to generate the certificate:
 }}]
 }
 EOF
-<b>aws route53 change-resource-record-sets --hosted-zone-id Z1UZMEEDVXVHH3  --change-batch file://changes.json</b>
+aws route53 change-resource-record-sets --hosted-zone-id Z1UZMEEDVXVHH3  --change-batch file://changes.json</b>
 {
     "ChangeInfo": {
         "Id": "/change/C084369336HI4IZ12CDU9",
