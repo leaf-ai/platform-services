@@ -384,8 +384,13 @@ tar xzf istio-1.9.2-linux-amd64.tar.gz
 export ISTIO_DIR=`pwd`/istio-1.9.2
 export PATH=$ISTIO_DIR/bin:$PATH
 cd -
-istioctl install --set profile=demo -y 
+istioctl install --set profile=demo -y
 </b>
+✔ Istio core installed
+✔ Istiod installed
+✔ Egress gateways installed
+✔ Ingress gateways installed
+✔ Installation complete
 </code></pre>
 
 In order to access you cluster you will need to define some environment variables that will be used later in these instructions:
@@ -555,11 +560,274 @@ Using your own secrets you will use the default ingress yaml that will point at 
 kubectl apply -f ingress.yaml
 </b></code></pre>
 
+### Deploying using AWS Route 53 and ACM Public CA
+
+Create a DNS hosted zone for your cluster.  Add an A record for your clusters ingress that points at your cluster using the load balancer address identified via the following commands:
+
+<pre><code><b>
+kubectl get svc istio-ingressgateway -n istio-system</b>
+NAME                   TYPE           CLUSTER-IP     EXTERNAL-IP                                                               PORT(S)
+                                       AGE
+istio-ingressgateway   LoadBalancer   10.100.90.52   acaaf2fd65f1844b09ed91ee1b409811-1454371712.us-west-2.elb.amazonaws.com   15021:31220/TCP,80:31317/TCP,443:31536/TCP,31400:31243/TCP,15443:30506/TCP   38s
+<b>nslookup</b>
+> <b>acaaf2fd65f1844b09ed91ee1b409811-1454371712.us-west-2.elb.amazonaws.com</b>
+Server:         127.0.0.53
+Address:        127.0.0.53#53
+
+Non-authoritative answer:
+Name:   acaaf2fd65f1844b09ed91ee1b409811-1454371712.us-west-2.elb.amazonaws.com
+Address: 35.163.132.217
+Name:   acaaf2fd65f1844b09ed91ee1b409811-1454371712.us-west-2.elb.amazonaws.com
+Address: 54.70.157.123
+> <b>[ENTER]</b>
+<b>cat <<EOF >changes.json
+{
+            "Comment": "Add LB to the Route53 records so that certificates can be validated against the host name ",
+            "Changes": [{
+            "Action": "UPSERT",
+                        "ResourceRecordSet": {
+                                    "Name": "platform-services.cognizant-ai.net",
+                                    "Type": "A",
+                                    "TTL": 300,
+                                 "ResourceRecords": [{ "Value": "35.163.132.217"}, {"Value": "54.70.157.123"}]
+}}]
+}
+EOF
+aws route53 list-hosted-zones-by-name --dns-name cognizant-ai.net</b>
+
+{
+    "HostedZones": [
+        {
+            "Id": "/hostedzone/Z1UZMEEDVXVHH3",
+            "Name": "cognizant-ai.net.",
+            "CallerReference": "RISWorkflow-RD:97f5f182-4b86-41f1-9a24-46218ab70d25",
+            "Config": {
+                "Comment": "HostedZone created by Route53 Registrar",
+                "PrivateZone": false
+            },
+            "ResourceRecordSetCount": 16
+        }
+    ],
+    "DNSName": "cognizant-ai.net",
+    "IsTruncated": false,
+    "MaxItems": "100"
+}
+<b>aws route53 change-resource-record-sets --hosted-zone-id Z1UZMEEDVXVHH3  --change-batch file://changes.json</b>
+{
+    "ChangeInfo": {
+        "Id": "/change/C029593935XMLAA0T5OHH",
+        "Status": "PENDING",
+        "SubmittedAt": "2021-04-07T22:12:17.619Z",
+        "Comment": "Add LB to the Route53 records so that certificates can be validated against the host name "
+    }
+}
+<b>aws route53  get-change --id /change/C029593935XMLAA0T5OHH</b>
+{
+    "ChangeInfo": {
+        "Id": "/change/C029593935XMLAA0T5OHH",
+        "Status": "INSYNC",
+        "SubmittedAt": "2021-04-07T22:12:17.619Z",
+        "Comment": "Add LB to the Route53 records so that certificates can be validated against the host name "
+    }
+}
+</code></pre>
+
+Now we are in a position to generate the certificate:
+<pre><code>
+<b>aws acm request-certificate --domain-name platform-services.cognizant-ai.net --validation-method DNS --idempotency-token 1234</b>
+{
+    "CertificateArn": "arn:aws:acm:us-west-2:613076437200:certificate/dcd2ca31-f27c-45ac-85a7-539688f8e4cb"
+}
+{
+    "Certificate": {
+        "CertificateArn": "arn:aws:acm:us-west-2:613076437200:certificate/dcd2ca31-f27c-45ac-85a7-539688f8e4cb",
+        "DomainName": "platform-services.cognizant-ai.net",
+        "SubjectAlternativeNames": [
+            "platform-services.cognizant-ai.net"
+        ],
+        "DomainValidationOptions": [
+            {
+                "DomainName": "platform-services.cognizant-ai.net",
+                "ValidationDomain": "platform-services.cognizant-ai.net",
+                "ValidationStatus": "PENDING_VALIDATION",
+                "ResourceRecord": {
+                    "Name": "_a9d4b51d79d2b08121a0796cbfbb7a68.platform-services.cognizant-ai.net.",
+                    "Type": "CNAME",
+                    "Value": "_e327e9f51160630a9f0056fd3eb56a74.bbfvkzsszw.acm-validations.aws."
+                },
+                "ValidationMethod": "DNS"
+            }
+        ],
+        "Subject": "CN=platform-services.cognizant-ai.net",
+        "Issuer": "Amazon",
+        "CreatedAt": 1617837918.0,
+        "Status": "PENDING_VALIDATION",
+        "KeyAlgorithm": "RSA-2048",
+        "SignatureAlgorithm": "SHA256WITHRSA",
+        "InUseBy": [],
+        "Type": "AMAZON_ISSUED",
+        "KeyUsages": [],
+        "ExtendedKeyUsages": [],
+        "RenewalEligibility": "INELIGIBLE",
+        "Options": {
+            "CertificateTransparencyLoggingPreference": "ENABLED"
+        }
+    }
+}
+<b>cat <<EOF >changes.json
+{
+            "Comment": "Add the certificate issuance validation to the Route53 records so that certificates can be validated",
+            "Changes": [{
+            "Action": "UPSERT",
+                        "ResourceRecordSet": {
+                                 "Name": "_a9d4b51d79d2b08121a0796cbfbb7a68.platform-services.cognizant-ai.net.",
+                                 "Type": "CNAME",
+                                 "TTL": 300,
+                                 "ResourceRecords": [{ "Value": "_e327e9f51160630a9f0056fd3eb56a74.bbfvkzsszw.acm-validations.aws."}]
+}}]
+}
+EOF
+<b>aws route53 change-resource-record-sets --hosted-zone-id Z1UZMEEDVXVHH3  --change-batch file://changes.json</b>
+{
+    "ChangeInfo": {
+        "Id": "/change/C084369336HI4IZ12CDU9",
+        "Status": "PENDING",
+        "SubmittedAt": "2021-04-07T23:46:04.831Z",
+        "Comment": "Add the certificate issuance validation to the Route53 records so that certificates can be validated"
+    }
+}
+<b>aws route53  get-change --id /change/C084369336HI4IZ12CDU9</b>
+{
+    "ChangeInfo": {
+        "Id": "/change/C084369336HI4IZ12CDU9",
+        "Status": "INSYNC",
+        "SubmittedAt": "2021-04-07T23:46:04.831Z",
+        "Comment": "Add the certificate issuance validation to the Route53 records so that certificates can be validated"
+    }
+}
+# Now we wait for the certificate to be issued:
+<b>aws acm describe-certificate --certificate-arn arn:aws:acm:us-west-2:613076437200:certificate/dcd2ca31-f27c-45ac-85a7-539688f8e4cb<b>
+{
+    "Certificate": {
+        "CertificateArn": "arn:aws:acm:us-west-2:613076437200:certificate/dcd2ca31-f27c-45ac-85a7-539688f8e4cb",
+        "DomainName": "platform-services.cognizant-ai.net",
+        "SubjectAlternativeNames": [
+            "platform-services.cognizant-ai.net"
+        ],
+        "DomainValidationOptions": [
+            {
+                "DomainName": "platform-services.cognizant-ai.net",
+                "ValidationDomain": "platform-services.cognizant-ai.net",
+                "ValidationStatus": "SUCCESS",
+                "ResourceRecord": {
+                    "Name": "_a9d4b51d79d2b08121a0796cbfbb7a68.platform-services.cognizant-ai.net.",
+                    "Type": "CNAME",
+                    "Value": "_e327e9f51160630a9f0056fd3eb56a74.bbfvkzsszw.acm-validations.aws."
+                },
+                "ValidationMethod": "DNS"
+            }
+        ],
+        "Serial": "07:df:33:6b:78:11:e2:a3:ee:f1:54:51:3f:81:78:28",
+        "Subject": "CN=platform-services.cognizant-ai.net",
+        "Issuer": "Amazon",
+        "CreatedAt": 1617837918.0,
+        "IssuedAt": 1617839861.0,
+        "Status": "ISSUED",
+        "NotBefore": 1617753600.0,
+        "NotAfter": 1651881599.0,
+        "KeyAlgorithm": "RSA-2048",
+        "SignatureAlgorithm": "SHA256WITHRSA",
+        "InUseBy": [],
+        "Type": "AMAZON_ISSUED",
+        "KeyUsages": [
+            {
+                "Name": "DIGITAL_SIGNATURE"
+            },
+            {
+                "Name": "KEY_ENCIPHERMENT"
+            }
+        ],
+        "ExtendedKeyUsages": [
+            {
+                "Name": "TLS_WEB_SERVER_AUTHENTICATION",
+                "OID": "1.3.6.1.5.5.7.3.1"
+            },
+            {
+                "Name": "TLS_WEB_CLIENT_AUTHENTICATION",
+                "OID": "1.3.6.1.5.5.7.3.2"
+            }
+        ],
+        "RenewalEligibility": "INELIGIBLE",
+        "Options": {
+            "CertificateTransparencyLoggingPreference": "ENABLED"
+        }
+    }
+}
+</code></pre>
+
 If you are using AWS to provision certificates to secure the ingress connections then use aws-ingress.yaml
 
 <pre><code><b>
 kubectl apply -f aws-ingress.yaml
 </b></code></pre>
+
+Then we patch the ingress so that it uses our newly issued ACM certificate via the AWS ARN.
+
+<pre><code>
+<b>arn="arn:aws:acm:us-west-2:613076437200:certificate/dcd2ca31-f27c-45ac-85a7-539688f8e4cb"</b>
+<b>kubectl -n istio-system patch service istio-ingressgateway --patch "$(cat<<EOF
+metadata:
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: $arn
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "https"
+    service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "3600"
+EOF
+)"</b>
+</code></pre>
+
+
+A test of the certificate on an empty ingress will then appear as follows:
+
+<pre><code>
+<b>curl -Iv https://platform-services.cognizant-ai.net</b>
+* Rebuilt URL to: https://platform-services.cognizant-ai.net/
+*   Trying 35.163.132.217...
+* TCP_NODELAY set
+* Connected to platform-services.cognizant-ai.net (35.163.132.217) port 443 (#0)
+* ALPN, offering h2
+* ALPN, offering http/1.1
+* successfully set certificate verify locations:
+*   CAfile: /etc/ssl/certs/ca-certificates.crt
+  CApath: /etc/ssl/certs
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+* TLSv1.2 (IN), TLS handshake, Certificate (11):
+* TLSv1.2 (IN), TLS handshake, Server key exchange (12):
+* TLSv1.2 (IN), TLS handshake, Server finished (14):
+* TLSv1.2 (OUT), TLS handshake, Client key exchange (16):
+* TLSv1.2 (OUT), TLS change cipher, Client hello (1):
+* TLSv1.2 (OUT), TLS handshake, Finished (20):
+* TLSv1.2 (IN), TLS handshake, Finished (20):
+* SSL connection using TLSv1.2 / ECDHE-RSA-AES128-GCM-SHA256
+* ALPN, server did not agree to a protocol
+* Server certificate:
+*  subject: CN=platform-services.cognizant-ai.net
+*  start date: Apr  7 00:00:00 2021 GMT
+*  expire date: May  6 23:59:59 2022 GMT
+*  subjectAltName: host "platform-services.cognizant-ai.net" matched cert's "platform-services.cognizant-ai.net"
+*  issuer: C=US; O=Amazon; OU=Server CA 1B; CN=Amazon
+*  SSL certificate verify ok.
+> HEAD / HTTP/1.1
+> Host: platform-services.cognizant-ai.net
+> User-Agent: curl/7.58.0
+> Accept: */*
+>
+* TLSv1.2 (IN), TLS alert, Client hello (1):
+* Empty reply from server
+* Connection #0 to host platform-services.cognizant-ai.net left intact
+curl: (52) Empty reply from server
+</code></pre>
 
 ## Deploying the Observability proxy server
 

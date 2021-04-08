@@ -33,9 +33,6 @@ spec:
       protocol: HTTPS
     hosts:
     - "*"
-    tls:
-      mode: SIMPLE
-      credentialName: "platform-services-tls-cert"
 ---
 apiVersion: security.istio.io/v1beta1
 kind: RequestAuthentication
