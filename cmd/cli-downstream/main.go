@@ -36,8 +36,8 @@ func main() {
 		logger.Fatal(fmt.Sprint(errors.Wrap(errGo).With("address", *serverAddr).With("stack", stack.Trace().TrimRuntime())))
 	}
 	defer conn.Close()
-	client := downstream.NewServiceClient(conn)
- This code shows an
+	client := downstream.NewDownstreamClient(conn)
+
 	response, errGo := client.Ping(context.Background(), &downstream.PingRequest{})
 	if errGo != nil {
 		logger.Error(fmt.Sprint(errors.Wrap(errGo).With("address", *serverAddr).With("stack", stack.Trace().TrimRuntime())))

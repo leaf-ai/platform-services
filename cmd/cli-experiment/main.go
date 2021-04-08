@@ -59,7 +59,7 @@ func main() {
 		logger.Fatal(fmt.Sprint(errors.Wrap(errGo).With("address", *serverAddr).With("stack", stack.Trace().TrimRuntime())))
 	}
 	defer conn.Close()
-	client := experimentsrv.NewServiceClient(conn)
+	client := experimentsrv.NewExperimentsClient(conn)
 
 	response, errGo := client.MeshCheck(context.Background(), &experimentsrv.CheckRequest{Live: true})
 	if errGo != nil {
